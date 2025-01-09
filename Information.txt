@@ -1,0 +1,310 @@
+Intranet
+
+Aktuelle Struktur
+Unternehmen     -> Unternehmenskultur, Strategische Ausrichtung BLWE, Unternehmenskalender
+Standort Wetter -> Organigramm, Rollen / Verantwortlichkeiten / Regeln
+                -> Ausbildung, Arbeitsschutz, Beschaffung, Betriebsrat
+                -> Finanzen, IT, Konstruktion, Personal, PMO, Qualität
+                -> Links und Dokumente, Datenschutz, Hinweisgebersystem
+                -> Ausschussauswertung
+Karriere        -> BLEISTAHL Karriereportal, Stellenangebote
+Managmentsystem
+
+
+
+
+
+NEW
+
+Hauptinhalte:
+Startseite mit aktuellen Unternehmensneuigkeiten und wichtigen Ankündigungen
+Mitarbeiterverzeichnis mit Kontaktdaten und Abteilungszugehörigkeit
+Dokumentenbibliothek für interne Formulare, Richtlinien und Handbücher
+Abteilungsseiten mit spezifischen Informationen und Ressourcen
+
+
+
+Responsive und sollte auf allen Geräten nutzbar sein
+
+
+
+
+
+Unterschiede zwischen Wordpress und einem Javascript-Framework:
+Datenbankstruktur, Ein Admin-Dashboard, mit dem Benutzer Inhalte erstellen und verwalten können,
+Ein "Upload" für Bilder, Dokumente, Benutzeranmeldung und Authentifizierung (wahrscheinlich meine Wahl JWT),
+Benutzerrollen
+
+
+
+
+______Q-Matrix_______
+
+
+Schulung soll mit rein(?)
+Schulung soll an dem Mitarbeiter dran hängen.
+
+Sondertätigkeiten: wie Staplerfahrer (an denen soll auch die Schulung hängen)
+
+
+Jeder soll seine eigene Schulung sehen können
+Auswertung für den Mitarbeiter und für Vorgesetzte (welche Schulungen sind noch offen, welche sind abgeschlossen)
+
+
+Sperrung des Users:
+	Wenn keine Tätigkeit angegeben ist -> sperre
+	
+
+Staplerfahrer muss in einer Historie zu sehen sein (qualitfikationen)
+Qualifikationen können den Mitarbeitern ODER Tätigkeit oder der Abteilung
+Freiequalifikation (SoSafe ist ne reine Tätigkeitsqualifikation -> (Die müssen aktiviert werden)) 
+Sonderqualifikation (Ersthelfer, Bereichsleiter)
+Wenn der Mitarbeiter ein 
+
+
+
+Eine Übersicht über die aktuellen Schulungen oder auch abgelaufenen Schulungen für den Nutzer
+
+
+
+
+
+
+
+Diagramm(?) erstellen über das was ich machen soll
+22.01.
+
+Das ganze Projekt soll im Web aufrufbar sein, am besten ein Javascript Webframework wie React nutzen.
+
+Jeder Mitarbeiter hat Schulungen die er absolvieren muss, diese Schulungen sollen auf jeden Mitarbeiter einzeln angewendet werden.
+Jeder Mitarbeiter sieht nur seine eigenen Schulungen die er schon absolviert hat oder noch zu absolvieren hat (am besten mit einem Filter arbeiten)
+Änderungen wie abschluss der Schulung darf NUR von Vorgesetzten gesehen. Da wird ein Rechte-System benötigt (Daten werden von ausserhalb abgegriffen)
+Die Auswertung sollte jeder Mitarbeiter selber einsehen können, sowie der Vorgesetzte soll die Möglichkeit bekommen sich seine Mitarbeiter anzeigen zu lassen
+und eine Information darüber erhalten, welche Schulungen als nächstes fällig sind, sofern diese in den nächsten 2 Monaten anliegt.
+
+Sperrung des Mitarbeiters
+Ansonsten wenn die Sperrung in der Q-Matrix gewünscht ist, den Abteilungsleiter/Vorgesetzten die Möglichkeit geben den Mitarbeiter für den Zugang zum Q-Matrix
+zu sperren und wahlweise vielleicht auch den Zugang zum Atoss
+Ansonsten kann der Mitabeiter auch automatisch gesperrt werden, wenn eine Schulung abgelaufen ist bzw. als rot markiert wid. 
+Der Mitarbeiter sollte am beste auch vorher darüber informiert werden nachdem Login welche Module bzw. welche Qualifikationen ihm noch fehlen und welche bald
+abgelaufen sind und das sein Konto somit gesperrt wird.
+
+Wenn die Tätigkeit eines Mitarbeiters verändert wird, soll er alle Qualifikationen behalten die er schon erlangt hat und alle neuen Qualifikationen bekommen.
+
+Für die einzelnen Schulungen die Freigegeben werden können für die Mitarbeiter eine Tätigkeit, sollen Informationen stehen was ungefähr die Schulung beinhaltet,
+wer diese Schulung durchführt. Die Schulungen sollen eventuell auch selber gebucht werden können, beim Buchen soll der Vorgesetzte eine Information bekommen
+oder das ganze bestätigen können mit einem Termin für die Schulung.
+
+Alles soll in einer History für den Mitarbeiter und für den Vorgesetzten einsehbar sein.
+
+(Woher kommen die Schulungen?)
+SoSafe hat eine API die verwendet werden könnte
+
+Sperrung des Mitarbeiters 
+was genau hab ich damit was zu tun? Wenn der Login über's Atoss erfolgt, könnte man dort immer wieder validieren ob es den Benutzer überhaupt gibt
+und bei einer Sperrung würde dies ja false sein
+
+Nehmen mehrere an so einer Schulung dran teil? (Gibt es dort eine maximale Anzahl an plätzen oder ist das "egal")
+Gibt es beim Pincode/Passwort auch Leute mit mehr als 4 Zeichen?
+
+
+
+Login wird wahrscheinlich über'n AD laufen bzw. ODER es muss per Email oder wie auch immer ein extra Zugang geschaffen werden.
+
+
+
+
+Mögliche Optimierungen:
+Such- oder Filterfunktion für Mitarbeiter und für schulungen.
+
+
+
+
+Ziele:
+ - Ein Schulungsverzug darf zu keinem Zeitpunkt an irgendeiner Stelle vorliegen bzw. Es darf zu keinem Zeitpunkt an irgendeiner Stelle etwas "rot" sein.
+ - eindeutige Verantwortlichkeiten
+ - Es wird pro Mitarbeiter nur das angezeigt, was notwendig ist.
+ - Es wird nur das geschult, was notwendig ist.
+ - Änderungen dürfen nur von zuvor definierten Mitarbeitern durchgeführt werden.
+ - Der Mitarbeiter steht im Mittelpunkt.
+ - Auswertungen über Mitarbeiter und Schulungen sollten ohne großen Aufwand generiert werden.
+
+Wann ist ein Mitarbeiter zu sperren?
+ - Der Mitarbeiter ist in der Q-Matrix nicht aufgeführt.
+ - Dem Mitarbeiter ist keine Tätigkeit zugeordnet worden.
+ - Eine Schulung steht auf "rot".
+
+Weitere notwendige Funktionen:
+ - bei Änderung der Tätigkeit, Mitarbeiter behält auch alle zuvor erlangten Qualis und zieht die noch notwendigen mit
+
+offene Themen:
+ - Was wollen/können wir über sosafe abbilden?
+ - Koordination von Pflichtschulungen
+ - Informationsfluss Q-Matrix an Atoss nicht möglich
+ - Wer pflegt bei externen Schulungen -> HR?
+ - Möglichkeit nur pro Schulung bzw. pro Protokoll einzutragen!!!
+ - Auflistung aller Trainer pro Schulung
+ - Angebote für einzelne Schulungen in der Q-Matrix anzeigen und buchen
+	wie buchen? wo soll das eingetragen werden? Es sind nicht nur SoSafe Schulungen?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Entwickle eine webbasierte Qualifikationsmatrix (Q-Matrix) mit React als Frontend-Framework unter folgenden Anforderungen:
+
+Benutzerrollen und Berechtigungen:
+- Implementiere zwei Hauptrollen: Mitarbeiter und Vorgesetzte
+- Login via Personal Nummer und Passwort
+- Automatische Validierung des Benutzerstatus bei jedem Login
+
+Mitarbeiter-Funktionen:
+- Persönliche Übersicht aller zugewiesenen Schulungen
+- Filterbare Ansicht nach Status (absolviert/ausstehend)
+- Anzeige von Ablaufwarnungen für Qualifikationen (2 Monate Vorlauf)
+- Buchungsportal für verfügbare Schulungen
+- Einsicht in persönliche Schulungshistorie
+- Dashboard mit Warnhinweisen zu ablaufenden/fehlenden Qualifikationen
+
+Vorgesetzten-Funktionen:
+- Übersicht aller zugeordneten Mitarbeiter
+- Verwaltung von Schulungsabschlüssen
+- Genehmigungsprozess für Schulungsbuchungen
+- Sperrmanagement für Mitarbeiterzugänge
+- Detaillierte Auswertungen pro Mitarbeiter
+- Gesamthistorie aller Qualifikationsänderungen
+
+Schulungsmanagement:
+- Detaillierte Schulungsbeschreibungen
+- Angaben zu Durchführenden/Trainern
+- Automatische Qualifikationsanpassung bei Tätigkeitswechsel
+- Buchungssystem mit Terminverwaltung
+- Automatische Benachrichtigungen bei relevanten Ereignissen
+
+Sicherheitsfunktionen:
+- Automatische Kontosperrung bei abgelaufenen Pflichtschulungen
+- Vorwarnungssystem für ablaufende Qualifikationen
+- Protokollierung aller Änderungen in der Historie
+
+Technische Anforderungen:
+- Responsive Design für verschiedene Endgeräte
+- Externe Datenschnittstelle für Benutzerdaten
+- Sicheres Rechtesystem mit Rollenverwaltung
+- Performante Filterung und Sortierung großer Datensätze
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Entwickeln Sie ein Qualifikationsmanagement-System (QMS) mit folgenden detaillierten Spezifikationen:
+
+1. Benutzeroberflächen
+
+A. Mitarbeiter-Portal
+- Personalisiertes Dashboard mit:
+  * Übersicht aller zugewiesenen Schulungen (aktiv/abgeschlossen/ausstehend)
+  * Fortschrittsanzeige für Pflichtqualifikationen
+  * Kalenderansicht kommender Schulungen
+- Erweiterte Filterfunktionen:
+  * Nach Schulungsstatus (absolviert/ausstehend/in Bearbeitung)
+  * Nach Zeitraum (von-bis)
+  * Nach Schulungstyp (Pflicht/Optional/Fachspezifisch)
+  * Nach Priorität
+- Proaktives Benachrichtigungssystem:
+  * Push-Benachrichtigungen 60 Tage vor Ablauf von Qualifikationen
+  * Wöchentliche E-Mail-Erinnerungen bei fehlenden Pflichtschulungen
+  * Sofortige Warnung bei drohender Kontosperrung (14 Tage vorab)
+- Self-Service-Funktionen:
+  * Buchungsportal für verfügbare Schulungen mit Echtzeitverfügbarkeit
+  * Downloadbereich für Zertifikate und Nachweise
+  * Detaillierte Schulungsbeschreibungen (Lernziele, Dauer, Methodik, Trainer)
+
+B. Vorgesetzten-Dashboard
+- Mitarbeiterverwaltung:
+  * Hierarchische Übersicht aller zugeordneten Mitarbeiter
+  * Qualifikationsmatrix mit Ampelsystem
+  * Automatisierte Compliance-Berichte
+- Administrative Funktionen:
+  * Digitale Abzeichnung von Schulungsabschlüssen
+  * Genehmigungsworkflow für Schulungsanmeldungen
+  * Sperrmanagement mit Eskalationsstufen
+- Monitoring-Tools:
+  * Echtzeit-Warnungen für kritische Qualifikationen
+  * Auslastungsübersicht der Schulungskapazitäten
+  * Prognose-Tool für Qualifikationsbedarfe
+
+2. Technische Anforderungen
+
+A. Systemintegration
+- Dateneinpflege von ATOSS:
+  * Datenaustausch für Personalstammdaten(?)
+  * Synchronisation der Organisationsstruktur
+
+B. Automatisierung
+- Regelbasierte Prozesse:
+  * Automatische Kontosperrung nach definierten Kriterien
+  * Intelligente Qualifikationszuweisung bei Stellenwechsel
+  * Automatische Eskalation bei kritischen Verzögerungen
+
+C. Sicherheit & Compliance
+- Mehrstufiges Berechtigungskonzept:
+  * Rollenbasierte Zugriffssteuerung (RBAC)
+  * Datenschutzkonformes Logging aller Systemaktivitäten
+  * Verschlüsselte Datenspeicherung nach DSGVO
+
+D. Reporting & Analyse
+- Business Intelligence Tools:
+  * Customizable Dashboards
+  * Export-Funktionen (PDF, Excel, CSV)
+  * Automatisierte Compliance-Berichte
+
+Implementieren Sie das System modular und skalierbar, mit Fokus auf Benutzerfreundlichkeit und Performance.
+
+
