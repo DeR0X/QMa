@@ -6,6 +6,7 @@ import { logout } from '../../store/slices/authSlice';
 import { useTheme } from '../theme-provider';
 import { RootState } from '../../store';
 import { getInitials } from '../../lib/utils';
+import NotificationCenter from '../notifications/NotificationCenter';
 
 export default function Header() {
   const dispatch = useDispatch();
@@ -45,14 +46,16 @@ export default function Header() {
             )}
           </button>
 
-          <button
+
+          <NotificationCenter />
+  {/*         <button
             type="button"
             className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
           >
             <span className="sr-only">View notifications</span>
             <Bell className="h-6 w-6" aria-hidden="true" />
           </button>
-
+ */}
           <div className="relative">
             <button
               type="button"

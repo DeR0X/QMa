@@ -15,16 +15,24 @@ import type { Employee } from '../../types';
 interface Props {
   employee: Employee;
   onClose: () => void;
+  approvals: Array<{ trainingId: string; date: string; status: string }>;
+  trainings: Array<{ id: string; title: string }>;
+  handleApproveTraining: (trainingId: string) => void;
+  handleRejectTraining: (trainingId: string) => void;
 }
 
-export default function EmployeeDetails({ employee, onClose }: Props) {
-  const [activeTab, setActiveTab] = useState<'info' | 'performance' | 'documents'>('info');
+export default function EmployeeDetails({ employee, onClose, approvals, trainings, handleApproveTraining, handleRejectTraining }: Props) {
+  const [activeTab, setActiveTab] = useState<'info' | 'performance' | 'documents' | 'approvals'>('info');
+
+
 
   const tabs = [
     { id: 'info', label: 'Information' },
     { id: 'performance', label: 'Performance' },
     { id: 'documents', label: 'Documents' },
-  ] as const;
+    employee.role === 'supervisor' && { id: 'approvals', label: 'Genehmigungen' },
+  ].filter(Boolean) as Array<{ id: 'info' | 'performance' | 'documents' | 'approvals'; label: string }>;
+  
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -96,7 +104,7 @@ export default function EmployeeDetails({ employee, onClose }: Props) {
                     </div>
                     <div className="sm:col-span-2">
                       <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                        Fähigkeite
+                        Fähigkeiten
                       </h4>
                       <div className="flex flex-wrap gap-2">
                         {employee.skills.map((skill) => (
@@ -152,6 +160,54 @@ export default function EmployeeDetails({ employee, onClose }: Props) {
                         </button>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {activeTab === 'approvals' && employee.role === 'supervisor' && (
+                  <div className="space-y-4">
+                    {approvals.map((approval) => {
+                      const training = trainings.find(t => t.id === approval.trainingId);
+                      return (
+                        <div
+                          key={approval.trainingId}
+                          className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                        >
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                              {training?.title}
+                            </h4>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              Beantragt am {new Date(approval.date).toLocaleDateString()}
+                            </p>
+                          </div>
+                          {approval.status === 'ausstehend' && (
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => handleApproveTraining(approval.trainingId)}
+                                className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
+                              >
+                                Genehmigen
+                              </button>
+                              <button
+                                onClick={() => handleRejectTraining(approval.trainingId)}
+                                className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
+                              >
+                                Ablehnen
+                              </button>
+                            </div>
+                          )}
+                          {approval.status !== 'ausstehend' && (
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              approval.status === 'genehmigt'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {approval.status === 'genehmigt' ? 'Genehmigt' : 'Abgelehnt'}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

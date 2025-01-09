@@ -22,7 +22,7 @@ function App() {
         <ThemeProvider>
           <BrowserRouter>
             <AppRoutes />
-            <Toaster position="top-right" />
+            <Toaster position="top-center" />
           </BrowserRouter>
         </ThemeProvider>
       </QueryClientProvider>

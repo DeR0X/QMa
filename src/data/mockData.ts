@@ -1,4 +1,4 @@
-import { User, Training, TrainingBooking, Qualification } from '../types';
+import { User, Training, TrainingBooking, Qualification, QualificationHistory } from '../types';
 
 export const users: User[] = [
   {
@@ -13,6 +13,8 @@ export const users: User[] = [
     isActive: true,
     trainings: ['1', '2'],
     qualifications: ['1'],
+    failedLoginAttempts: 0,
+    requiredQualifications: ['1', '2'],
   },
   {
     id: '2',
@@ -26,10 +28,12 @@ export const users: User[] = [
     isActive: true,
     trainings: ['2'],
     qualifications: ['2'],
+    failedLoginAttempts: 0,
+    requiredQualifications: ['1', '2'],
   },
   {
     id: '3',
-    personalNumber: ' ',
+    personalNumber: '12',
     email: 'jane.smith@company.com',
     name: 'Brian Smith',
     role: 'employee',
@@ -39,10 +43,12 @@ export const users: User[] = [
     isActive: true,
     trainings: ['2'],
     qualifications: ['2'],
+    failedLoginAttempts: 0,
+    requiredQualifications: ['1', '2'],
   },
   {
     id: '4',
-    personalNumber: 'SUP001',
+    personalNumber: '1',
     email: 'michael.brown@company.com',
     name: 'Michael Brown',
     role: 'supervisor',
@@ -51,6 +57,8 @@ export const users: User[] = [
     isActive: true,
     trainings: [],
     qualifications: ['1', '2'],
+    failedLoginAttempts: 0,
+    requiredQualifications: ['1', '2'],
   },
 ];
 
@@ -116,6 +124,26 @@ export const qualifications: Qualification[] = [
   },
 ];
 
+export const qualificationHistory: QualificationHistory[] = [
+  {
+    id: '1',
+    userId: '1',
+    qualificationId: '1',
+    type: 'granted',
+    date: '2023-12-15T10:00:00',
+    approvedBy: '3',
+  },
+  {
+    id: '2',
+    userId: '2',
+    qualificationId: '2',
+    type: 'expired',
+    date: '2024-01-15T10:00:00',
+    reason: 'Qualification period ended',
+    approvedBy: '3',
+  },
+];
+
 export const bookings: TrainingBooking[] = [
   {
     id: '1',
@@ -136,3 +164,4 @@ export const bookings: TrainingBooking[] = [
     createdAt: '2024-02-01T14:30:00',
   },
 ];
+

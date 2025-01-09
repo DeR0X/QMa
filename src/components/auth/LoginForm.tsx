@@ -23,12 +23,12 @@ export default function LoginForm() {
       console.log(error);
       if (!error) {
         navigate('/');
-        toast.success('Willkommen zurück!', {closeButton: true, position: 'bottom-right'});
+        toast.success('Willkommen zurück!');
       } else {
-        toast.error('Anmeldung fehlgeschlagen', {closeButton: true, position: 'bottom-right'});
+        toast.error('Anmeldung fehlgeschlagen');
       }
     } catch (error) {
-      toast.error('ERROR: ' + error, {closeButton: true, position: 'bottom-right'});
+      toast.error('ERROR: ' + error);
     }
   };
 

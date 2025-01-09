@@ -13,13 +13,15 @@ export interface User {
   trainings: string[];
   qualifications: string[];
   avatar?: string;
+  failedLoginAttempts: number;
+  requiredQualifications: string[];
 }
 
 export interface Employee {
   id: string;
   email: string;
   name: string;
-  role: 'mitarbeiter' | 'manager';
+  role: 'mitarbeiter' | 'supervisor';
   department: string;
   position: string;
   startDate: string;
@@ -62,6 +64,18 @@ export interface Qualification {
   requiredTrainings: string[];
   validityPeriod: number; // months
 }
+
+
+export interface QualificationHistory {
+  id: string;
+  userId: string;
+  qualificationId: string;
+  type: string;
+  date: string; // months
+  reason?: string;
+  approvedBy: string;
+}
+
 
 export interface TrainingBooking {
   id: string;

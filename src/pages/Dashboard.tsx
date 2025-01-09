@@ -3,11 +3,11 @@ import {
   GraduationCap, 
   Calendar, 
   AlertTriangle, 
-  CheckCircle2, 
-  Clock, 
   BookOpen,
   Award,
-  X
+  X,
+  CheckCircle,
+  CalendarCheck
 } from 'lucide-react';
 import { RootState } from '../store';
 import { trainings, bookings, qualifications } from '../data/mockData';
@@ -54,22 +54,17 @@ export default function Dashboard() {
     { 
       name: 'Abgeschlossen Schulungen', 
       value: userBookings.filter(b => b.status === 'abgeschlossen').length,
-      icon: CheckCircle2 
+      icon: CheckCircle 
     },
-    { //Schulungen die noch nicht abgeschlossen sind  
-      name: 'Ausstehende Schulungen', 
-      value: pendingBookings.length,
-      icon: Clock 
+    { //Qualifikationen wie Staplerschein, Kranführerschein, etc. 
+      name: 'Genehmigte Schulungen', 
+      value: 0,
+      icon:  CalendarCheck
     },
     { 
       name: 'Verfügbare Schulungen', 
       value: trainings.length - userTrainings.length,
       icon: BookOpen 
-    },
-    { //Qualifikationen wie Staplerschein, Kranführerschein, etc. 
-      name: 'Aktive Qualifikationen', 
-      value: userQualifications.length,
-      icon: Award 
     },
   ];
 
@@ -110,7 +105,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {stats.map((stat) => (
           <div
             key={stat.name}
