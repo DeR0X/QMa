@@ -21,7 +21,6 @@ export const users: User[] = [
       rating: 4.5,
       lastReview: '2024-12-01',
     },
-    isLocked: false,
   },
   {
     id: '2',
@@ -43,7 +42,6 @@ export const users: User[] = [
       rating: 4.5,
       lastReview: '2024-12-01',
     },
-    isLocked: false,
   },
   {
     id: '3',
@@ -65,7 +63,6 @@ export const users: User[] = [
       rating: 4.5,
       lastReview: '2024-12-01',
     },
-    isLocked: false,
   },
   {
     id: '4',
@@ -86,7 +83,6 @@ export const users: User[] = [
       rating: 4.5,
       lastReview: '2024-12-01',
     },
-    isLocked: false,
   },
 ];
 

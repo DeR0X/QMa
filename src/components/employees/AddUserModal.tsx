@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import type { User, Role } from '../../types';
+import { itDepartments, manufacturingDepartments } from '../../data/departments';
 
 interface Props {
   onClose: () => void;
   onAdd: (user: Omit<User, 'id' | 'isActive' | 'failedLoginAttempts'>) => void;
 }
+
+// Combine all departments
+const allDepartments = [...itDepartments, ...manufacturingDepartments];
 
 export default function AddUserModal({ onClose, onAdd }: Props) {
   const [formData, setFormData] = useState({
@@ -25,6 +29,25 @@ export default function AddUserModal({ onClose, onAdd }: Props) {
     qualifications: [] as string[],
     requiredQualifications: [] as string[],
   });
+
+  // State for available positions based on selected department
+  const [availablePositions, setAvailablePositions] = useState<string[]>([]);
+
+  // Update available positions when department changes
+  useEffect(() => {
+    if (formData.department) {
+      const selectedDept = allDepartments.find(dept => dept.name === formData.department);
+      if (selectedDept) {
+        setAvailablePositions(selectedDept.positions);
+        // Reset position if current position is not in new department
+        if (!selectedDept.positions.includes(formData.position)) {
+          setFormData(prev => ({ ...prev, position: '' }));
+        }
+      }
+    } else {
+      setAvailablePositions([]);
+    }
+  }, [formData.department]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,26 +128,39 @@ export default function AddUserModal({ onClose, onAdd }: Props) {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Abteilung
             </label>
-            <input
-              type="text"
+            <select
               required
               className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
               value={formData.department}
               onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-            />
+            >
+              <option value="">Abteilung auswählen</option>
+              {allDepartments.map((dept) => (
+                <option key={dept.name} value={dept.name}>
+                  {dept.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Position
             </label>
-            <input
-              type="text"
+            <select
               required
               className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
               value={formData.position}
               onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-            />
+              disabled={!formData.department}
+            >
+              <option value="">Position auswählen</option>
+              {availablePositions.map((position) => (
+                <option key={position} value={position}>
+                  {position}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="flex justify-end space-x-3 mt-6">

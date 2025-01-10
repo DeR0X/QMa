@@ -7,7 +7,7 @@ import AddUserModal from '../components/employees/AddUserModal';
 import { RootState, AppDispatch } from '../store';
 import { toast } from 'sonner';
 import { trainings, bookings, users } from '../data/mockData';
-import { toggleUserLock } from '../store/slices/authSlice';
+import { toggleUserActive } from '../store/slices/authSlice';
 
 export default function Employees() {
   const dispatch = useDispatch<AppDispatch>();
@@ -44,17 +44,17 @@ export default function Employees() {
     toast.error('Schulung abgelehnt');
   };
 
-  const handleToggleLock = (employeeId: string) => {
+  const handleToggleActive = (employeeId: string) => {
     const employee = employees.find(emp => emp.id === employeeId);
     if (employee) {
-      const newLockedStatus = !employee.isActive;
+      const newActiveStatus = !employee.isActive;
       setEmployees(employees.map(emp => 
         emp.id === employeeId 
-          ? { ...emp, isActive: newLockedStatus }
+          ? { ...emp, isActive: newActiveStatus }
           : emp
       ));
-      dispatch(toggleUserLock(employeeId, newLockedStatus));
-      toast.success(`Mitarbeiter wurde ${newLockedStatus ? 'gesperrt' : 'entsperrt'}`);
+      dispatch(toggleUserActive(employeeId, newActiveStatus));
+      toast.success(`Mitarbeiter wurde ${newActiveStatus ? 'entsperrt' : 'gesperrt'}`);
     }
   };
 
@@ -166,20 +166,20 @@ export default function Employees() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      employee.isLocked
+                      !employee.isActive
                         ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                         : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                     }`}>
-                      {employee.isLocked ? 'Gesperrt' : 'Aktiv'}
+                      {!employee.isActive ? 'Gesperrt' : 'Aktiv'}
                     </span>
                   </td>
                   {user?.role === 'supervisor' && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <button
-                        onClick={() => handleToggleLock(employee.id)}
+                        onClick={() => handleToggleActive(employee.id)}
                         className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
                       >
-                        {employee.isLocked ? (
+                        {!employee.isActive ? (
                           <Unlock className="h-5 w-5" />
                         ) : (
                           <Lock className="h-5 w-5" />

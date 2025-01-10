@@ -21,7 +21,6 @@ export interface User {
     rating: number;
     lastReview: string;
   };
-  isLocked?: boolean;
 }
 
 export interface Training {

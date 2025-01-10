@@ -40,25 +40,25 @@ const authSlice = createSlice({
       state.loading = false;
       state.error = null;
     },
-    updateUserLockStatus: (state, action: PayloadAction<{ userId: string; isLocked: boolean }>) => {
+    updateUserActiveStatus: (state, action: PayloadAction<{ userId: string; isActive: boolean }>) => {
       if (state.user?.id === action.payload.userId) {
-        state.user.isLocked = action.payload.isLocked;
+        state.user.isActive = action.payload.isActive;
       }
     },
   },
 });
 
-export const { loginStart, loginSuccess, loginFailure, logout, updateUserLockStatus } = authSlice.actions;
+export const { loginStart, loginSuccess, loginFailure, logout, updateUserActiveStatus } = authSlice.actions;
 
-// Load locked users from localStorage
-const getLockedUsers = (): Record<string, boolean> => {
-  const lockedUsers = localStorage.getItem('lockedUsers');
-  return lockedUsers ? JSON.parse(lockedUsers) : {};
+// Load inactive users from localStorage
+const getInactiveUsers = (): Record<string, boolean> => {
+  const inactiveUsers = localStorage.getItem('inactiveUsers');
+  return inactiveUsers ? JSON.parse(inactiveUsers) : {};
 };
 
-// Save locked users to localStorage
-const saveLockedUsers = (lockedUsers: Record<string, boolean>) => {
-  localStorage.setItem('lockedUsers', JSON.stringify(lockedUsers));
+// Save inactive users to localStorage
+const saveInactiveUsers = (inactiveUsers: Record<string, boolean>) => {
+  localStorage.setItem('inactiveUsers', JSON.stringify(inactiveUsers));
 };
 
 // Thunk for login
@@ -74,13 +74,9 @@ export const login = (personalNumber: string, password: string) => async (dispat
       throw new Error('Ungültige Anmeldedaten');
     }
 
-    if (!user.isActive) {
-      throw new Error('Account ist deaktiviert');
-    }
-
-    // Check if user is locked in localStorage
-    const lockedUsers = getLockedUsers();
-    if (lockedUsers[user.id]) {
+    // Check if user is inactive in localStorage
+    const inactiveUsers = getInactiveUsers();
+    if (inactiveUsers[user.id] || !user.isActive) {
       throw new Error(
         'Ihr Account wurde gesperrt. Bitte kontaktieren Sie Ihren Vorgesetzten oder die IT-Abteilung für Unterstützung.'
       );
@@ -96,18 +92,18 @@ export const login = (personalNumber: string, password: string) => async (dispat
   }
 };
 
-// Thunk for toggling user lock status
-export const toggleUserLock = (userId: string, isLocked: boolean) => async (dispatch: any) => {
-  const lockedUsers = getLockedUsers();
+// Thunk for toggling user active status
+export const toggleUserActive = (userId: string, isActive: boolean) => async (dispatch: any) => {
+  const inactiveUsers = getInactiveUsers();
   
-  if (isLocked) {
-    lockedUsers[userId] = true;
+  if (!isActive) {
+    inactiveUsers[userId] = true;
   } else {
-    delete lockedUsers[userId];
+    delete inactiveUsers[userId];
   }
   
-  saveLockedUsers(lockedUsers);
-  dispatch(updateUserLockStatus({ userId, isLocked }));
+  saveInactiveUsers(inactiveUsers);
+  dispatch(updateUserActiveStatus({ userId, isActive }));
 };
 
 export default authSlice.reducer;
