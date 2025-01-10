@@ -1,39 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Search, Plus, Download, Upload, Filter, CheckCircle, XCircle, Lock, Unlock } from 'lucide-react';
-import { Employee } from '../types';
+import { User } from '../types';
 import EmployeeDetails from '../components/employees/EmployeeDetails';
+import AddUserModal from '../components/employees/AddUserModal';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { toast } from 'sonner';
-import { trainings, bookings, employee } from '../data/mockData';
-
-
-const mockQualificationHistory = [
-  {
-    id: '1',
-    employeeId: '1',
-    qualificationId: '1',
-    qualificationName: 'IT Security',
-    type: 'granted',
-    date: '2023-12-15',
-    approvedBy: 'Jane Smith',
-  },
-  {
-    id: '2',
-    employeeId: '1',
-    qualificationId: '2',
-    qualificationName: 'Project Management',
-    type: 'expired',
-    date: '2024-01-20',
-    approvedBy: 'Jane Smith',
-  },
-];
+import { trainings, bookings, users } from '../data/mockData';
 
 export default function Employees() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [employees, setEmployees] = useState<Employee[]>(employee);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [showHistory, setShowHistory] = useState(false);
+  const [employees, setEmployees] = useState<User[]>(users);
+  const [selectedEmployee, setSelectedEmployee] = useState<User | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
   const { user } = useSelector((state: RootState) => state.auth);
 
   // Filter employees based on supervisor
@@ -43,6 +22,17 @@ export default function Employees() {
     employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     employee.department.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  const handleAddUser = (newUser: Omit<User, 'id' | 'isActive' | 'failedLoginAttempts'>) => {
+    const user: User = {
+      ...newUser,
+      id: (employees.length + 1).toString(),
+      isActive: true,
+      failedLoginAttempts: 0,
+    };
+    setEmployees([...employees, user]);
+    toast.success('Mitarbeiter erfolgreich hinzugefügt');
+  };
 
   const handleApproveTraining = (trainingId: string) => {
     toast.success('Schulung genehmigt');
@@ -63,11 +53,6 @@ export default function Employees() {
         ? 'entsperrt' 
         : 'gesperrt'
     }`);
-
-  };
-
-  const handleCompleteTraining = (employeeId: string, trainingId: string) => {
-    toast.success('Schulungsabschluss wurde erfolgreich eingetragen');
   };
 
   return (
@@ -77,7 +62,10 @@ export default function Employees() {
           {user?.role === 'supervisor' ? 'Mitarbeiterverwaltung' : 'Mein Profil'}
         </h1>
         {user?.role === 'supervisor' && (
-          <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary/90">
+          <button 
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary/90"
+          >
             <Plus className="h-5 w-5 mr-2" />
             Mitarbeiter hinzufügen
           </button>
@@ -217,6 +205,13 @@ export default function Employees() {
           trainings={trainings}
           handleApproveTraining={handleApproveTraining}
           handleRejectTraining={handleRejectTraining}
+        />
+      )}
+
+      {showAddModal && (
+        <AddUserModal
+          onClose={() => setShowAddModal(false)}
+          onAdd={handleAddUser}
         />
       )}
     </div>

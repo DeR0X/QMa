@@ -20,15 +20,12 @@ export default function LoginForm() {
     
     try {
       await dispatch(login(personalNumber, password) as any);
-      console.log(error);
       if (!error) {
         navigate('/');
         toast.success('Willkommen zurück!');
-      } else {
-        toast.error('Anmeldung fehlgeschlagen');
       }
     } catch (error) {
-      toast.error('ERROR: ' + error);
+      // Error handling is now done in the auth slice
     }
   };
 
@@ -63,8 +60,29 @@ export default function LoginForm() {
           </div>
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             {error && (
-              <div className="rounded-md bg-red-50 dark:bg-[#121212] p-4">
-                <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+              <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <Lock className="h-5 w-5 text-red-400" aria-hidden="true" />
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
+                      Anmeldung fehlgeschlagen
+                    </h3>
+                    <div className="mt-2 text-sm text-red-700 dark:text-red-300">
+                      <p>{error}</p>
+                      {error.includes('gesperrt') && (
+                        <p className="mt-2">
+                          Bitte wenden Sie sich an:
+                          <br />
+                          - Ihren Vorgesetzten
+                          <br />
+                          - Die IT-Abteilung (support@company.com)
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
             

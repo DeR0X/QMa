@@ -10,10 +10,10 @@ import {
   Star,
   TrendingUp
 } from 'lucide-react';
-import type { Employee } from '../../types';
+import type { User } from '../../types';
 
 interface Props {
-  employee: Employee;
+  employee: User;
   onClose: () => void;
   approvals: Array<{ trainingId: string; date: string; status: string }>;
   trainings: Array<{ id: string; title: string }>;
@@ -138,31 +138,6 @@ export default function EmployeeDetails({ employee, onClose, approvals, training
                     </div>
                   </div>
                 )}
-
-                {activeTab === 'documents' && (
-                  <div className="space-y-4">
-                    {employee.documents.map((doc) => (
-                      <div
-                        key={doc.id}
-                        className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
-                      >
-                        <div className="flex items-center">
-                          <FileText className="h-5 w-5 text-gray-400" />
-                          <span className="ml-2 text-sm font-medium text-gray-900 dark:text-white">
-                            {doc.name}
-                          </span>
-                          <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                            {doc.type.toUpperCase()}
-                          </span>
-                        </div>
-                        <button className="text-primary hover:text-primary/90">
-                          <Download className="h-5 w-5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
                 {activeTab === 'approvals' && employee.role === 'supervisor' && (
                   <div className="space-y-4">
                     {approvals.map((approval) => {

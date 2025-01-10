@@ -15,28 +15,12 @@ export interface User {
   avatar?: string;
   failedLoginAttempts: number;
   requiredQualifications: string[];
-  isLocked?: boolean;
-}
-
-export interface Employee {
-  id: string;
-  email: string;
-  name: string;
-  role: 'mitarbeiter' | 'supervisor';
-  department: string;
-  position: string;
   startDate: string;
   skills: string[];
   performance: {
     rating: number;
     lastReview: string;
   };
-  documents: {
-    id: string;
-    name: string;
-    url: string;
-    type: string;
-  }[];
   isLocked?: boolean;
 }
 

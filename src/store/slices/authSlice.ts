@@ -63,6 +63,12 @@ export const login = (personalNumber: string, password: string) => async (dispat
       throw new Error('Account ist gesperrt');
     }
 
+    if (user.isLocked) {
+      throw new Error(
+        'Ihr Account wurde gesperrt. Bitte kontaktieren Sie Ihren Vorgesetzten oder die IT-Abteilung für Unterstützung.'
+      );
+    }
+
     // In real app, we would verify password here
     // For demo, we'll just check if password is not empty
     if (!password) {
