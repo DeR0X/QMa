@@ -67,7 +67,7 @@ export default function Employees() {
         {user?.role === 'supervisor' && (
           <button 
             onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary/90"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary/90 dark:bg-[#181818]"
           >
             <Plus className="h-5 w-5 mr-2" />
             Mitarbeiter hinzufügen
@@ -76,7 +76,7 @@ export default function Employees() {
       </div>
 
       <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700 dark:bg-[#181818]">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
@@ -111,7 +111,7 @@ export default function Employees() {
 
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+            <thead className="bg-gray-50 dark:bg-[#181818]">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Mitarbeiter
@@ -132,7 +132,7 @@ export default function Employees() {
                 )}
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-[#141616]">
               {filteredEmployees.map((employee) => (
                 <tr
                   key={employee.id}

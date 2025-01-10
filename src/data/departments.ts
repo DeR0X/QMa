@@ -175,16 +175,6 @@ interface DepartmentStructure {
       ],
     },
     {
-      name: 'Personal',
-      positions: [
-        'HR Manager',
-        'Personalreferent',
-        'Ausbildungsleiter',
-        'Personalentwickler',
-        'Arbeitssicherheitsbeauftragter',
-      ],
-    },
-    {
       name: 'Finanzen & Controlling',
       positions: [
         'Controller',

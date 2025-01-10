@@ -21,6 +21,7 @@ export interface User {
     rating: number;
     lastReview: string;
   };
+  hasChangedPassword?: boolean;
 }
 
 export interface Training {
