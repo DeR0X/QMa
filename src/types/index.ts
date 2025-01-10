@@ -15,6 +15,7 @@ export interface User {
   avatar?: string;
   failedLoginAttempts: number;
   requiredQualifications: string[];
+  isLocked?: boolean;
 }
 
 export interface Employee {
@@ -36,6 +37,7 @@ export interface Employee {
     url: string;
     type: string;
   }[];
+  isLocked?: boolean;
 }
 
 export interface Training {

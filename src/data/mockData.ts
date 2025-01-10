@@ -1,4 +1,4 @@
-import { User, Training, TrainingBooking, Qualification, QualificationHistory } from '../types';
+import { User, Training, TrainingBooking, Qualification, QualificationHistory, Employee } from '../types';
 
 export const users: User[] = [
   {
@@ -15,6 +15,7 @@ export const users: User[] = [
     qualifications: ['1'],
     failedLoginAttempts: 0,
     requiredQualifications: ['1', '2'],
+    isLocked: false,
   },
   {
     id: '2',
@@ -61,6 +62,40 @@ export const users: User[] = [
     requiredQualifications: ['1', '2'],
   },
 ];
+
+export const employee: Employee[] = [
+  {
+    id: '1',
+    email: 'john.doe@company.com',
+    name: 'John Doe',
+    role: 'mitarbeiter',
+    department: 'IT',
+    position: 'Software Engineer',
+    startDate: '2022-01-15',
+    skills: ['React', 'TypeScript', 'Node.js'],
+    performance: {
+      rating: 4.5,
+      lastReview: '2024-12-01',
+    },
+    documents: [
+      {
+        id: 'd1',
+        name: 'Contract',
+        url: '#',
+        type: 'pdf',
+      },
+      {
+        id: 'd2',
+        name: 'Performance Review 2024',
+        url: '#',
+        type: 'pdf',
+      },
+    ],
+    isLocked: false,
+  },
+  // ... other employees
+];
+
 
 export const trainings: Training[] = [
   {
