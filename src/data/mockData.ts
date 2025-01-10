@@ -10,7 +10,7 @@ export const users: User[] = [
     department: 'IT',
     position: 'Software Engineer',
     supervisorId: '3',
-    isActive: true,
+    isActive: false,
     trainings: ['1', '2'],
     qualifications: ['1'],
     failedLoginAttempts: 0,

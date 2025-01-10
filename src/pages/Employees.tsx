@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import { Search, Plus, Download, Upload, Filter, CheckCircle, XCircle, Lock, Unlock } from 'lucide-react';
 import { User } from '../types';
 import EmployeeDetails from '../components/employees/EmployeeDetails';
 import AddUserModal from '../components/employees/AddUserModal';
-import { useSelector } from 'react-redux';
-import { RootState } from '../store';
+import { RootState, AppDispatch } from '../store';
 import { toast } from 'sonner';
 import { trainings, bookings, users } from '../data/mockData';
+import { toggleUserLock } from '../store/slices/authSlice';
 
 export default function Employees() {
+  const dispatch = useDispatch<AppDispatch>();
   const [searchTerm, setSearchTerm] = useState('');
   const [employees, setEmployees] = useState<User[]>(users);
   const [selectedEmployee, setSelectedEmployee] = useState<User | null>(null);
@@ -43,16 +45,17 @@ export default function Employees() {
   };
 
   const handleToggleLock = (employeeId: string) => {
-    setEmployees(employees.map(emp => 
-      emp.id === employeeId 
-        ? { ...emp, isLocked: !emp.isLocked }
-        : emp
-    ));
-    toast.success(`Mitarbeiter wurde ${
-      employees.find(e => e.id === employeeId)?.isLocked 
-        ? 'entsperrt' 
-        : 'gesperrt'
-    }`);
+    const employee = employees.find(emp => emp.id === employeeId);
+    if (employee) {
+      const newLockedStatus = !employee.isActive;
+      setEmployees(employees.map(emp => 
+        emp.id === employeeId 
+          ? { ...emp, isActive: newLockedStatus }
+          : emp
+      ));
+      dispatch(toggleUserLock(employeeId, newLockedStatus));
+      toast.success(`Mitarbeiter wurde ${newLockedStatus ? 'gesperrt' : 'entsperrt'}`);
+    }
   };
 
   return (

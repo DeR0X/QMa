@@ -40,17 +40,32 @@ const authSlice = createSlice({
       state.loading = false;
       state.error = null;
     },
+    updateUserLockStatus: (state, action: PayloadAction<{ userId: string; isLocked: boolean }>) => {
+      if (state.user?.id === action.payload.userId) {
+        state.user.isLocked = action.payload.isLocked;
+      }
+    },
   },
 });
 
-export const { loginStart, loginSuccess, loginFailure, logout } = authSlice.actions;
+export const { loginStart, loginSuccess, loginFailure, logout, updateUserLockStatus } = authSlice.actions;
+
+// Load locked users from localStorage
+const getLockedUsers = (): Record<string, boolean> => {
+  const lockedUsers = localStorage.getItem('lockedUsers');
+  return lockedUsers ? JSON.parse(lockedUsers) : {};
+};
+
+// Save locked users to localStorage
+const saveLockedUsers = (lockedUsers: Record<string, boolean>) => {
+  localStorage.setItem('lockedUsers', JSON.stringify(lockedUsers));
+};
 
 // Thunk for login
 export const login = (personalNumber: string, password: string) => async (dispatch: any) => {
   dispatch(loginStart());
 
   try {
-    // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     const user = users.find(u => u.personalNumber === personalNumber);
@@ -60,17 +75,17 @@ export const login = (personalNumber: string, password: string) => async (dispat
     }
 
     if (!user.isActive) {
-      throw new Error('Account ist gesperrt');
+      throw new Error('Account ist deaktiviert');
     }
 
-    if (user.isLocked) {
+    // Check if user is locked in localStorage
+    const lockedUsers = getLockedUsers();
+    if (lockedUsers[user.id]) {
       throw new Error(
         'Ihr Account wurde gesperrt. Bitte kontaktieren Sie Ihren Vorgesetzten oder die IT-Abteilung für Unterstützung.'
       );
     }
 
-    // In real app, we would verify password here
-    // For demo, we'll just check if password is not empty
     if (!password) {
       throw new Error('Password wird benötigt');
     }
@@ -79,6 +94,20 @@ export const login = (personalNumber: string, password: string) => async (dispat
   } catch (error) {
     dispatch(loginFailure(error instanceof Error ? error.message : 'Login fehlgeschlagen'));
   }
+};
+
+// Thunk for toggling user lock status
+export const toggleUserLock = (userId: string, isLocked: boolean) => async (dispatch: any) => {
+  const lockedUsers = getLockedUsers();
+  
+  if (isLocked) {
+    lockedUsers[userId] = true;
+  } else {
+    delete lockedUsers[userId];
+  }
+  
+  saveLockedUsers(lockedUsers);
+  dispatch(updateUserLockStatus({ userId, isLocked }));
 };
 
 export default authSlice.reducer;
