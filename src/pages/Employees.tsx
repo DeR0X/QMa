@@ -36,7 +36,7 @@ const mockEmployees: Employee[] = [
     id: '2',
     email: 'jane.smith@company.com',
     name: 'Jane Smith',
-    role: 'manager',
+    role: 'supervisor',
     department: 'HR',
     position: 'HR Manager',
     startDate: '2021-06-01',
@@ -189,6 +189,10 @@ export default function Employees() {
         <EmployeeDetails
           employee={selectedEmployee}
           onClose={() => setSelectedEmployee(null)}
+          approvals={[]}
+          trainings={[]}
+          handleApproveTraining={(trainingId: string) => { /* implementation */ }}
+          handleRejectTraining={(trainingId: string) => { /* implementation */ }}
         />
       )}
     </div>

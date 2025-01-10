@@ -11,13 +11,34 @@ import {
 } from 'lucide-react';
 import { RootState } from '../store';
 import { trainings, bookings, qualifications } from '../data/mockData';
-import { formatDate } from '../lib/utils';
-import { useState } from 'react';
+import { formatDate, calculateExpirationDate, isExpiringSoon } from '../lib/utils';
+import { useState, useEffect } from 'react';
 import type { Qualification } from '../types';
+import { sendQualificationExpiryNotification } from '../lib/notifications';
 
 export default function Dashboard() {
   const { user } = useSelector((state: RootState) => state.auth);
   const [selectedQual, setSelectedQual] = useState<Qualification | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      // Check for expiring qualifications and send notifications
+      const userQuals = qualifications.filter(qual => user.qualifications.includes(qual.id));
+      userQuals.forEach(qual => {
+        const lastTraining = bookings
+          .filter(b => b.userId === user.id && b.status === 'abgeschlossen')
+          .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())[0];
+
+        if (lastTraining?.completedAt) {
+          const expirationDate = calculateExpirationDate(lastTraining.completedAt, qual.validityPeriod);
+          if (isExpiringSoon(expirationDate)) {
+            const daysUntilExpiry = Math.ceil((expirationDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+            sendQualificationExpiryNotification(user, qual.name, daysUntilExpiry);
+          }
+        }
+      });
+    }
+  }, [user]);
 
   if (!user) return null;
 
@@ -33,13 +54,8 @@ export default function Dashboard() {
 
     if (!lastTraining?.completedAt) return false;
 
-    const expirationDate = new Date(lastTraining.completedAt);
-    expirationDate.setMonth(expirationDate.getMonth() + qual.validityPeriod);
-    
-    const twoMonthsFromNow = new Date();
-    twoMonthsFromNow.setMonth(twoMonthsFromNow.getMonth() + 2);
-
-    return expirationDate <= twoMonthsFromNow;
+    const expirationDate = calculateExpirationDate(lastTraining.completedAt, qual.validityPeriod);
+    return isExpiringSoon(expirationDate);
   });
 
   const pendingBookings = userBookings.filter(b => b.status === 'ausstehend');
@@ -56,10 +72,10 @@ export default function Dashboard() {
       value: userBookings.filter(b => b.status === 'abgeschlossen').length,
       icon: CheckCircle 
     },
-    { //Qualifikationen wie Staplerschein, Kranführerschein, etc. 
+    { 
       name: 'Genehmigte Schulungen', 
-      value: 0,
-      icon:  CalendarCheck
+      value: userBookings.filter(b => b.status === 'genehmigt').length,
+      icon: CalendarCheck 
     },
     { 
       name: 'Verfügbare Schulungen', 
@@ -67,8 +83,6 @@ export default function Dashboard() {
       icon: BookOpen 
     },
   ];
-
-  
 
   return (
     <div className="space-y-6">
@@ -85,7 +99,7 @@ export default function Dashboard() {
       </div>
 
       {expiringQualifications.length > 0 && (
-        <div className="rounded-lg bg-yellow-50 dark:bg-[#121212] p-4">
+        <div className="rounded-lg bg-yellow-50 dark:bg-yellow-900/20 p-4">
           <div className="flex">
             <AlertTriangle className="h-5 w-5 text-yellow-400" />
             <div className="ml-3">
@@ -175,7 +189,7 @@ export default function Dashboard() {
           <div className="p-6">
             <h2 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
               <Award className="h-5 w-5 mr-2" />
-              Deine Qualifikationen
+              Ihre Qualifikationen
             </h2>
             <div className="mt-6 space-y-4">
               {userQualifications.map((qual) => {
@@ -185,12 +199,8 @@ export default function Dashboard() {
                   .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())[0];
 
                 const expirationDate = lastTraining?.completedAt
-                  ? new Date(lastTraining.completedAt)
+                  ? calculateExpirationDate(lastTraining.completedAt, qual.validityPeriod)
                   : null;
-
-                if (expirationDate) {
-                  expirationDate.setMonth(expirationDate.getMonth() + qual.validityPeriod);
-                }
 
                 return (
                   <div key={qual.id} className="flex items-center justify-between">
@@ -215,7 +225,7 @@ export default function Dashboard() {
                             : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
                         }`}
                       >
-                        {expirationDate && expirationDate > new Date() ? 'Active' : 'Expired'}
+                        {expirationDate && expirationDate > new Date() ? 'Aktiv' : 'Abgelaufen'}
                       </span>
                     </div>
                   </div>
