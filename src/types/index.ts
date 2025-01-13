@@ -38,7 +38,10 @@ export interface Training {
   trainer: string;
   maxParticipants: number;
   sessions: TrainingSession[];
+  targetPositions: string[];
+  isForEntireDepartment: boolean;
 }
+
 
 export interface TrainingSession {
   id: string;
@@ -140,3 +143,4 @@ export interface Certification {
   expiryDate?: string;
   status: 'active' | 'expired' | 'pending';
 }
+

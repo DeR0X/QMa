@@ -1,31 +1,29 @@
 import { useState } from 'react';
-import { useSelector } from 'react-redux';
-import { 
-  Search, 
-  Filter, 
-  Calendar,
-  Users,
-  Clock,
-  MapPin,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  GraduationCap
-} from 'lucide-react';
-import { RootState } from '../store';
-import { trainings, bookings } from '../data/mockData';
+import { useSelector, useDispatch } from 'react-redux';
+import { Search, Filter, Calendar, Users, Clock, MapPin, CheckCircle, XCircle, AlertCircle, GraduationCap, Plus } from 'lucide-react';
+import { RootState, AppDispatch } from '../store';
+import { trainings, bookings, users } from '../data/mockData';
 import { Training, TrainingSession } from '../types';
 import { formatDate, formatDuration } from '../lib/utils';
 import { toast } from 'sonner';
+import AddTrainingModal from '../components/trainings/AddTrainigModal';
+import { hasHRPermissions } from '../store/slices/authSlice';
+import { addNotification } from '../store/slices/notificationSlice';
 
 export default function Trainings() {
+  const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTraining, setSelectedTraining] = useState<Training | null>(null);
   const [showMandatoryOnly, setShowMandatoryOnly] = useState(false);
   const [showUpcomingOnly, setShowUpcomingOnly] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   if (!user) return null;
+
+  const isHR = hasHRPermissions(user);
+  const isSupervisor = user.role === 'supervisor';
+  const canCreateTraining = isHR || isSupervisor;
 
   const userBookings = bookings.filter(booking => booking.userId === user.id);
 
@@ -50,6 +48,29 @@ export default function Trainings() {
 
     toast.success('Schulungssitzung erfolgreich gebucht! Warten auf Genehmigung.');
   };
+
+// Update the handleAddTraining function
+const handleAddTraining = (newTraining: Omit<Training, 'id'> & { targetAudience?: string[] }) => {
+  // In a real app, this would make an API call
+  toast.success('Schulung erfolgreich erstellt');
+
+  // Send notifications to relevant employees
+  const affectedEmployees = users.filter(emp => 
+    newTraining.targetAudience?.includes(emp.department) ||
+    newTraining.isMandatory
+  );
+
+  affectedEmployees.forEach(employee => {
+    dispatch(addNotification({
+      userId: employee.id,
+      type: 'info',
+      title: 'Neue Schulung verfügbar',
+      message: `Eine neue Schulung "${newTraining.title}" ist für Sie verfügbar. Schauen Sie sich die Details an und buchen Sie bei Interesse einen Termin.`
+    }));
+  });
+
+  setShowAddModal(false);
+};
 
   const getBookingStatus = (training: Training) => {
     const booking = userBookings.find(b => b.trainingId === training.id);
@@ -90,7 +111,18 @@ export default function Trainings() {
             Durchsuchen und buchen Sie Schulungen für Ihre berufliche Entwicklung
           </p>
         </div>
-        <GraduationCap className="h-8 w-8 text-primary" />
+        <div className="flex items-center gap-4">
+          {canCreateTraining && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Neue Schulung
+            </button>
+          )}
+          <GraduationCap className="h-8 w-8 text-primary" />
+        </div>
       </div>
 
       <div className="bg-white dark:bg-[#121212] shadow rounded-lg">
@@ -211,6 +243,15 @@ export default function Trainings() {
           ))}
         </div>
       </div>
+
+      {showAddModal && (
+        <AddTrainingModal
+          onClose={() => setShowAddModal(false)}
+          onAdd={handleAddTraining}
+          userDepartment={isSupervisor ? user.department : undefined}
+        />
+      )}
     </div>
   );
 }
+

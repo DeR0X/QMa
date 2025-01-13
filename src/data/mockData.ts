@@ -357,10 +357,12 @@ export const trainings: Training[] = [
     title: 'Grundlagen der Informationssicherheit',
     description: 'Grundlegende Schulung zu IT-Sicherheitsprotokollen und Best Practices.',
     duration: '2 Stunden',
-    validityPeriod: 12, // Monate
+    validityPeriod: 12,
     isMandatory: true,
     trainer: 'Sarah Wilson',
     maxParticipants: 20,
+    targetPositions: ['Software Engineer', 'System Administrator'],
+    isForEntireDepartment: true,
     sessions: [
       {
         id: '1',
@@ -385,6 +387,8 @@ export const trainings: Training[] = [
     isMandatory: false,
     trainer: 'Robert Johnson',
     maxParticipants: 10,
+    targetPositions: ['Software Engineer', 'System Administrator'],
+    isForEntireDepartment: true,
     sessions: [
       {
         id: '3',
@@ -403,6 +407,8 @@ export const trainings: Training[] = [
     isMandatory: false,
     trainer: 'Emily Carter',
     maxParticipants: 15,
+    targetPositions: ['Software Engineer', 'System Administrator'],
+    isForEntireDepartment: true,
     sessions: [
       {
         id: '4',
@@ -427,6 +433,8 @@ export const trainings: Training[] = [
     isMandatory: true,
     trainer: 'David Lee',
     maxParticipants: 25,
+    targetPositions: ['Software Engineer', 'System Administrator'],
+    isForEntireDepartment: true,
     sessions: [
       {
         id: '6',
@@ -445,6 +453,8 @@ export const trainings: Training[] = [
     isMandatory: true,
     trainer: 'Laura White',
     maxParticipants: 20,
+    targetPositions: ['Software Engineer', 'System Administrator'],
+    isForEntireDepartment: true,
     sessions: [
       {
         id: '7',
@@ -463,6 +473,8 @@ export const trainings: Training[] = [
     isMandatory: true,
     trainer: 'Hans Müller',
     maxParticipants: 30,
+    targetPositions: ['Software Engineer', 'System Administrator'],
+    isForEntireDepartment: true,
     sessions: [
       {
         id: '8',
@@ -481,6 +493,8 @@ export const trainings: Training[] = [
     isMandatory: false,
     trainer: 'Maria Schmidt',
     maxParticipants: 20,
+    targetPositions: ['Software Engineer', 'System Administrator'],
+    isForEntireDepartment: true,
     sessions: [
       {
         id: '9',
@@ -499,6 +513,8 @@ export const trainings: Training[] = [
     isMandatory: true,
     trainer: 'Peter Wagner',
     maxParticipants: 15,
+    targetPositions: ['Software Engineer', 'System Administrator'],
+    isForEntireDepartment: true,
     sessions: [
       {
         id: '10',
