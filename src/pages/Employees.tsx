@@ -33,8 +33,26 @@ export default function Employees() {
     { value: 'inactive', label: 'Gesperrte' },
   ];
 
-  const filterEmployees = (employees: User[]) => {
-    return employees.filter(emp => {
+  // Get accessible employees based on user role
+  const getAccessibleEmployees = () => {
+    if (!user) return [];
+    
+    if (isHRAdmin) {
+      return employees.filter(emp => emp.id !== user.id); // HR sees everyone except themselves
+    }
+    
+    if (user.role === 'supervisor') {
+      // Supervisors only see their direct reports
+      return employees.filter(emp => 
+        emp.supervisorId === user.id && emp.id !== user.id
+      );
+    }
+    
+    return []; // Regular employees don't see anyone in the employee list
+  };
+
+  const filterEmployees = (employeesToFilter: User[]) => {
+    return employeesToFilter.filter(emp => {
       const matchesSearch = 
         emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         emp.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -52,7 +70,7 @@ export default function Employees() {
       return matchesSearch && matchesFilter;
     });
   };
-  
+
   const handleAddUser = (newUser: Omit<User, 'id' | 'isActive' | 'failedLoginAttempts'>) => {
     const user: User = {
       ...newUser,
@@ -80,54 +98,21 @@ export default function Employees() {
           : emp
       ));
       dispatch(toggleUserActive(employeeId, newActiveStatus));
+      logAction(employeeId, 'toggle_user_active', `Mitarbeiter ${newActiveStatus ? 'aktiviert' : 'deaktiviert'}`, employeeId, 'user');
       toast.success(`Mitarbeiter wurde ${newActiveStatus ? 'entsperrt' : 'gesperrt'}`);
     }
   };
 
-  // Get filtered supervisors
-  const filteredSupervisors = filterEmployees(employees.filter(emp => emp.role === 'supervisor'));
-
-  // Get employees for a specific supervisor
-  const getEmployeesForSupervisor = (supervisorId: string) => {
-    return filterEmployees(employees.filter(emp => emp.supervisorId === supervisorId));
-  };
-
-  // Toggle supervisor expansion
-  const toggleSupervisor = (supervisorId: string) => {
-    setExpandedSupervisors(prev => 
-      prev.includes(supervisorId)
-        ? prev.filter(id => id !== supervisorId)
-        : [...prev, supervisorId]
-    );
-  };
-
-  const renderEmployeeRow = (employee: User, indentLevel: number = 0) => (
+  const renderEmployeeRow = (employee: User) => (
     <tr
       key={employee.id}
       className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-      style={{ backgroundColor: indentLevel > 0 ? 'rgba(0,0,0,0.02)' : undefined }}
     >
       <td 
         className="px-6 py-4 whitespace-nowrap"
         onClick={() => setSelectedEmployee(employee)}
-        style={{ paddingLeft: `${indentLevel * 2 + 1.5}rem` }}
       >
         <div className="flex items-center">
-          {employee.role === 'supervisor' && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleSupervisor(employee.id);
-              }}
-              className="mr-2"
-            >
-              {expandedSupervisors.includes(employee.id) ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-            </button>
-          )}
           <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
             <span className="text-sm font-medium">
               {employee.name.split(' ').map((n) => n[0]).join('')}
@@ -175,10 +160,23 @@ export default function Employees() {
     </tr>
   );
 
+  // Only allow access if user is a supervisor or HR
+  if (!isHRAdmin && user?.role !== 'supervisor') {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+        <p className="text-lg text-gray-500 dark:text-gray-400">
+          Sie haben keine Berechtigung, diese Seite zu sehen.
+        </p>
+      </div>
+    );
+  }
+
+  const filteredEmployees = filterEmployees(getAccessibleEmployees());
+
   return (
     <div className="space-y-6">
       <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700 dark:bg-[#181818]">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
@@ -192,54 +190,52 @@ export default function Employees() {
                 />
               </div>
             </div>
-            {(isHRAdmin || user?.role === 'supervisor') && (
-              <div className="flex gap-2">
-                <div className="relative">
-                  <button
-                    onClick={() => setShowFilters(!showFilters)}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
-                  >
-                    <Filter className="h-5 w-5 mr-2" />
-                    {filterOptions.find(f => f.value === activeFilter)?.label}
-                  </button>
-                  
-                  {showFilters && (
-                    <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-10">
-                      <div className="py-1">
-                        {filterOptions.map((option) => (
-                          <button
-                            key={option.value}
-                            onClick={() => {
-                              setActiveFilter(option.value);
-                              setShowFilters(false);
-                            }}
-                            className={`block w-full text-left px-4 py-2 text-sm ${
-                              activeFilter === option.value
-                                ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
-                                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                            }`}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
+            <div className="flex gap-2">
+              <div className="relative">
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
+                >
+                  <Filter className="h-5 w-5 mr-2" />
+                  {filterOptions.find(f => f.value === activeFilter)?.label}
+                </button>
+                
+                {showFilters && (
+                  <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-10">
+                    <div className="py-1">
+                      {filterOptions.map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => {
+                            setActiveFilter(option.value);
+                            setShowFilters(false);
+                          }}
+                          className={`block w-full text-left px-4 py-2 text-sm ${
+                            activeFilter === option.value
+                              ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
+                              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
                     </div>
-                  )}
-                </div>
-                {isHRAdmin && (
-                  <>
-                    <button className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                      <Upload className="h-5 w-5 mr-2" />
-                      Import
-                    </button>
-                    <button className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                      <Download className="h-5 w-5 mr-2" />
-                      Export
-                    </button>
-                  </>
+                  </div>
                 )}
               </div>
-            )}
+              {isHRAdmin && (
+                <>
+                  <button className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                    <Upload className="h-5 w-5 mr-2" />
+                    Import
+                  </button>
+                  <button className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                    <Download className="h-5 w-5 mr-2" />
+                    Export
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -267,16 +263,7 @@ export default function Employees() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-[#141616]">
-              {filteredSupervisors.map(supervisor => {
-                const supervisorEmployees = getEmployeesForSupervisor(supervisor.id);
-                return (
-                  <>
-                    {renderEmployeeRow(supervisor)}
-                    {expandedSupervisors.includes(supervisor.id) && 
-                      supervisorEmployees.map(employee => renderEmployeeRow(employee, 1))}
-                  </>
-                );
-              })}
+              {filteredEmployees.map(employee => renderEmployeeRow(employee))}
             </tbody>
           </table>
         </div>
@@ -309,4 +296,3 @@ export default function Employees() {
     </div>
   );
 }
-

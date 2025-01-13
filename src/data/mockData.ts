@@ -128,7 +128,7 @@ export const users: User[] = [
     personalNumber: '12',
     email: 'brian.smith@company.com',
     name: 'Brian Smith',
-    role: 'supervisor',
+    role: 'employee',
     department: 'IT Operations',
     position: 'IT Security Specialist',
     isActive: true,
