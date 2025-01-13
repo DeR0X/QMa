@@ -50,6 +50,18 @@ const authSlice = createSlice({
 
 export const { loginStart, loginSuccess, loginFailure, logout, updateUserActiveStatus } = authSlice.actions;
 
+export const hasHRPermissions = (user: User | null) => {
+  return user?.role === 'hr';
+};
+
+export const canManageEmployees = (user: User | null) => {
+  return user?.role === 'hr' || user?.role === 'supervisor';
+};
+
+export const canAccessAnalytics = (user: User | null) => {
+  return user?.role === 'hr';
+};
+
 // Load inactive users from localStorage
 const getInactiveUsers = (): Record<string, boolean> => {
   const inactiveUsers = localStorage.getItem('inactiveUsers');

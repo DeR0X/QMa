@@ -1,38 +1,39 @@
 import { useState } from 'react';
+import { useSelector } from 'react-redux';
 import { 
-  Calendar, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Award, 
-  FileText,
-  Download,
-  Star,
-  TrendingUp
+  Calendar, Mail, Phone, MapPin, Award, FileText,
+  Download, Star, TrendingUp, DollarSign, BookOpen,
+  Award as CertificateIcon, Target
 } from 'lucide-react';
-import type { User } from '../../types';
+import { RootState } from '../../store';
+import { hasHRPermissions } from '../../store/slices/authSlice';
+import type { User, PerformanceReview, Certification } from '../../types';
 
 interface Props {
   employee: User;
   onClose: () => void;
+  onUpdate: (data: Partial<User>) => void;
   approvals: Array<{ trainingId: string; date: string; status: string }>;
   trainings: Array<{ id: string; title: string }>;
   handleApproveTraining: (trainingId: string) => void;
   handleRejectTraining: (trainingId: string) => void;
 }
 
-export default function EmployeeDetails({ employee, onClose, approvals, trainings, handleApproveTraining, handleRejectTraining }: Props) {
-  const [activeTab, setActiveTab] = useState<'info' | 'performance' | 'documents' | 'approvals'>('info');
-
-
+export default function EmployeeDetails({ employee, onClose, onUpdate, approvals, trainings, handleApproveTraining, handleRejectTraining }: Props) {
+  const [activeTab, setActiveTab] = useState<'info' | 'performance' | 'compensation' | 'development' | 'documents' | 'approvals'>('info');
+  const { user: currentUser } = useSelector((state: RootState) => state.auth);
+  const isHRAdmin = hasHRPermissions(currentUser);
 
   const tabs = [
     { id: 'info', label: 'Information' },
     { id: 'performance', label: 'Performance' },
     { id: 'documents', label: 'Documents' },
+    ...(isHRAdmin ? [
+      { id: 'compensation', label: 'Vergütung' },
+      { id: 'development', label: 'Entwicklung' }
+    ] : []),
     employee.role === 'supervisor' && { id: 'approvals', label: 'Genehmigungen' },
-  ].filter(Boolean) as Array<{ id: 'info' | 'performance' | 'documents' | 'approvals'; label: string }>;
-  
+  ].filter(Boolean) as Array<{ id: 'info' | 'performance' | 'compensation' | 'development' | 'documents' | 'approvals'; label: string }>;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -55,7 +56,7 @@ export default function EmployeeDetails({ employee, onClose, approvals, training
             <div className="w-full">
               <div className="flex items-center">
                 <div className="h-16 w-16 rounded-full bg-primary text-white flex items-center justify-center text-xl">
-                  {employee.name.split(' ').map((n) => n[0]).join('')}
+                  {employee.name.split(' ').map((n: string) => n[0]).join('')}
                 </div>
                 <div className="ml-4">
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white">
@@ -107,7 +108,7 @@ export default function EmployeeDetails({ employee, onClose, approvals, training
                         Fähigkeiten
                       </h4>
                       <div className="flex flex-wrap gap-2">
-                        {employee.skills.map((skill) => (
+                        {employee.skills.map((skill: string) => (
                           <span
                             key={skill}
                             className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary"
@@ -138,6 +139,58 @@ export default function EmployeeDetails({ employee, onClose, approvals, training
                     </div>
                   </div>
                 )}
+
+                {activeTab === 'compensation' && isHRAdmin && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Vergütungsdetails</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium">Gehaltsstufe</label>
+                        <input
+                          type="text"
+                          value={employee.compensation?.salaryGrade || ''}
+                          onChange={(e) => onUpdate({
+                            compensation: {
+                              ...employee.compensation,
+                              salaryGrade: e.target.value
+                            }
+                          })}
+                          className="mt-1 block w-full rounded-md border-gray-300"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'development' && isHRAdmin && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Karriereentwicklung</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium">Entwicklungspfad</label>
+                        <input
+                          type="text"
+                          value={employee.careerDevelopment?.currentPath || ''}
+                          onChange={(e) => onUpdate({
+                            careerDevelopment: {
+                              ...employee.careerDevelopment,
+                              currentPath: e.target.value
+                            }
+                          })}
+                          className="mt-1 block w-full rounded-md border-gray-300"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'documents' && (
+                  <div className="space-y-6">
+                    <h4 className="text-lg font-medium">Dokumente</h4>
+                    {/* Add document details here */}
+                  </div>
+                )}
+
                 {activeTab === 'approvals' && employee.role === 'supervisor' && (
                   <div className="space-y-4">
                     {approvals.map((approval) => {

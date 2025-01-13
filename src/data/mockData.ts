@@ -21,6 +21,46 @@ export const users: User[] = [
       rating: 4.5,
       lastReview: '2024-12-01',
     },
+    compensation: {
+      salaryGrade: 'E4',
+      lastReviewDate: '2023-12-01',
+      nextReviewDate: '2024-12-01',
+      bonuses: [
+        {
+          type: 'Performance',
+          amount: 2000,
+          date: '2023-12-15'
+        }
+      ]
+    },
+    careerDevelopment: {
+      currentPath: 'Technical Expert Track',
+      targetPosition: 'Senior Software Engineer',
+      developmentGoals: ['Cloud Architecture', 'Team Leadership'],
+      mentors: ['Michael Brown'],
+      nextSteps: ['AWS Certification', 'Leadership Training']
+    },
+    performanceHistory: [
+      {
+        id: '1',
+        date: '2023-12-01',
+        reviewer: 'Michael Brown',
+        rating: 4.5,
+        strengths: ['Technical Skills', 'Problem Solving'],
+        improvements: ['Communication'],
+        goals: ['Complete AWS Certification'],
+        comments: 'Excellent technical performance, showing leadership potential'
+      }
+    ],
+    certifications: [
+      {
+        id: '1',
+        name: 'React Advanced Developer',
+        issuer: 'Meta',
+        dateObtained: '2023-06-15',
+        status: 'active'
+      }
+    ]
   },
   {
     id: '2',
@@ -37,32 +77,111 @@ export const users: User[] = [
     failedLoginAttempts: 0,
     requiredQualifications: ['1', '2'],
     startDate: '2022-01-15',
-    skills: ['React', 'TypeScript', 'Node.js'],
+    skills: ['HR Management', 'Recruiting', 'Employee Relations'],
     performance: {
-      rating: 4.5,
-      lastReview: '2024-12-01',
+      rating: 4.8,
+      lastReview: '2024-11-15',
     },
+    compensation: {
+      salaryGrade: 'E3',
+      lastReviewDate: '2023-11-15',
+      nextReviewDate: '2024-11-15',
+      bonuses: [
+        {
+          type: 'Year-End',
+          amount: 1500,
+          date: '2023-12-15'
+        }
+      ]
+    },
+    careerDevelopment: {
+      currentPath: 'HR Management Track',
+      targetPosition: 'HR Manager',
+      developmentGoals: ['Leadership Development', 'Strategic HR'],
+      mentors: ['Sarah Wilson'],
+      nextSteps: ['HR Management Certification']
+    },
+    performanceHistory: [
+      {
+        id: '2',
+        date: '2023-11-15',
+        reviewer: 'Sarah Wilson',
+        rating: 4.8,
+        strengths: ['Employee Relations', 'Process Improvement'],
+        improvements: ['Strategic Planning'],
+        goals: ['HR Certification'],
+        comments: 'Outstanding performance in employee relations'
+      }
+    ],
+    certifications: [
+      {
+        id: '2',
+        name: 'PHR Certification',
+        issuer: 'HRCI',
+        dateObtained: '2023-03-10',
+        status: 'active'
+      }
+    ]
   },
   {
     id: '3',
     personalNumber: '12',
-    email: 'jane.smith@company.com',
+    email: 'brian.smith@company.com',
     name: 'Brian Smith',
-    role: 'employee',
-    department: 'HR',
-    position: 'IT',
-    supervisorId: '3',
+    role: 'supervisor',
+    department: 'IT Operations',
+    position: 'IT Security Specialist',
     isActive: true,
     trainings: ['2'],
     qualifications: ['2'],
     failedLoginAttempts: 0,
     requiredQualifications: ['1', '2'],
-    startDate: '2022-01-15',
-    skills: ['React', 'TypeScript', 'Node.js'],
+    startDate: '2020-03-15',
+    skills: ['Team Leadership', 'Project Management', 'IT Operations'],
     performance: {
-      rating: 4.5,
-      lastReview: '2024-12-01',
+      rating: 4.7,
+      lastReview: '2024-10-01',
     },
+    compensation: {
+      salaryGrade: 'M2',
+      lastReviewDate: '2023-10-01',
+      nextReviewDate: '2024-10-01',
+      bonuses: [
+        {
+          type: 'Leadership',
+          amount: 3000,
+          date: '2023-12-15'
+        }
+      ]
+    },
+    careerDevelopment: {
+      currentPath: 'IT Management',
+      targetPosition: 'IT Director',
+      developmentGoals: ['Strategic Management', 'Budget Planning'],
+      mentors: ['Michael Brown'],
+      nextSteps: ['Executive Leadership Program']
+    },
+    performanceHistory: [
+      {
+        id: '3',
+        date: '2023-10-01',
+        reviewer: 'Michael Brown',
+        rating: 4.7,
+        strengths: ['Team Leadership', 'Technical Expertise'],
+        improvements: ['Budget Management'],
+        goals: ['Develop IT Strategy'],
+        comments: 'Strong leadership skills and technical knowledge'
+      }
+    ],
+    certifications: [
+      {
+        id: '3',
+        name: 'PMP Certification',
+        issuer: 'PMI',
+        dateObtained: '2022-05-20',
+        status: 'active'
+      }
+    ]
   },
   {
     id: '4',
@@ -77,34 +196,120 @@ export const users: User[] = [
     qualifications: ['1', '2'],
     failedLoginAttempts: 0,
     requiredQualifications: ['1', '2'],
-    startDate: '2022-01-15',
-    skills: ['React', 'TypeScript', 'Node.js'],
+    startDate: '2019-06-01',
+    skills: ['System Administration', 'Network Security', 'Team Management'],
     performance: {
-      rating: 4.5,
-      lastReview: '2024-12-01',
+      rating: 4.9,
+      lastReview: '2024-09-15',
     },
+    compensation: {
+      salaryGrade: 'M3',
+      lastReviewDate: '2023-09-15',
+      nextReviewDate: '2024-09-15',
+      bonuses: [
+        {
+          type: 'Performance',
+          amount: 4000,
+          date: '2023-12-15'
+        }
+      ]
+    },
+    careerDevelopment: {
+      currentPath: 'Technical Management',
+      targetPosition: 'CTO',
+      developmentGoals: ['Executive Leadership', 'Innovation Management'],
+      mentors: ['CTO'],
+      nextSteps: ['Executive MBA']
+    },
+    performanceHistory: [
+      {
+        id: '4',
+        date: '2023-09-15',
+        reviewer: 'CTO',
+        rating: 4.9,
+        strengths: ['Leadership', 'Technical Vision'],
+        improvements: ['Work-Life Balance'],
+        goals: ['Department Growth'],
+        comments: 'Exceptional leadership and technical expertise'
+      }
+    ],
+    certifications: [
+      {
+        id: '4',
+        name: 'CISSP',
+        issuer: 'ISC²',
+        dateObtained: '2021-08-10',
+        status: 'active'
+      }
+    ]
   },
   {
-    id: '5',
-    personalNumber: '5678',
-    email: 'anna.muster@company.com',
-    name: 'Anna Muster',
-    role: 'employee',
-    department: 'Marketing',
-    position: 'Marketing Manager',
-    supervisorId: '4',
+    id: '6',
+    personalNumber: '789',
+    email: 'sarah.wilson@company.com',
+    name: 'Sarah Wilson',
+    role: 'hr',
+    department: 'Human Resources',
+    position: 'HR Director',
     isActive: true,
-    trainings: [],
-    qualifications: [],
+    trainings: ['1', '2'],
+    qualifications: ['1', '2'],
     failedLoginAttempts: 0,
-    requiredQualifications: ['1'],
-    startDate: '2023-05-20',
-    skills: ['Marketing', 'Communication', 'Project Management'],
+    requiredQualifications: ['1', '2'],
+    startDate: '2018-01-01',
+    skills: ['HR Strategy', 'Organizational Development', 'Change Management', 'Employee Relations'],
     performance: {
-      rating: 4.8,
-      lastReview: '2024-11-15',
+      rating: 4.9,
+      lastReview: '2024-08-01',
     },
-  },
+    compensation: {
+      salaryGrade: 'D1',
+      lastReviewDate: '2023-08-01',
+      nextReviewDate: '2024-08-01',
+      bonuses: [
+        {
+          type: 'Executive',
+          amount: 5000,
+          date: '2023-12-15'
+        }
+      ]
+    },
+    careerDevelopment: {
+      currentPath: 'Executive HR Leadership',
+      targetPosition: 'CHRO',
+      developmentGoals: ['Strategic HR', 'Board Relations'],
+      mentors: ['CEO'],
+      nextSteps: ['Executive Leadership Program']
+    },
+    performanceHistory: [
+      {
+        id: '6',
+        date: '2023-08-01',
+        reviewer: 'CEO',
+        rating: 4.9,
+        strengths: ['Strategic Planning', 'Leadership'],
+        improvements: ['Technology Integration'],
+        goals: ['HR Digital Transformation'],
+        comments: 'Outstanding leadership in HR transformation'
+      }
+    ],
+    certifications: [
+      {
+        id: '6',
+        name: 'SPHR',
+        issuer: 'HRCI',
+        dateObtained: '2020-03-15',
+        status: 'active'
+      },
+      {
+        id: '7',
+        name: 'SHRM-SCP',
+        issuer: 'SHRM',
+        dateObtained: '2019-06-20',
+        status: 'active'
+      }
+    ]
+  }
 ];
 
 
