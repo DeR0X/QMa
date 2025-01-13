@@ -120,6 +120,91 @@ Such- oder Filterfunktion für Mitarbeiter und für schulungen.
 
 
 
+
+- Jeder Mitarbeiter hat seine eigenen Schulungen und auch nur diese kann er einsehen (sowohl schon gemacht und noch offene)
+- Änderungen darf nur ein Vorgesetzter übernehmen wie abschluss der Schulungen
+- d.h. es wird ein Rechte System benötigt - 2 Monate im Vorraus bekommt der Mitarbeiter eine Notification im System
+- Sperrung hab ich so erstmal nix mit zu tun
+- Eine Möglichkeit Positionen zu ändern sowie das alle Qualifikationen beibehalten werdne
+- Informationen über die Schulunge (wer ist der leiter bzw. wer führt die Schulung)
+
+
+Fragen: 
+Login?
+SoSafe anbindung?
+
+
+Nutzer:
+	Mitarbeiter -> hat jobtitel, darf das sehen was ihm der Vorgesetzte vorgibt
+	Vorgesetzer -> Schulungen abschließen
+	HR-> Qualifikationen anlegen, Schulungen anlegen
+
+	(Es gibt Vorgesetzte von Vorgesetzte -> Jeder darf die Vorgesetzten von den anderen sehen) NICHT WICHTIG!!!
+	Vertreterregelung - wenn andere nicht da sind
+	Vorgesetzer von Vorgesetzen können auch deren Mitarbeiter sehen nachdem das z.b. aufgeklappt worden ist (Filter funktion)
+
+
+	Alles mit Gültigkeit - Gültigkeit kann 
+	Qualfikation -> Schulungsabschluss = Qualifikation
+	Name und Gültigkeitsdauer, Art von Qualifikation (pflicht, gehöt zu einer position oder für alle, oder frei zuweisbare quali)
+
+	Quali - Leiterbeauftragter, Ersthelfer, Datenschutz
+
+	was ist enie Qualifikation - Datenschutz schulen -> Datenschutzunterweisung
+	
+	Qualifikationen anlegen können, Qualifikation abfrage ob Pflichtschulug, abfrage welcher Jobtitel, freie Qualifikation
+	freie Quali = alle bekommen die
+	Zusatz Qualifikation - kann auch ein bundle sein(?) 
+		beim zuweisen der Qualifikation soll es möglich sein mehrere zu geben - eine liste anzeigen mit allen qualis
+
+
+
+Brandschutzunterweisung
+
+Liste aller "alten" Schulungen die schon durchgeführt wurden.
+Durchgeführte Schulungen anzeigen -> Fenster geht auf und da sollen alle Mitarbeiter sehen zu sein, die an der Schulungen teilgenommen haben 
+					    und diese sollen dann per klick bestätigt werden können
+
+Vorgesetzter & HR kann Schulungen im Hintergrund anlegen und Mitarbeiter die Quali geben.
+
+Welcher Trainer darf welche Schulung machen - vielleicht mit Dokumenten drin für den Trainer
+
+Dokument hochladen bei den Schulungen
+
+Anbindung an Outlook maybe -> Meldung über Mail ablauf der Qualifikationen
+
+Auswertung ausgeben lassen (reporting) online und offline
+Qualifkationen nach Job wechsel beibehalten - Schulungen noch weiter enisehbar machen, aber ablauf ist nicht "wichtig".
+Erst nach ablauf sollen die Qualifikationen weg fallen
+
+Schulungstermine in Q-Matrix anlegen
+
+
+Orginisatorisches klären - was muss gemacht werden? Wie lange braucht man dafür? 
+
+
+
+
+
+
+
+
+
+
+Nutzerrollen: Mitarbeiter, Vorgesetzte, HR.
+Qualifikationen: Anlegen, Zuweisen, Überwachen.
+Schulungen: Anlegen, Durchführen, Dokumentieren.
+Reporting: Qualifikationen und Schulungen auswerten.
+Kommunikation: E-Mail-Benachrichtigungen und Outlook-Integration.
+
+
+
+
+
+
+
+
+
 Ziele:
  - Ein Schulungsverzug darf zu keinem Zeitpunkt an irgendeiner Stelle vorliegen bzw. Es darf zu keinem Zeitpunkt an irgendeiner Stelle etwas "rot" sein.
  - eindeutige Verantwortlichkeiten
@@ -306,5 +391,94 @@ D. Reporting & Analyse
   * Automatisierte Compliance-Berichte
 
 Implementieren Sie das System modular und skalierbar, mit Fokus auf Benutzerfreundlichkeit und Performance.
+
+
+
+
+
+
+
+Create a comprehensive technical specification document for a Qualification and Training Management System with the following requirements:
+
+System Roles and Access Rights:
+
+1. Employee Role
+- Has a specific job title
+- Can only view content assigned by supervisor
+- Receives notifications for required trainings and expiring qualifications
+- Can view personal qualification history
+
+2. Supervisor Role
+- Complete training sessions
+- Manage employees and assign qualifications
+- Create training sessions
+- Access to subordinate supervisors' employees (with filter/expand functionality)
+- Delegation capabilities for supervisor tasks during absence
+
+3. HR Administrator Role
+- Create and manage qualifications
+- Set up training programs
+- Define mandatory qualifications and position assignments
+- Generate reports and analytics
+
+Qualification Management:
+
+Define qualifications with:
+- Name and description
+- Validity period
+- Type (Mandatory/Optional/Additional)
+- Position requirements
+- Prerequisites if applicable
+- Bundle options for multiple qualifications
+
+Training Management:
+
+Specify:
+- Course creation functionality
+- Trainer assignment system
+- Document upload capabilities
+- Training schedule management
+- Attendance tracking
+- Completion verification process
+
+Reporting and Analytics:
+
+Include:
+- Real-time qualification status
+- Training completion rates
+- Expiration monitoring
+- Custom report generation
+- Export capabilities
+
+System Integration:
+
+Implement:
+- Outlook calendar integration
+- Email notification system
+- Document management system
+- User authentication
+- Audit logging
+
+Please provide detailed technical specifications for implementing each component while ensuring data security and user-friendly interface design.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
