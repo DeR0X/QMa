@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Search, Plus, Download, Upload, Filter, CheckCircle, XCircle, Lock, Unlock } from 'lucide-react';
+import { Search, Plus, Download, Upload, Filter, Lock, Unlock, ChevronDown, ChevronRight, X } from 'lucide-react';
 import { User } from '../types';
 import EmployeeDetails from '../components/employees/EmployeeDetails';
 import AddUserModal from '../components/employees/AddUserModal';
@@ -11,36 +11,48 @@ import { toggleUserActive } from '../store/slices/authSlice';
 import { logAction } from '../lib/audit';
 import { hasHRPermissions } from '../store/slices/authSlice';
 
+type FilterType = 'all' | 'employees' | 'supervisors' | 'active' | 'inactive';
+
 export default function Employees() {
   const dispatch = useDispatch<AppDispatch>();
   const [searchTerm, setSearchTerm] = useState('');
   const [employees, setEmployees] = useState<User[]>(users);
   const [selectedEmployee, setSelectedEmployee] = useState<User | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [expandedSupervisors, setExpandedSupervisors] = useState<string[]>([]);
+  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const [showFilters, setShowFilters] = useState(false);
   const { user } = useSelector((state: RootState) => state.auth);
   const isHRAdmin = hasHRPermissions(user);
 
-  // Filter employees based on role and supervisor
-  const filteredEmployees = employees.filter((employee) => {
-    // HR can see all employees
-    if (isHRAdmin) {
-      return true;
-    }
+  const filterOptions: { value: FilterType; label: string }[] = [
+    { value: 'all', label: 'Alle' },
+    { value: 'employees', label: 'Nur Mitarbeiter' },
+    { value: 'supervisors', label: 'Nur Vorgesetzte' },
+    { value: 'active', label: 'Aktive' },
+    { value: 'inactive', label: 'Gesperrte' },
+  ];
 
-    // Supervisors can see their assigned employees
-    if (user?.role === 'supervisor') {
-      console.log(employee.supervisorId === employee.name);
-      return employee.supervisorId === user.id || employee.id === user.id;
-    }
+  const filterEmployees = (employees: User[]) => {
+    return employees.filter(emp => {
+      const matchesSearch = 
+        emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.position.toLowerCase().includes(searchTerm.toLowerCase());
 
-    // Regular employees can only see themselves
-    return employee.id === user?.id;
-  }).filter((employee) => (
-    employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.department.toLowerCase().includes(searchTerm.toLowerCase())
-  ));
+      const matchesFilter = 
+        activeFilter === 'all' ? true :
+        activeFilter === 'employees' ? emp.role === 'employee' :
+        activeFilter === 'supervisors' ? emp.role === 'supervisor' :
+        activeFilter === 'active' ? emp.isActive :
+        activeFilter === 'inactive' ? !emp.isActive :
+        true;
 
+      return matchesSearch && matchesFilter;
+    });
+  };
+  
   const handleAddUser = (newUser: Omit<User, 'id' | 'isActive' | 'failedLoginAttempts'>) => {
     const user: User = {
       ...newUser,
@@ -53,33 +65,12 @@ export default function Employees() {
     toast.success('Mitarbeiter erfolgreich hinzugefügt');
   };
 
-  const handleUpdateEmployee = (employeeId: string, data: Partial<User>) => {
-    if (!user) return;
-
-    const canEdit = isHRAdmin || 
-      (user.role === 'supervisor' && employees.find(e => e.id === employeeId)?.supervisorId === user.id);
-
-    if (!canEdit) {
-      toast.error('Keine Berechtigung zum Bearbeiten dieses Mitarbeiters');
-      return;
-    }
-
-    setEmployees(employees.map(emp => 
-      emp.id === employeeId 
-        ? { ...emp, ...data }
-        : emp
-    ));
-
-    logAction(employeeId, 'update_user', 'Mitarbeiterdaten aktualisiert', user.id, 'user');
-    toast.success('Mitarbeiterdaten erfolgreich aktualisiert');
+  const handleUpdateEmployee = (id: string, data: Partial<User>) => {
+    setEmployees(employees.map(emp => emp.id === id ? { ...emp, ...data } : emp));
+    toast.success('Mitarbeiter erfolgreich aktualisiert');
   };
 
   const handleToggleActive = (employeeId: string) => {
-    if (!user || (!isHRAdmin && user.role !== 'supervisor')) {
-      toast.error('Keine Berechtigung zum Sperren/Entsperren von Mitarbeitern');
-      return;
-    }
-
     const employee = employees.find(emp => emp.id === employeeId);
     if (employee) {
       const newActiveStatus = !employee.isActive;
@@ -89,53 +80,103 @@ export default function Employees() {
           : emp
       ));
       dispatch(toggleUserActive(employeeId, newActiveStatus));
-      logAction(employeeId, newActiveStatus ? 'activate_user' : 'deactivate_user', 
-        `Mitarbeiter ${newActiveStatus ? 'entsperrt' : 'gesperrt'}`, user.id, 'user');
       toast.success(`Mitarbeiter wurde ${newActiveStatus ? 'entsperrt' : 'gesperrt'}`);
     }
   };
 
-  const handleApproveTraining = (trainingId: string) => {
-    // Assuming `userId` can be derived from context or state
-    const userId = selectedEmployee?.id; // Example: getting userId from selectedEmployee
-    if (!userId) {
-      console.error("User ID is not available");
-      return;
-    }
-    console.log(`Approving training ${trainingId} for user ${userId}`);
-    // Implement the actual logic here
+  // Get filtered supervisors
+  const filteredSupervisors = filterEmployees(employees.filter(emp => emp.role === 'supervisor'));
+
+  // Get employees for a specific supervisor
+  const getEmployeesForSupervisor = (supervisorId: string) => {
+    return filterEmployees(employees.filter(emp => emp.supervisorId === supervisorId));
   };
 
-  const handleRejectTraining = (trainingId: string) => {
-    // Assuming `userId` can be derived from context or state
-    const userId = selectedEmployee?.id; // Example: getting userId from selectedEmployee
-    if (!userId) {
-      console.error("User ID is not available");
-      return;
-    }
-    console.log(`Approving training ${trainingId} for user ${userId}`);
-    // Implement the actual logic here
+  // Toggle supervisor expansion
+  const toggleSupervisor = (supervisorId: string) => {
+    setExpandedSupervisors(prev => 
+      prev.includes(supervisorId)
+        ? prev.filter(id => id !== supervisorId)
+        : [...prev, supervisorId]
+    );
   };
+
+  const renderEmployeeRow = (employee: User, indentLevel: number = 0) => (
+    <tr
+      key={employee.id}
+      className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+      style={{ backgroundColor: indentLevel > 0 ? 'rgba(0,0,0,0.02)' : undefined }}
+    >
+      <td 
+        className="px-6 py-4 whitespace-nowrap"
+        onClick={() => setSelectedEmployee(employee)}
+        style={{ paddingLeft: `${indentLevel * 2 + 1.5}rem` }}
+      >
+        <div className="flex items-center">
+          {employee.role === 'supervisor' && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleSupervisor(employee.id);
+              }}
+              className="mr-2"
+            >
+              {expandedSupervisors.includes(employee.id) ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </button>
+          )}
+          <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
+            <span className="text-sm font-medium">
+              {employee.name.split(' ').map((n) => n[0]).join('')}
+            </span>
+          </div>
+          <div className="ml-4">
+            <div className="text-sm font-medium text-gray-900 dark:text-white">
+              {employee.name}
+            </div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              {employee.email}
+            </div>
+          </div>
+        </div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+        {employee.department}
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+        {employee.position}
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+          !employee.isActive
+            ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+            : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+        }`}>
+          {!employee.isActive ? 'Gesperrt' : 'Aktiv'}
+        </span>
+      </td>
+      {(isHRAdmin || user?.role === 'supervisor') && (
+        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+          <button
+            onClick={() => handleToggleActive(employee.id)}
+            className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+          >
+            {!employee.isActive ? (
+              <Unlock className="h-5 w-5" />
+            ) : (
+              <Lock className="h-5 w-5" />
+            )}
+          </button>
+        </td>
+      )}
+    </tr>
+  );
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-          {isHRAdmin ? 'Mitarbeiterverwaltung' : 
-           user?.role === 'supervisor' ? 'Meine Mitarbeiter' : 
-           'Mein Profil'}
-        </h1>
-        {(isHRAdmin || user?.role === 'supervisor') && (
-          <button 
-            onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary/90 dark:bg-[#181818]"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Mitarbeiter hinzufügen
-          </button>
-        )}
-      </div>
-
       <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700 dark:bg-[#181818]">
           <div className="flex flex-col sm:flex-row gap-4">
@@ -144,7 +185,7 @@ export default function Employees() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Mitarbeiter suchen..."
+                  placeholder="Suche nach Name, Email, Abteilung oder Position..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
@@ -153,10 +194,38 @@ export default function Employees() {
             </div>
             {(isHRAdmin || user?.role === 'supervisor') && (
               <div className="flex gap-2">
-                <button className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                  <Filter className="h-5 w-5 mr-2" />
-                  Filter
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowFilters(!showFilters)}
+                    className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
+                  >
+                    <Filter className="h-5 w-5 mr-2" />
+                    {filterOptions.find(f => f.value === activeFilter)?.label}
+                  </button>
+                  
+                  {showFilters && (
+                    <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-10">
+                      <div className="py-1">
+                        {filterOptions.map((option) => (
+                          <button
+                            key={option.value}
+                            onClick={() => {
+                              setActiveFilter(option.value);
+                              setShowFilters(false);
+                            }}
+                            className={`block w-full text-left px-4 py-2 text-sm ${
+                              activeFilter === option.value
+                                ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
+                                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
                 {isHRAdmin && (
                   <>
                     <button className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
@@ -198,62 +267,16 @@ export default function Employees() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-[#141616]">
-              {filteredEmployees.map((employee) => (
-                <tr
-                  key={employee.id}
-                  className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-                >
-                  <td 
-                    className="px-6 py-4 whitespace-nowrap"
-                    onClick={() => setSelectedEmployee(employee)}
-                  >
-                    <div className="flex items-center">
-                      <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
-                        <span className="text-sm font-medium">
-                          {employee.name.split(' ').map((n) => n[0]).join('')}
-                        </span>
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {employee.name}
-                        </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {employee.email}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                    {employee.department}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                    {employee.position}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      !employee.isActive
-                        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                        : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                    }`}>
-                      {!employee.isActive ? 'Gesperrt' : 'Aktiv'}
-                    </span>
-                  </td>
-                  {(isHRAdmin || user?.role === 'supervisor') && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <button
-                        onClick={() => handleToggleActive(employee.id)}
-                        className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
-                      >
-                        {!employee.isActive ? (
-                          <Unlock className="h-5 w-5" />
-                        ) : (
-                          <Lock className="h-5 w-5" />
-                        )}
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              ))}
+              {filteredSupervisors.map(supervisor => {
+                const supervisorEmployees = getEmployeesForSupervisor(supervisor.id);
+                return (
+                  <>
+                    {renderEmployeeRow(supervisor)}
+                    {expandedSupervisors.includes(supervisor.id) && 
+                      supervisorEmployees.map(employee => renderEmployeeRow(employee, 1))}
+                  </>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -272,8 +295,8 @@ export default function Employees() {
               status: b.status
             }))}
           trainings={trainings}
-          handleApproveTraining={handleApproveTraining}
-          handleRejectTraining={handleRejectTraining}
+          handleApproveTraining={() => {}}
+          handleRejectTraining={() => {}}
         />
       )}
 
@@ -286,3 +309,4 @@ export default function Employees() {
     </div>
   );
 }
+
