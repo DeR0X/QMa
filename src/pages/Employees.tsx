@@ -8,6 +8,8 @@ import { RootState, AppDispatch } from '../store';
 import { toast } from 'sonner';
 import { trainings, bookings, users } from '../data/mockData';
 import { toggleUserActive } from '../store/slices/authSlice';
+import { logAction } from '../lib/audit';
+import { hasHRPermissions } from '../store/slices/authSlice';
 
 export default function Employees() {
   const dispatch = useDispatch<AppDispatch>();
@@ -16,14 +18,28 @@ export default function Employees() {
   const [selectedEmployee, setSelectedEmployee] = useState<User | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const { user } = useSelector((state: RootState) => state.auth);
+  const isHRAdmin = hasHRPermissions(user);
 
-  // Filter employees based on supervisor
-  const filteredEmployees = employees.filter((employee) =>
-    (user?.role === 'supervisor' ? true : employee.id === user?.id) &&
-    (employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  // Filter employees based on role and supervisor
+  const filteredEmployees = employees.filter((employee) => {
+    // HR can see all employees
+    if (isHRAdmin) {
+      return true;
+    }
+
+    // Supervisors can see their assigned employees
+    if (user?.role === 'supervisor') {
+      console.log(employee.supervisorId === employee.name);
+      return employee.supervisorId === user.id || employee.id === user.id;
+    }
+
+    // Regular employees can only see themselves
+    return employee.id === user?.id;
+  }).filter((employee) => (
+    employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.department.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+    employee.department.toLowerCase().includes(searchTerm.toLowerCase())
+  ));
 
   const handleAddUser = (newUser: Omit<User, 'id' | 'isActive' | 'failedLoginAttempts'>) => {
     const user: User = {
@@ -33,18 +49,37 @@ export default function Employees() {
       failedLoginAttempts: 0,
     };
     setEmployees([...employees, user]);
+    logAction(user.id, 'create_user', 'Neuer Mitarbeiter angelegt', user.id, 'user');
     toast.success('Mitarbeiter erfolgreich hinzugefügt');
   };
 
-  const handleApproveTraining = (trainingId: string) => {
-    toast.success('Schulung genehmigt');
-  };
+  const handleUpdateEmployee = (employeeId: string, data: Partial<User>) => {
+    if (!user) return;
 
-  const handleRejectTraining = (trainingId: string) => {
-    toast.error('Schulung abgelehnt');
+    const canEdit = isHRAdmin || 
+      (user.role === 'supervisor' && employees.find(e => e.id === employeeId)?.supervisorId === user.id);
+
+    if (!canEdit) {
+      toast.error('Keine Berechtigung zum Bearbeiten dieses Mitarbeiters');
+      return;
+    }
+
+    setEmployees(employees.map(emp => 
+      emp.id === employeeId 
+        ? { ...emp, ...data }
+        : emp
+    ));
+
+    logAction(employeeId, 'update_user', 'Mitarbeiterdaten aktualisiert', user.id, 'user');
+    toast.success('Mitarbeiterdaten erfolgreich aktualisiert');
   };
 
   const handleToggleActive = (employeeId: string) => {
+    if (!user || (!isHRAdmin && user.role !== 'supervisor')) {
+      toast.error('Keine Berechtigung zum Sperren/Entsperren von Mitarbeitern');
+      return;
+    }
+
     const employee = employees.find(emp => emp.id === employeeId);
     if (employee) {
       const newActiveStatus = !employee.isActive;
@@ -54,17 +89,43 @@ export default function Employees() {
           : emp
       ));
       dispatch(toggleUserActive(employeeId, newActiveStatus));
+      logAction(employeeId, newActiveStatus ? 'activate_user' : 'deactivate_user', 
+        `Mitarbeiter ${newActiveStatus ? 'entsperrt' : 'gesperrt'}`, user.id, 'user');
       toast.success(`Mitarbeiter wurde ${newActiveStatus ? 'entsperrt' : 'gesperrt'}`);
     }
+  };
+
+  const handleApproveTraining = (trainingId: string) => {
+    // Assuming `userId` can be derived from context or state
+    const userId = selectedEmployee?.id; // Example: getting userId from selectedEmployee
+    if (!userId) {
+      console.error("User ID is not available");
+      return;
+    }
+    console.log(`Approving training ${trainingId} for user ${userId}`);
+    // Implement the actual logic here
+  };
+
+  const handleRejectTraining = (trainingId: string) => {
+    // Assuming `userId` can be derived from context or state
+    const userId = selectedEmployee?.id; // Example: getting userId from selectedEmployee
+    if (!userId) {
+      console.error("User ID is not available");
+      return;
+    }
+    console.log(`Approving training ${trainingId} for user ${userId}`);
+    // Implement the actual logic here
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-          {user?.role === 'supervisor' ? 'Mitarbeiterverwaltung' : 'Mein Profil'}
+          {isHRAdmin ? 'Mitarbeiterverwaltung' : 
+           user?.role === 'supervisor' ? 'Meine Mitarbeiter' : 
+           'Mein Profil'}
         </h1>
-        {user?.role === 'supervisor' && (
+        {(isHRAdmin || user?.role === 'supervisor') && (
           <button 
             onClick={() => setShowAddModal(true)}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary/90 dark:bg-[#181818]"
@@ -90,20 +151,24 @@ export default function Employees() {
                 />
               </div>
             </div>
-            {user?.role === 'supervisor' && (
+            {(isHRAdmin || user?.role === 'supervisor') && (
               <div className="flex gap-2">
                 <button className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                   <Filter className="h-5 w-5 mr-2" />
                   Filter
                 </button>
-                <button className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                  <Upload className="h-5 w-5 mr-2" />
-                  Import
-                </button>
-                <button className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                  <Download className="h-5 w-5 mr-2" />
-                  Export
-                </button>
+                {isHRAdmin && (
+                  <>
+                    <button className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                      <Upload className="h-5 w-5 mr-2" />
+                      Import
+                    </button>
+                    <button className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                      <Download className="h-5 w-5 mr-2" />
+                      Export
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -125,7 +190,7 @@ export default function Employees() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Status
                 </th>
-                {user?.role === 'supervisor' && (
+                {(isHRAdmin || user?.role === 'supervisor') && (
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Aktionen
                   </th>
@@ -173,7 +238,7 @@ export default function Employees() {
                       {!employee.isActive ? 'Gesperrt' : 'Aktiv'}
                     </span>
                   </td>
-                  {user?.role === 'supervisor' && (
+                  {(isHRAdmin || user?.role === 'supervisor') && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <button
                         onClick={() => handleToggleActive(employee.id)}
@@ -198,6 +263,7 @@ export default function Employees() {
         <EmployeeDetails
           employee={selectedEmployee}
           onClose={() => setSelectedEmployee(null)}
+          onUpdate={(data) => handleUpdateEmployee(selectedEmployee.id, data)}
           approvals={bookings
             .filter(b => b.userId === selectedEmployee.id && b.status === 'ausstehend')
             .map(b => ({

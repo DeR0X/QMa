@@ -1,4 +1,4 @@
-export type Role = 'employee' | 'supervisor';
+export type Role = 'employee' | 'supervisor' | 'hr';
 
 export interface User {
   id: string;
@@ -21,6 +21,10 @@ export interface User {
     rating: number;
     lastReview: string;
   };
+  compensation?: CompensationDetails;
+  careerDevelopment?: CareerDevelopment;
+  performanceHistory?: PerformanceReview[];
+  certifications?: Certification[];
   hasChangedPassword?: boolean;
 }
 
@@ -85,4 +89,54 @@ export interface Department {
     value: number;
     target: number;
   }[];
+}
+
+export interface AuditLog {
+  id: string;
+  userId: string;
+  action: string;
+  details: string;
+  timestamp: string;
+  performedBy: string;
+  category: 'user' | 'training' | 'compensation' | 'performance' | 'system';
+}
+
+export interface CompensationDetails {
+  salary?: number;
+  salaryGrade: string;
+  lastReviewDate?: string;
+  nextReviewDate?: string;
+  bonuses?: {
+    type: string;
+    amount: number;
+    date: string;
+  }[];
+}
+
+export interface CareerDevelopment {
+  currentPath: string;
+  targetPosition?: string;
+  developmentGoals?: string[];
+  mentors?: string[];
+  nextSteps?: string[];
+}
+
+export interface PerformanceReview {
+  id: string;
+  date: string;
+  reviewer: string;
+  rating: number;
+  strengths: string[];
+  improvements: string[];
+  goals: string[];
+  comments: string;
+}
+
+export interface Certification {
+  id: string;
+  name: string;
+  issuer: string;
+  dateObtained: string;
+  expiryDate?: string;
+  status: 'active' | 'expired' | 'pending';
 }
