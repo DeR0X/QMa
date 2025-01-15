@@ -17,7 +17,7 @@ export default function Trainings() {
   const [selectedTraining, setSelectedTraining] = useState<Training | null>(null);
   const [showMandatoryOnly, setShowMandatoryOnly] = useState(false);
   const [showUpcomingOnly, setShowUpcomingOnly] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false); //wird beides auf true gesetzt
 
   if (!user) return null;
 

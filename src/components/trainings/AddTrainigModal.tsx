@@ -13,7 +13,6 @@ const allDepartments = [...itDepartments, ...manufacturingDepartments];
 
 export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Props) {
   const [selectedDepartment, setSelectedDepartment] = useState(userDepartment || '');
-  const [availablePositions, setAvailablePositions] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -32,10 +31,11 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
     }] as TrainingSession[],
   });
 
+  // Get available positions for the selected department
+  const availablePositions = allDepartments.find(d => d.name === selectedDepartment)?.positions || [];
+
   const handleDepartmentChange = (dept: string) => {
     setSelectedDepartment(dept);
-    const positions = allDepartments.find(d => d.name === dept)?.positions || [];
-    setAvailablePositions(positions);
     setFormData(prev => ({ ...prev, targetPositions: [] }));
   };
 
@@ -153,7 +153,7 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
                 </span>
               </label>
 
-              {!formData.isForEntireDepartment && (
+              {!formData.isForEntireDepartment && selectedDepartment && (
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Positionen (mindestens eine auswählen)
@@ -330,4 +330,3 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
     </div>
   );
 }
-

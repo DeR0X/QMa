@@ -145,16 +145,6 @@ interface DepartmentStructure {
       ],
     },
     {
-      name: 'Forschung & Entwicklung',
-      positions: [
-        'Entwicklungsingenieur',
-        'Konstrukteur',
-        'Technischer Zeichner',
-        'Prototypenbauer',
-        'Werkstoffprüfer',
-      ],
-    },
-    {
       name: 'Einkauf',
       positions: [
         'Einkaufsleiter',
