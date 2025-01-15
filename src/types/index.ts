@@ -12,21 +12,31 @@ export interface User {
   isActive: boolean;
   trainings: string[];
   qualifications: string[];
-  avatar?: string;
   failedLoginAttempts: number;
   requiredQualifications: string[];
   startDate: string;
-  skills: string[];
-  performance: {
-    rating: number;
-    lastReview: string;
-  };
-  compensation?: CompensationDetails;
-  careerDevelopment?: CareerDevelopment;
   performanceHistory?: PerformanceReview[];
   certifications?: Certification[];
   hasChangedPassword?: boolean;
 }
+
+export interface User {
+  id: string;
+  personalNumber: string;
+  email: string;
+  name: string;
+  role: Role;
+  department: string;
+  position: string;
+  supervisorId?: string;
+  isActive: boolean;
+  qualifications: string[];
+  failedLoginAttempts: number;
+  requiredQualifications: string[];
+  startDate: string;
+  hasChangedPassword?: boolean;
+}
+
 
 export interface Training {
   id: string;

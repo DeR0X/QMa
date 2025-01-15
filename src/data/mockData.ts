@@ -16,30 +16,6 @@ export const users: User[] = [
     failedLoginAttempts: 0,
     requiredQualifications: ['1', '2'],
     startDate: '2022-01-15',
-    skills: ['React', 'TypeScript', 'Node.js'],
-    performance: {
-      rating: 4.5,
-      lastReview: '2024-12-01',
-    },
-    compensation: {
-      salaryGrade: 'E4',
-      lastReviewDate: '2023-12-01',
-      nextReviewDate: '2024-12-01',
-      bonuses: [
-        {
-          type: 'Performance',
-          amount: 2000,
-          date: '2023-12-15'
-        }
-      ]
-    },
-    careerDevelopment: {
-      currentPath: 'Technical Expert Track',
-      targetPosition: 'Senior Software Engineer',
-      developmentGoals: ['Cloud Architecture', 'Team Leadership'],
-      mentors: ['Michael Brown'],
-      nextSteps: ['AWS Certification', 'Leadership Training']
-    },
     performanceHistory: [
       {
         id: '1',
@@ -57,7 +33,7 @@ export const users: User[] = [
         id: '1',
         name: 'React Advanced Developer',
         issuer: 'Meta',
-        dateObtained: '2023-06-15',
+        dateObtained: '2024-06-15',
         status: 'active'
       }
     ]
@@ -77,30 +53,6 @@ export const users: User[] = [
     failedLoginAttempts: 0,
     requiredQualifications: ['1', '2'],
     startDate: '2022-01-15',
-    skills: ['HR Management', 'Recruiting', 'Employee Relations'],
-    performance: {
-      rating: 4.8,
-      lastReview: '2024-11-15',
-    },
-    compensation: {
-      salaryGrade: 'E3',
-      lastReviewDate: '2023-11-15',
-      nextReviewDate: '2024-11-15',
-      bonuses: [
-        {
-          type: 'Year-End',
-          amount: 1500,
-          date: '2023-12-15'
-        }
-      ]
-    },
-    careerDevelopment: {
-      currentPath: 'HR Management Track',
-      targetPosition: 'HR Manager',
-      developmentGoals: ['Leadership Development', 'Strategic HR'],
-      mentors: ['Sarah Wilson'],
-      nextSteps: ['HR Management Certification']
-    },
     performanceHistory: [
       {
         id: '2',
@@ -138,30 +90,6 @@ export const users: User[] = [
     failedLoginAttempts: 0,
     requiredQualifications: ['1', '2'],
     startDate: '2020-03-15',
-    skills: ['Team Leadership', 'Project Management', 'IT Operations'],
-    performance: {
-      rating: 4.7,
-      lastReview: '2024-10-01',
-    },
-    compensation: {
-      salaryGrade: 'M2',
-      lastReviewDate: '2023-10-01',
-      nextReviewDate: '2024-10-01',
-      bonuses: [
-        {
-          type: 'Leadership',
-          amount: 3000,
-          date: '2023-12-15'
-        }
-      ]
-    },
-    careerDevelopment: {
-      currentPath: 'IT Management',
-      targetPosition: 'IT Director',
-      developmentGoals: ['Strategic Management', 'Budget Planning'],
-      mentors: ['Michael Braun'],
-      nextSteps: ['Executive Leadership Program']
-    },
     performanceHistory: [
       {
         id: '3',
@@ -199,30 +127,6 @@ export const users: User[] = [
     failedLoginAttempts: 0,
     requiredQualifications: ['1', '2'],
     startDate: '2019-06-01',
-    skills: ['System Administration', 'Network Security', 'Team Management'],
-    performance: {
-      rating: 4.9,
-      lastReview: '2024-09-15',
-    },
-    compensation: {
-      salaryGrade: 'M3',
-      lastReviewDate: '2023-09-15',
-      nextReviewDate: '2024-09-15',
-      bonuses: [
-        {
-          type: 'Performance',
-          amount: 4000,
-          date: '2023-12-15'
-        }
-      ]
-    },
-    careerDevelopment: {
-      currentPath: 'Technical Management',
-      targetPosition: 'CTO',
-      developmentGoals: ['Executive Leadership', 'Innovation Management'],
-      mentors: ['CTO'],
-      nextSteps: ['Executive MBA']
-    },
     performanceHistory: [
       {
         id: '4',
@@ -259,18 +163,6 @@ export const users: User[] = [
     failedLoginAttempts: 0,
     requiredQualifications: ['1', '2'],
     startDate: '2018-01-01',
-    skills: ['HR Strategy', 'Organizational Development', 'Change Management', 'Employee Relations'],
-    performance: {
-      rating: 4.9,
-      lastReview: '2024-08-01',
-    },
-    careerDevelopment: {
-      currentPath: 'Executive HR Leadership',
-      targetPosition: 'CHRO',
-      developmentGoals: ['Strategic HR', 'Board Relations'],
-      mentors: ['CEO'],
-      nextSteps: ['Executive Leadership Program']
-    },
     certifications: [
       {
         id: '6',
@@ -302,30 +194,6 @@ export const users: User[] = [
     failedLoginAttempts: 0,
     requiredQualifications: ['1', '2'],
     startDate: '2019-06-01',
-    skills: ['System Administration', 'Network Security', 'Team Management'],
-    performance: {
-      rating: 4.9,
-      lastReview: '2024-09-15',
-    },
-    compensation: {
-      salaryGrade: 'M3',
-      lastReviewDate: '2023-09-15',
-      nextReviewDate: '2024-09-15',
-      bonuses: [
-        {
-          type: 'Performance',
-          amount: 4000,
-          date: '2023-12-15'
-        }
-      ]
-    },
-    careerDevelopment: {
-      currentPath: 'Technical Management',
-      targetPosition: 'CTO',
-      developmentGoals: ['Executive Leadership', 'Innovation Management'],
-      mentors: ['CTO'],
-      nextSteps: ['Executive MBA']
-    },
     performanceHistory: [
       {
         id: '4',
