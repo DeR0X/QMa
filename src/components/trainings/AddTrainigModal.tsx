@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Plus, Award } from 'lucide-react';
 import { itDepartments, manufacturingDepartments } from '../../data/departments';
-import type { Training, TrainingSession } from '../../types';
+import type { Training, TrainingSession, Qualification } from '../../types';
 
 interface Props {
   onClose: () => void;
@@ -9,10 +9,22 @@ interface Props {
   userDepartment?: string;
 }
 
+interface QualificationForm {
+  name: string;
+  description: string;
+  validityPeriod: number;
+}
+
 const allDepartments = [...itDepartments, ...manufacturingDepartments];
 
 export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Props) {
   const [selectedDepartment, setSelectedDepartment] = useState(userDepartment || '');
+  const [showQualificationForm, setShowQualificationForm] = useState(false);
+  const [qualificationForm, setQualificationForm] = useState<QualificationForm>({
+    name: '',
+    description: '',
+    validityPeriod: 12
+  });
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -29,9 +41,9 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
       location: '',
       availableSpots: 10
     }] as TrainingSession[],
+    qualificationIds: [] as string[]
   });
 
-  // Get available positions for the selected department
   const availablePositions = allDepartments.find(d => d.name === selectedDepartment)?.positions || [];
 
   const handleDepartmentChange = (dept: string) => {
@@ -46,6 +58,26 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
         : [...prev.targetPositions, position];
       return { ...prev, targetPositions: positions };
     });
+  };
+
+  const handleAddQualification = () => {
+    if (!qualificationForm.name || !qualificationForm.description) return;
+
+    const qualificationId = Date.now().toString();
+    setFormData(prev => ({
+      ...prev,
+      qualificationIds: [...prev.qualificationIds, qualificationId]
+    }));
+
+    setQualificationForm({ name: '', description: '', validityPeriod: 12 });
+    setShowQualificationForm(false);
+  };
+
+  const removeQualification = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      qualifications: prev.qualificationIds.filter(q => q !== id)
+    }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -249,6 +281,101 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
 
           <div className="space-y-4">
             <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
+                <Award className="h-5 w-5 mr-2" />
+                Qualifikationen
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowQualificationForm(true)}
+                className="text-sm text-primary hover:text-primary/80 flex items-center"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Qualifikation hinzufügen
+              </button>
+            </div>
+
+            {showQualificationForm && (
+              <div className="bg-gray-50 dark:bg-[#181818] p-4 rounded-lg space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Name der Qualifikation
+                  </label>
+                  <input
+                    type="text"
+                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
+                    value={qualificationForm.name}
+                    onChange={(e) => setQualificationForm(prev => ({ ...prev, name: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Beschreibung
+                  </label>
+                  <textarea
+                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
+                    value={qualificationForm.description}
+                    onChange={(e) => setQualificationForm(prev => ({ ...prev, description: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Gültigkeitsdauer (Monate)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
+                    value={qualificationForm.validityPeriod}
+                    onChange={(e) => setQualificationForm(prev => ({ ...prev, validityPeriod: parseInt(e.target.value) }))}
+                  />
+                </div>
+                <div className="flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowQualificationForm(false)}
+                    className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                  >
+                    Abbrechen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddQualification}
+                    className="text-sm text-primary hover:text-primary/80"
+                  >
+                    Hinzufügen
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {formData.qualificationIds.length > 0 && (
+              <div className="space-y-2">
+                {formData.qualificationIds.map((qualId) => (
+                  <div
+                    key={qualId}
+                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#181818] rounded-lg"
+                  >
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                        Qualification #{qualId}
+                      </h4>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeQualification(qualId)}
+                      className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
               <h3 className="text-lg font-medium text-gray-900 dark:text-white">Termine</h3>
               <button
                 type="button"
@@ -330,3 +457,4 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
     </div>
   );
 }
+

@@ -363,6 +363,8 @@ export const trainings: Training[] = [
     maxParticipants: 20,
     targetPositions: ['Software Engineer', 'System Administrator'],
     isForEntireDepartment: true,
+    department: 'IT Operations',
+    qualificationIds: ['1'],
     sessions: [
       {
         id: '1',
@@ -389,6 +391,8 @@ export const trainings: Training[] = [
     maxParticipants: 10,
     targetPositions: ['Software Engineer', 'System Administrator'],
     isForEntireDepartment: true,
+    department: 'IT Operations',
+    qualificationIds: ['2'],
     sessions: [
       {
         id: '3',
@@ -409,6 +413,8 @@ export const trainings: Training[] = [
     maxParticipants: 15,
     targetPositions: ['Software Engineer', 'System Administrator'],
     isForEntireDepartment: true,
+    department: 'IT Operations',
+    qualificationIds: ['1', '2'],
     sessions: [
       {
         id: '4',
@@ -435,6 +441,8 @@ export const trainings: Training[] = [
     maxParticipants: 25,
     targetPositions: ['Software Engineer', 'System Administrator'],
     isForEntireDepartment: true,
+    department: 'IT Operations',
+    qualificationIds: ['1', '2'],
     sessions: [
       {
         id: '6',
@@ -455,6 +463,8 @@ export const trainings: Training[] = [
     maxParticipants: 20,
     targetPositions: ['Software Engineer', 'System Administrator'],
     isForEntireDepartment: true,
+    department: 'IT Operations',
+    qualificationIds: ['1', '2'],
     sessions: [
       {
         id: '7',
@@ -475,6 +485,8 @@ export const trainings: Training[] = [
     maxParticipants: 30,
     targetPositions: ['Software Engineer', 'System Administrator'],
     isForEntireDepartment: true,
+    department: 'IT Operations',
+    qualificationIds: ['1', '2'],
     sessions: [
       {
         id: '8',
@@ -495,6 +507,8 @@ export const trainings: Training[] = [
     maxParticipants: 20,
     targetPositions: ['Software Engineer', 'System Administrator'],
     isForEntireDepartment: true,
+    department: 'IT Operations',
+    qualificationIds: ['1', '2'],
     sessions: [
       {
         id: '9',
@@ -515,6 +529,8 @@ export const trainings: Training[] = [
     maxParticipants: 15,
     targetPositions: ['Software Engineer', 'System Administrator'],
     isForEntireDepartment: true,
+    department: 'IT Operations',
+    qualificationIds: ['1', '2'],
     sessions: [
       {
         id: '10',

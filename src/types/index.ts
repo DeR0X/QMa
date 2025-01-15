@@ -33,13 +33,15 @@ export interface Training {
   title: string;
   description: string;
   duration: string;
-  validityPeriod: number; // months
+  validityPeriod: number;
   isMandatory: boolean;
   trainer: string;
   maxParticipants: number;
-  sessions: TrainingSession[];
   targetPositions: string[];
   isForEntireDepartment: boolean;
+  department: string;
+  qualificationIds: string[];
+  sessions: TrainingSession[];
 }
 
 
