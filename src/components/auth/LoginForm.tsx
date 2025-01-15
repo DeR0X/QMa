@@ -22,7 +22,7 @@ export default function LoginForm() {
       await dispatch(login(personalNumber, password) as any);
       if (!error) {
         navigate('/');
-        toast.success('Willkommen zurück!');
+        //toast.success('Willkommen zurück!');
       }
     } catch (error) {
       // Error handling is now done in the auth slice
@@ -77,7 +77,7 @@ export default function LoginForm() {
                           <br />
                           - Ihren Vorgesetzten
                           <br />
-                          - Die IT-Abteilung (support@company.com)
+                          - Die IT-Abteilung (it@beistahl.de)
                         </p>
                       )}
                     </div>

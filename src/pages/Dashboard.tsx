@@ -184,7 +184,7 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-
+        
         <div className="overflow-hidden rounded-lg bg-white dark:bg-[#181818] shadow">
           <div className="p-6">
             <h2 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">

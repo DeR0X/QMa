@@ -4,8 +4,8 @@ export const users: User[] = [
   {
     id: '1',
     personalNumber: '123',
-    email: 'john.doe@company.com',
-    name: 'John Doe',
+    email: 'john.acer@company.com',
+    name: 'John Acer',
     role: 'employee',
     department: 'IT Operations',
     position: 'Software Engineer',
@@ -65,8 +65,8 @@ export const users: User[] = [
   {
     id: '2',
     personalNumber: '1234',
-    email: 'jane.smith@company.com',
-    name: 'Jane Smith',
+    email: 'max.mustermann@company.com',
+    name: 'Max Mustermann',
     role: 'hr',
     department: 'HR',
     position: 'HR Specialist',
@@ -126,8 +126,8 @@ export const users: User[] = [
   {
     id: '3',
     personalNumber: '12',
-    email: 'brian.smith@company.com',
-    name: 'Brian Smith',
+    email: 'hans.mueller@company.com',
+    name: 'Hans Müller',
     role: 'employee',
     department: 'IT Operations',
     position: 'IT Security Specialist',
@@ -159,14 +159,14 @@ export const users: User[] = [
       currentPath: 'IT Management',
       targetPosition: 'IT Director',
       developmentGoals: ['Strategic Management', 'Budget Planning'],
-      mentors: ['Michael Brown'],
+      mentors: ['Michael Braun'],
       nextSteps: ['Executive Leadership Program']
     },
     performanceHistory: [
       {
         id: '3',
         date: '2023-10-01',
-        reviewer: 'Michael Brown',
+        reviewer: 'Michael Braun',
         rating: 4.7,
         strengths: ['Team Leadership', 'Technical Expertise'],
         improvements: ['Budget Management'],
@@ -187,8 +187,8 @@ export const users: User[] = [
   {
     id: '4',
     personalNumber: '1',
-    email: 'michael.brown@company.com',
-    name: 'Michael Brown',
+    email: 'michael.braun@company.com',
+    name: 'Michael Braun',
     role: 'supervisor',
     department: 'IT Operations',
     position: 'System Administrator',
