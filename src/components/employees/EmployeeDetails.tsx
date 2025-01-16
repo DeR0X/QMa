@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { RootState } from '../../store';
 import { hasHRPermissions } from '../../store/slices/authSlice';
-import type { User, PerformanceReview, Certification } from '../../types';
+import type { User } from '../../types';
 
 interface Props {
   employee: User;
@@ -20,20 +20,16 @@ interface Props {
 }
 
 export default function EmployeeDetails({ employee, onClose, onUpdate, approvals, trainings, handleApproveTraining, handleRejectTraining }: Props) {
-  const [activeTab, setActiveTab] = useState<'info' | 'performance' | 'compensation' | 'development' | 'documents' | 'approvals'>('info');
+  const [activeTab, setActiveTab] = useState<'info'  | 'development' | 'documents' | 'approvals'>('info');
   const { user: currentUser } = useSelector((state: RootState) => state.auth);
   const isHRAdmin = hasHRPermissions(currentUser);
 
   const tabs = [
     { id: 'info', label: 'Information' },
-    { id: 'performance', label: 'Performance' },
     { id: 'documents', label: 'Documents' },
     ...(isHRAdmin ? [
-      { id: 'compensation', label: 'Vergütung' },
-      { id: 'development', label: 'Entwicklung' }
     ] : []),
-    employee.role === 'supervisor' && { id: 'approvals', label: 'Genehmigungen' },
-  ].filter(Boolean) as Array<{ id: 'info' | 'performance' | 'compensation' | 'development' | 'documents' | 'approvals'; label: string }>;
+  ].filter(Boolean) as Array<{ id: 'info' | 'development' | 'documents' | 'approvals'; label: string }>;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -91,95 +87,18 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
               <div className="mt-6">
                 {activeTab === 'info' && (
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                    <div className="flex items-center">
-                      <Mail className="h-5 w-5 text-gray-400" />
-                      <span className="ml-2 text-sm text-gray-900 dark:text-white">
-                        {employee.email}
-                      </span>
-                    </div>
+                    {employee.email && (
+                      <div className="flex items-center">
+                        <Mail className="h-5 w-5 text-gray-400" />
+                        <span className="ml-2 text-sm text-gray-900 dark:text-white">
+                          {employee.email}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center">
                       <Calendar className="h-5 w-5 text-gray-400" />
-                      <span className="ml-2 text-sm text-gray-900 dark:text-white">
-                        Beigetreten {new Date(employee.startDate).toLocaleDateString()}
-                      </span>
                     </div>
                     <div className="sm:col-span-2">
-                      <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                        Fähigkeiten
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {employee.skills.map((skill: string) => (
-                          <span
-                            key={skill}
-                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary"
-                          >
-                            {skill}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === 'performance' && (
-                  <div className="space-y-6">
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                        Overall Rating
-                      </h4>
-                      <div className="flex items-center">
-                        <Star className="h-5 w-5 text-yellow-400" />
-                        <span className="ml-2 text-lg font-medium text-gray-900 dark:text-white">
-                          {employee.performance.rating}
-                        </span>
-                        <span className="ml-2 text-sm text-gray-500">
-                          Last reviewed on {new Date(employee.performance.lastReview).toLocaleDateString()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === 'compensation' && isHRAdmin && (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Vergütungsdetails</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium">Gehaltsstufe</label>
-                        <input
-                          type="text"
-                          value={employee.compensation?.salaryGrade || ''}
-                          onChange={(e) => onUpdate({
-                            compensation: {
-                              ...employee.compensation,
-                              salaryGrade: e.target.value
-                            }
-                          })}
-                          className="mt-1 block w-full rounded-md border-gray-300"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === 'development' && isHRAdmin && (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Karriereentwicklung</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium">Entwicklungspfad</label>
-                        <input
-                          type="text"
-                          value={employee.careerDevelopment?.currentPath || ''}
-                          onChange={(e) => onUpdate({
-                            careerDevelopment: {
-                              ...employee.careerDevelopment,
-                              currentPath: e.target.value
-                            }
-                          })}
-                          className="mt-1 block w-full rounded-md border-gray-300"
-                        />
-                      </div>
                     </div>
                   </div>
                 )}

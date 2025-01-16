@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { X, Plus, Award, Edit2, Globe } from 'lucide-react';
+import { X, Plus, Award, Edit2, Globe, Search } from 'lucide-react';
 import { itDepartments, manufacturingDepartments } from '../../data/departments';
+import { qualifications } from '../../data/mockData';
 import type { Training, TrainingSession, Qualification } from '../../types';
 
 interface Props {
@@ -9,26 +10,11 @@ interface Props {
   userDepartment?: string;
 }
 
-interface QualificationForm {
-  name: string;
-  description: string;
-  validityPeriod: number;
-  isFreeQualification: boolean;
-}
-
 const allDepartments = [...itDepartments, ...manufacturingDepartments];
 
 export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Props) {
   const [selectedDepartment, setSelectedDepartment] = useState(userDepartment || '');
-  const [showQualificationForm, setShowQualificationForm] = useState(false);
-  const [editingQualificationId, setEditingQualificationId] = useState<string | null>(null);
-  const [qualificationForm, setQualificationForm] = useState<QualificationForm>({
-    name: '',
-    description: '',
-    validityPeriod: 12,
-    isFreeQualification: false
-  });
-  const [qualifications, setQualifications] = useState<Record<string, QualificationForm>>({});
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -64,75 +50,11 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
     });
   };
 
-  const handleAddQualification = () => {
-    if (!qualificationForm.name || !qualificationForm.description) return;
-
-    const qualificationId = editingQualificationId || Date.now().toString();
-    
-    // If it's a free qualification, clear department and position selections
-    if (qualificationForm.isFreeQualification) {
-      setFormData(prev => ({
-        ...prev,
-        isForEntireDepartment: false,
-        targetPositions: [],
-        department: ''
-      }));
-      setSelectedDepartment('');
-    }
-    
-    setQualifications(prev => ({
-      ...prev,
-      [qualificationId]: { ...qualificationForm }
-    }));
-
-    if (!editingQualificationId) {
-      setFormData(prev => ({
-        ...prev,
-        qualificationIds: [...prev.qualificationIds, qualificationId]
-      }));
-    }
-
-    setQualificationForm({ 
-      name: '', 
-      description: '', 
-      validityPeriod: 12,
-      isFreeQualification: false
-    });
-    setShowQualificationForm(false);
-    setEditingQualificationId(null);
-  };
-
-  const handleEditQualification = (id: string) => {
-    const qualification = qualifications[id];
-    if (qualification) {
-      setQualificationForm(qualification);
-      setEditingQualificationId(id);
-      setShowQualificationForm(true);
-    }
-  };
-
-  const removeQualification = (id: string) => {
-    setFormData(prev => ({
-      ...prev,
-      qualificationIds: prev.qualificationIds.filter(q => q !== id)
-    }));
-    setQualifications(prev => {
-      const newQuals = { ...prev };
-      delete newQuals[id];
-      return newQuals;
-    });
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onAdd({
       ...formData,
       department: selectedDepartment,
-      qualifications: formData.qualificationIds.map(id => ({
-        id,
-        ...qualifications[id],
-        requiredTrainings: []
-      }))
     } as Omit<Training, 'id'>);
     onClose();
   };
@@ -153,6 +75,22 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
     setFormData(prev => ({
       ...prev,
       sessions: prev.sessions.filter((_, i) => i !== index)
+    }));
+  };
+
+  const filteredQualifications = qualifications.filter(qual => {
+    const matchesSearch = searchTerm === '' || 
+      qual.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      qual.description.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
+  });
+
+  const handleQualificationToggle = (qualId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      qualificationIds: prev.qualificationIds.includes(qualId)
+        ? prev.qualificationIds.filter(id => id !== qualId)
+        : [...prev.qualificationIds, qualId]
     }));
   };
 
@@ -333,162 +271,50 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
                 <Award className="h-5 w-5 mr-2" />
                 Qualifikationen
               </h3>
-              <button
-                type="button"
-                onClick={() => {
-                  setQualificationForm({ 
-                    name: '', 
-                    description: '', 
-                    validityPeriod: 12,
-                    isFreeQualification: false
-                  });
-                  setEditingQualificationId(null);
-                  setShowQualificationForm(true);
-                }}
-                className="text-sm text-primary hover:text-primary/80 flex items-center"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Qualifikation hinzufügen
-              </button>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Qualifikationen suchen..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm"
+                />
+              </div>
             </div>
 
-            {showQualificationForm && (
-              <div className="bg-gray-50 dark:bg-[#181818] p-4 rounded-lg space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Name der Qualifikation
-                  </label>
-                  <input
-                    type="text"
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-                    value={qualificationForm.name}
-                    onChange={(e) => setQualificationForm(prev => ({ ...prev, name: e.target.value }))}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Beschreibung
-                  </label>
-                  <textarea
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-                    value={qualificationForm.description}
-                    onChange={(e) => setQualificationForm(prev => ({ ...prev, description: e.target.value }))}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Gültigkeitsdauer (Monate)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-                    value={qualificationForm.validityPeriod}
-                    onChange={(e) => setQualificationForm(prev => ({ ...prev, validityPeriod: parseInt(e.target.value) }))}
-                  />
-                </div>
-
-                <div>
-                  <label className="flex items-center">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {filteredQualifications.map((qual) => (
+                <div
+                  key={qual.id}
+                  className={`p-4 rounded-lg border ${
+                    formData.qualificationIds.includes(qual.id)
+                      ? 'border-primary bg-primary/5'
+                      : 'border-gray-200 dark:border-gray-700'
+                  }`}
+                >
+                  <label className="flex items-start space-x-3">
                     <input
                       type="checkbox"
-                      className="rounded border-gray-300 text-primary focus:ring-primary"
-                      checked={qualificationForm.isFreeQualification}
-                      onChange={(e) => setQualificationForm(prev => ({ 
-                        ...prev, 
-                        isFreeQualification: e.target.checked 
-                      }))}
+                      checked={formData.qualificationIds.includes(qual.id)}
+                      onChange={() => handleQualificationToggle(qual.id)}
+                      className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
                     />
-                    <span className="ml-2 text-sm text-gray-700 dark:text-gray-300 flex items-center">
-                      <Globe className="h-4 w-4 mr-1" />
-                      Freie Qualifikation (für alle Mitarbeiter)
-                    </span>
-                  </label>
-                  {qualificationForm.isFreeQualification && (
-                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                      Diese Qualifikation wird allen Mitarbeitern unabhängig von Abteilung und Position zugewiesen.
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowQualificationForm(false);
-                      setEditingQualificationId(null);
-                      setQualificationForm({ 
-                        name: '', 
-                        description: '', 
-                        validityPeriod: 12,
-                        isFreeQualification: false
-                      });
-                    }}
-                    className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                  >
-                    Abbrechen
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleAddQualification}
-                    className="text-sm text-primary hover:text-primary/80"
-                  >
-                    {editingQualificationId ? 'Aktualisieren' : 'Hinzufügen'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {formData.qualificationIds.length > 0 && (
-              <div className="space-y-2">
-                {formData.qualificationIds.map((qualId) => {
-                  const qual = qualifications[qualId];
-                  return (
-                    <div
-                      key={qualId}
-                      className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#181818] rounded-lg"
-                    >
-                      <div>
-                        <div className="flex items-center">
-                          <h4 className="text-sm font-medium text-gray-900 dark:text-white">
-                            {qual?.name || `Qualification #${qualId}`}
-                          </h4>
-                          {qual?.isFreeQualification && (
-                            <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                              <Globe className="h-3 w-3 mr-1" />
-                              Freie Qualifikation
-                            </span>
-                          )}
-                        </div>
-                        {qual?.description && (
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {qual.description}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <button
-                          type="button"
-                          onClick={() => handleEditQualification(qualId)}
-                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => removeQualification(qualId)}
-                          className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {qual.name}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {qual.description}
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                        Gültigkeitsdauer: {qual.validityPeriod} Monate
+                      </p>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  </label>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -574,4 +400,3 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
     </div>
   );
 }
-

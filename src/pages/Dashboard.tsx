@@ -89,7 +89,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-            Willkommen zurück, {user.name}
+            {user.name}
           </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Ihre Schulungsübersicht und bevorstehende Sitzungen
@@ -97,27 +97,6 @@ export default function Dashboard() {
         </div>
         <GraduationCap className="h-8 w-8 text-primary" />
       </div>
-
-      {expiringQualifications.length > 0 && (
-        <div className="rounded-lg bg-yellow-50 dark:bg-yellow-900/20 p-4">
-          <div className="flex">
-            <AlertTriangle className="h-5 w-5 text-yellow-400" />
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                Aufmerksamkeit erforderlich
-              </h3>
-              <div className="mt-2 text-sm text-yellow-700 dark:text-yellow-300">
-                <p>Die folgenden Qualifikationen laufen bald ab:</p>
-                <ul className="list-disc list-inside mt-1">
-                  {expiringQualifications.map(qual => (
-                    <li key={qual.id}>{qual.name}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {stats.map((stat) => (
@@ -153,6 +132,7 @@ export default function Dashboard() {
               {upcomingTrainings.length > 0 ? (
                 <ul className="-my-5 divide-y divide-gray-200 dark:divide-gray-700">
                   {upcomingTrainings.map((booking) => {
+                    //linq
                     const training = trainings.find(t => t.id === booking.trainingId);
                     const session = training?.sessions.find(s => s.id === booking.sessionId);
                     if (!training || !session) return null;

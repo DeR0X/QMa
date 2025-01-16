@@ -7,6 +7,8 @@ import Dashboard from '../pages/Dashboard';
 import Employees from '../pages/Employees';
 import Departments from '../pages/Departments';
 import Trainings from '../pages/Trainings';
+import Documents from '../pages/Documents';
+import Qualifications from '../pages/Qualifications';
 
 // Temporary placeholder component for development
 const PlaceholderComponent = () => (
@@ -30,7 +32,8 @@ export default function AppRoutes() {
         <Route path="/employees" element={<Employees />} />
         <Route path="/departments" element={<Departments />} />
         <Route path="/trainings" element={<Trainings />} />
-        <Route path="/documents" element={<PlaceholderComponent />} />
+        <Route path="/qualifications" element={<Qualifications />} />
+        <Route path="/documents" element={<Documents />} />
         <Route path="/settings" element={<PlaceholderComponent />} />
       </Route>
 

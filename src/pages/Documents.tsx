@@ -9,7 +9,7 @@ export default function Documents() {
     return (
         <div className="space-y-6">
 
-        
+ 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="overflow-hidden rounded-lg bg-white dark:bg-[#181818] shadow">
           <div className="p-6">
@@ -52,7 +52,7 @@ export default function Documents() {
 
 
 
-        <div className="space-y-6">
+      <div className="space-y-6">
       <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex flex-col sm:flex-row gap-4">
@@ -75,21 +75,22 @@ export default function Documents() {
             <thead className="bg-gray-50 dark:bg-[#181818]">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Dokumenten Name
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Mitarbeiter
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Abteilung
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Position
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Status
+                  Datum
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-[#141616]">
               <tr>
+
               </tr>
             </tbody>
           </table>

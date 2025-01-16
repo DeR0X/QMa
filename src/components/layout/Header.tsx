@@ -55,18 +55,10 @@ export default function Header() {
               onClick={handleLogout}
             >
               <span className="sr-only">Open user menu</span>
-              <div className="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center">
-                {user?.avatar ? (
-                  <img
-                    src={user.avatar}
-                    alt=""
-                    className="h-8 w-8 rounded-full"
-                  />
-                ) : (
+              <div className="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center"> 
                   <span className="text-sm font-medium">
                     {user?.name ? getInitials(user.name) : '??'}
                   </span>
-                )}
               </div>
               <span className="hidden lg:flex lg:items-center">
                 <span

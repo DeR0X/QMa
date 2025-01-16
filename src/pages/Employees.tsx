@@ -33,29 +33,32 @@ export default function Employees() {
     { value: 'inactive', label: 'Gesperrte' },
   ];
 
-  // Get accessible employees based on user role
-  const getAccessibleEmployees = () => {
+  // Get supervisors and their direct reports
+  const getSupervisorsWithEmployees = () => {
     if (!user) return [];
     
-    if (isHRAdmin) {
-      return employees.filter(emp => emp.id !== user.id); // HR sees everyone except themselves
-    }
-    
-    if (user.role === 'supervisor') {
-      // Supervisors only see their direct reports
-      return employees.filter(emp => 
-        emp.supervisorId === user.id && emp.id !== user.id
-      );
-    }
-    
-    return []; // Regular employees don't see anyone in the employee list
+    const supervisors = employees.filter(emp => emp.role === 'supervisor');
+    return supervisors.map(supervisor => ({
+      ...supervisor,
+      directReports: employees.filter(emp => emp.supervisorId === supervisor.id)
+    }));
+  };
+
+  const toggleSupervisor = (e: React.MouseEvent, supervisorId: string) => {
+    // Stop event from bubbling up to prevent details modal from opening
+    e.stopPropagation();
+    setExpandedSupervisors(prev => 
+      prev.includes(supervisorId)
+        ? prev.filter(id => id !== supervisorId)
+        : [...prev, supervisorId]
+    );
   };
 
   const filterEmployees = (employeesToFilter: User[]) => {
     return employeesToFilter.filter(emp => {
       const matchesSearch = 
         emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        emp.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         emp.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
         emp.position.toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -88,7 +91,8 @@ export default function Employees() {
     toast.success('Mitarbeiter erfolgreich aktualisiert');
   };
 
-  const handleToggleActive = (employeeId: string) => {
+  const handleToggleActive = (e: React.MouseEvent, employeeId: string) => {
+    e.stopPropagation(); // Prevent opening details when toggling active status
     const employee = employees.find(emp => emp.id === employeeId);
     if (employee) {
       const newActiveStatus = !employee.isActive;
@@ -103,16 +107,17 @@ export default function Employees() {
     }
   };
 
-  const renderEmployeeRow = (employee: User) => (
+  const renderEmployeeRow = (employee: User, isSubRow: boolean = false) => (
     <tr
       key={employee.id}
-      className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+      className={`hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${
+        isSubRow ? 'bg-gray-50 dark:bg-gray-800/50' : ''
+      }`}
+      onClick={() => setSelectedEmployee(employee)}
     >
-      <td 
-        className="px-6 py-4 whitespace-nowrap"
-        onClick={() => setSelectedEmployee(employee)}
-      >
+      <td className="px-6 py-4 whitespace-nowrap">
         <div className="flex items-center">
+          {isSubRow && <div className="w-6" />}
           <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
             <span className="text-sm font-medium">
               {employee.name.split(' ').map((n) => n[0]).join('')}
@@ -146,7 +151,7 @@ export default function Employees() {
       {(isHRAdmin || user?.role === 'supervisor') && (
         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
           <button
-            onClick={() => handleToggleActive(employee.id)}
+            onClick={(e) => handleToggleActive(e, employee.id)}
             className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
           >
             {!employee.isActive ? (
@@ -171,7 +176,7 @@ export default function Employees() {
     );
   }
 
-  const filteredEmployees = filterEmployees(getAccessibleEmployees());
+  const supervisorsWithEmployees = getSupervisorsWithEmployees();
 
   return (
     <div className="space-y-6">
@@ -263,7 +268,76 @@ export default function Employees() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-[#141616]">
-              {filteredEmployees.map(employee => renderEmployeeRow(employee))}
+              {supervisorsWithEmployees.map(supervisor => (
+                <>
+                  <tr
+                    key={supervisor.id}
+                    className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                    onClick={() => setSelectedEmployee(supervisor)}
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <button 
+                          className="mr-2"
+                          onClick={(e) => toggleSupervisor(e, supervisor.id)}
+                        >
+                          {expandedSupervisors.includes(supervisor.id) ? (
+                            <ChevronDown className="h-5 w-5 text-gray-400" />
+                          ) : (
+                            <ChevronRight className="h-5 w-5 text-gray-400" />
+                          )}
+                        </button>
+                        <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
+                          <span className="text-sm font-medium">
+                            {supervisor.name.split(' ').map((n) => n[0]).join('')}
+                          </span>
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            {supervisor.name}
+                          </div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            {supervisor.email}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      {supervisor.department}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      {supervisor.position}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        !supervisor.isActive
+                          ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                          : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                      }`}>
+                        {!supervisor.isActive ? 'Gesperrt' : 'Aktiv'}
+                      </span>
+                    </td>
+                    {(isHRAdmin || user?.role === 'supervisor') && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <button
+                          onClick={(e) => handleToggleActive(e, supervisor.id)}
+                          className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                        >
+                          {!supervisor.isActive ? (
+                            <Unlock className="h-5 w-5" />
+                          ) : (
+                            <Lock className="h-5 w-5" />
+                          )}
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                  {expandedSupervisors.includes(supervisor.id) && 
+                    supervisor.directReports.map(employee => 
+                      renderEmployeeRow(employee, true)
+                    )}
+                </>
+              ))}
             </tbody>
           </table>
         </div>

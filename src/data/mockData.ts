@@ -15,28 +15,6 @@ export const users: User[] = [
     qualifications: ['1'],
     failedLoginAttempts: 0,
     requiredQualifications: ['1', '2'],
-    startDate: '2022-01-15',
-    performanceHistory: [
-      {
-        id: '1',
-        date: '2023-12-01',
-        reviewer: 'Michael Brown',
-        rating: 4.5,
-        strengths: ['Technical Skills', 'Problem Solving'],
-        improvements: ['Communication'],
-        goals: ['Complete AWS Certification'],
-        comments: 'Excellent technical performance, showing leadership potential'
-      }
-    ],
-    certifications: [
-      {
-        id: '1',
-        name: 'React Advanced Developer',
-        issuer: 'Meta',
-        dateObtained: '2024-06-15',
-        status: 'active'
-      }
-    ]
   },
   {
     id: '2',
@@ -52,28 +30,6 @@ export const users: User[] = [
     qualifications: ['2'],
     failedLoginAttempts: 0,
     requiredQualifications: ['1', '2'],
-    startDate: '2022-01-15',
-    performanceHistory: [
-      {
-        id: '2',
-        date: '2023-11-15',
-        reviewer: 'Sarah Wilson',
-        rating: 4.8,
-        strengths: ['Employee Relations', 'Process Improvement'],
-        improvements: ['Strategic Planning'],
-        goals: ['HR Certification'],
-        comments: 'Outstanding performance in employee relations'
-      }
-    ],
-    certifications: [
-      {
-        id: '2',
-        name: 'PHR Certification',
-        issuer: 'HRCI',
-        dateObtained: '2023-03-10',
-        status: 'active'
-      }
-    ]
   },
   {
     id: '3',
@@ -89,28 +45,6 @@ export const users: User[] = [
     qualifications: ['2'],
     failedLoginAttempts: 0,
     requiredQualifications: ['1', '2'],
-    startDate: '2020-03-15',
-    performanceHistory: [
-      {
-        id: '3',
-        date: '2023-10-01',
-        reviewer: 'Michael Braun',
-        rating: 4.7,
-        strengths: ['Team Leadership', 'Technical Expertise'],
-        improvements: ['Budget Management'],
-        goals: ['Develop IT Strategy'],
-        comments: 'Strong leadership skills and technical knowledge'
-      }
-    ],
-    certifications: [
-      {
-        id: '3',
-        name: 'PMP Certification',
-        issuer: 'PMI',
-        dateObtained: '2022-05-20',
-        status: 'active'
-      }
-    ]
   },
   {
     id: '4',
@@ -126,28 +60,6 @@ export const users: User[] = [
     qualifications: ['1', '2'],
     failedLoginAttempts: 0,
     requiredQualifications: ['1', '2'],
-    startDate: '2019-06-01',
-    performanceHistory: [
-      {
-        id: '4',
-        date: '2023-09-15',
-        reviewer: 'CTO',
-        rating: 4.9,
-        strengths: ['Leadership', 'Technical Vision'],
-        improvements: ['Work-Life Balance'],
-        goals: ['Department Growth'],
-        comments: 'Exceptional leadership and technical expertise'
-      }
-    ],
-    certifications: [
-      {
-        id: '4',
-        name: 'CISSP',
-        issuer: 'ISC²',
-        dateObtained: '2021-08-10',
-        status: 'active'
-      }
-    ]
   },
   {
     id: '6',
@@ -162,23 +74,6 @@ export const users: User[] = [
     qualifications: ['1', '2'],
     failedLoginAttempts: 0,
     requiredQualifications: ['1', '2'],
-    startDate: '2018-01-01',
-    certifications: [
-      {
-        id: '6',
-        name: 'SPHR',
-        issuer: 'HRCI',
-        dateObtained: '2020-03-15',
-        status: 'active'
-      },
-      {
-        id: '7',
-        name: 'SHRM-SCP',
-        issuer: 'SHRM',
-        dateObtained: '2019-06-20',
-        status: 'active'
-      }
-    ]
   },
   {
     id: '7',
@@ -193,28 +88,6 @@ export const users: User[] = [
     qualifications: ['1', '2'],
     failedLoginAttempts: 0,
     requiredQualifications: ['1', '2'],
-    startDate: '2019-06-01',
-    performanceHistory: [
-      {
-        id: '4',
-        date: '2023-09-15',
-        reviewer: 'CTO',
-        rating: 4.9,
-        strengths: ['Leadership', 'Technical Vision'],
-        improvements: ['Work-Life Balance'],
-        goals: ['Department Growth'],
-        comments: 'Exceptional leadership and technical expertise'
-      }
-    ],
-    certifications: [
-      {
-        id: '4',
-        name: 'CISSP',
-        issuer: 'ISC²',
-        dateObtained: '2021-08-10',
-        status: 'active'
-      }
-    ]
   },
 ];
 
@@ -426,6 +299,32 @@ export const qualifications: Qualification[] = [
     validityPeriod: 60, // months
   },
 ];
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 export const qualificationHistory: QualificationHistory[] = [
   {

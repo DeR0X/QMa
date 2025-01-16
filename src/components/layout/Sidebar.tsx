@@ -7,19 +7,21 @@ import {
   FileText, 
   Settings,
   GraduationCap,
-  X
+  X,
+  Award
 } from 'lucide-react';
 import { RootState } from '../../store';
 import { toggleSidebar } from '../../store/slices/uiSlice';
 import { cn } from '../../lib/utils';
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Trainings', href: '/trainings', icon: GraduationCap },
-  { name: 'Employees', href: '/employees', icon: Users },
-  { name: 'Departments', href: '/departments', icon: Building2 },
-  { name: 'Documents', href: '/documents', icon: FileText },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Dashbaord', href: '/', icon: LayoutDashboard },
+  { name: 'Schulungen', href: '/trainings', icon: GraduationCap },
+  { name: 'Qualifikationen', href: '/qualifications', icon: Award },
+/*   { name: 'Mitarbeiter', href: '/employees', icon: Users }, */
+/*   { name: 'Departments', href: '/departments', icon: Building2 }, */
+  { name: 'Dokumente', href: '/documents', icon: FileText },
+/*   { name: 'Settings', href: '/settings', icon: Settings }, */
 ];
 
 export default function Sidebar() {
@@ -53,7 +55,7 @@ export default function Sidebar() {
         )}
       >
         <div className="flex h-16 shrink-0 items-center justify-between px-6 border-b border-gray-200 dark:border-gray-800">
-          <span className="text-2xl font-bold text-primary">EMS</span>
+          <span className="text-2xl font-bold text-primary">Q-Matrix</span>
           <button
             type="button"
             className="-m-2.5 p-2.5 text-gray-700 dark:text-gray-200 lg:hidden"
