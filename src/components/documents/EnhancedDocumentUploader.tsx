@@ -15,7 +15,8 @@ import {
   Calendar,
   Languages,
   Clock,
-  History
+  History,
+  Search
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { RootState } from '../../store';
@@ -23,48 +24,48 @@ import type { DocumentUploadFormData } from '../../types';
 import { itDepartments, manufacturingDepartments } from '../../data/departments';
 
 const DOCUMENT_TYPES = [
-  'Policy',
-  'Procedure',
-  'Form',
-  'Template',
-  'Report',
-  'Training Material',
-  'Contract',
-  'Manual',
-  'Guide',
-  'Certification',
+  'Richtlinie',
+  'Verfahrensanweisung',
+  'Formular',
+  'Vorlage',
+  'Bericht',
+  'Schulungsmaterial',
+  'Vertrag',
+  'Handbuch',
+  'Leitfaden',
+  'Zertifizierung',
 ];
 
 const DOCUMENT_CATEGORIES = [
-  'HR',
-  'Finance',
-  'Operations',
+  'Personal',
+  'Finanzen',
+  'Betrieb',
   'IT',
-  'Legal',
-  'Quality',
-  'Safety',
-  'Training',
+  'Recht',
+  'Qualität',
+  'Sicherheit',
+  'Schulung',
   'Compliance',
-  'General',
+  'Allgemein',
 ];
 
 const DOCUMENT_CLASSIFICATIONS = [
-  { value: 'employee', label: 'Employee Documents' },
-  { value: 'training', label: 'Training Materials' },
-  { value: 'policy', label: 'Policy Documents' },
-  { value: 'procedure', label: 'Procedures' },
+  { value: 'employee', label: 'Mitarbeiterdokumente' },
+  { value: 'training', label: 'Schulungsmaterialien' },
+  { value: 'policy', label: 'Richtlinien' },
+  { value: 'procedure', label: 'Verfahrensanweisungen' },
 ];
 
 const VISIBILITY_LEVELS = [
-  { value: 'public', label: 'Public (All Employees)', icon: Globe },
-  { value: 'department', label: 'Department Only', icon: Building2 },
-  { value: 'role', label: 'Role-Based', icon: Users },
-  { value: 'private', label: 'Private (Selected Users)', icon: Lock },
+  { value: 'public', label: 'Öffentlich (Alle Mitarbeiter)', icon: Globe },
+  { value: 'department', label: 'Nur Abteilung', icon: Building2 },
+  { value: 'role', label: 'Rollenbasiert', icon: Users },
+  { value: 'private', label: 'Privat (Ausgewählte Benutzer)', icon: Lock },
 ];
 
 const LANGUAGES = [
-  { code: 'de', name: 'German' },
-  { code: 'en', name: 'English' },
+  { code: 'de', name: 'Deutsch' },
+  { code: 'en', name: 'Englisch' },
 ];
 
 interface Props {
@@ -90,7 +91,7 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
       description: '',
       relatedDocuments: [],
       approvalStatus: 'pending',
-      retentionPeriod: 24, // 2 years default
+      retentionPeriod: 24,
       language: 'de',
       accessControl: {
         visibility: 'department',
@@ -114,19 +115,19 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
     const newErrors: Record<string, string> = {};
 
     if (!formData.file && !formData.url) {
-      newErrors.file = 'Please provide either a file or URL';
+      newErrors.file = 'Bitte laden Sie eine Datei hoch oder geben Sie eine URL an';
     }
 
     if (!formData.metadata.title) {
-      newErrors.title = 'Title is required';
+      newErrors.title = 'Titel ist erforderlich';
     }
 
     if (!formData.metadata.type) {
-      newErrors.type = 'Document type is required';
+      newErrors.type = 'Dokumententyp ist erforderlich';
     }
 
     if (!formData.metadata.category) {
-      newErrors.category = 'Category is required';
+      newErrors.category = 'Kategorie ist erforderlich';
     }
 
     setErrors(newErrors);
@@ -137,7 +138,7 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
     e.preventDefault();
     
     if (!validateForm()) {
-      toast.error('Please fill in all required fields');
+      toast.error('Bitte füllen Sie alle erforderlichen Felder aus');
       return;
     }
 
@@ -152,7 +153,7 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
     if (file && (file.type === 'application/pdf' || file.type.startsWith('image/'))) {
       setFormData(prev => ({ ...prev, file }));
     } else {
-      toast.error('Please upload only PDF files or images');
+      toast.error('Bitte nur PDF-Dateien oder Bilder hochladen');
     }
   };
 
@@ -173,11 +174,11 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-      <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-4xl w-full m-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 overflow-y-auto py-8">
+      <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-4xl w-full mx-4 my-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Upload Document
+            Dokument hochladen
           </h2>
           <button
             onClick={onClose}
@@ -188,7 +189,7 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Upload Method Tabs */}
+          {/* Upload-Methode Tabs */}
           <div className="flex space-x-4 border-b border-gray-200 dark:border-gray-700">
             <button
               type="button"
@@ -200,7 +201,7 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
               onClick={() => setActiveTab('file')}
             >
               <Upload className="h-5 w-5 inline mr-2" />
-              File Upload
+              Datei hochladen
             </button>
             <button
               type="button"
@@ -212,11 +213,11 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
               onClick={() => setActiveTab('url')}
             >
               <Link className="h-5 w-5 inline mr-2" />
-              URL Upload
+              URL hochladen
             </button>
           </div>
 
-          {/* Upload Area */}
+          {/* Upload-Bereich */}
           {activeTab === 'file' ? (
             <div
               onDragOver={(e) => {
@@ -245,17 +246,17 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
                     onClick={() => setFormData(prev => ({ ...prev, file: null }))}
                     className="mt-2 text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
                   >
-                    Remove
+                    Entfernen
                   </button>
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
                   <Upload className="w-10 h-10 mb-3 text-gray-400" />
                   <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
-                    <span className="font-semibold">Click</span> or drag to upload
+                    <span className="font-semibold">Klicken</span> oder Datei hierher ziehen
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    PDF or Image files only
+                    Nur PDF oder Bilddateien
                   </p>
                 </div>
               )}
@@ -274,7 +275,7 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
           ) : (
             <div className="space-y-4">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Document URL
+                Dokument URL
               </label>
               <input
                 type="url"
@@ -286,11 +287,11 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
             </div>
           )}
 
-          {/* Document Metadata */}
-          <div className="grid grid-cols-1 gap-6 mt-4 sm:grid-cols-2">
+          {/* Dokument Metadaten */}
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Title *
+                Titel *
               </label>
               <input
                 type="text"
@@ -306,7 +307,7 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Document Type *
+                Dokumententyp *
               </label>
               <select
                 required
@@ -317,7 +318,7 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
                 }))}
                 className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
               >
-                <option value="">Select type</option>
+                <option value="">Typ auswählen</option>
                 {DOCUMENT_TYPES.map(type => (
                   <option key={type} value={type}>{type}</option>
                 ))}
@@ -326,7 +327,7 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Category *
+                Kategorie *
               </label>
               <select
                 required
@@ -337,7 +338,7 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
                 }))}
                 className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
               >
-                <option value="">Select category</option>
+                <option value="">Kategorie auswählen</option>
                 {DOCUMENT_CATEGORIES.map(category => (
                   <option key={category} value={category}>{category}</option>
                 ))}
@@ -346,7 +347,7 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Department
+                Abteilung
               </label>
               <select
                 value={formData.metadata.department}
@@ -364,7 +365,7 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Classification
+                Klassifizierung
               </label>
               <select
                 value={formData.metadata.classification}
@@ -402,7 +403,7 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Expiration Date
+                Ablaufdatum
               </label>
               <input
                 type="date"
@@ -417,7 +418,7 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Retention Period (months)
+                Aufbewahrungsfrist (Monate)
               </label>
               <input
                 type="number"
@@ -433,7 +434,7 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Language
+                Sprache
               </label>
               <select
                 value={formData.metadata.language}
@@ -453,7 +454,7 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
           {/* Tags */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Tags
+              Schlagworte
             </label>
             <div className="mt-1 flex flex-wrap gap-2">
               {formData.metadata.tags.map(tag => (
@@ -482,16 +483,16 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
                 value={currentTag}
                 onChange={(e) => setCurrentTag(e.target.value)}
                 onKeyDown={handleTagAdd}
-                placeholder="Add tags..."
+                placeholder="Schlagworte hinzufügen..."
                 className="inline-flex items-center px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-full text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary dark:bg-[#181818] dark:text-white"
               />
             </div>
           </div>
 
-          {/* Description */}
+          {/* Beschreibung */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Description
+              Beschreibung
             </label>
             <textarea
               rows={3}
@@ -504,15 +505,15 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
             />
           </div>
 
-          {/* Access Control */}
+          {/* Zugriffssteuerung */}
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-              Access Control
+              Zugriffssteuerung
             </h3>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Visibility Level
+                  Sichtbarkeit
                 </label>
                 <select
                   value={formData.metadata.accessControl.visibility}
@@ -539,7 +540,7 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
               {formData.metadata.accessControl.visibility === 'department' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Allowed Departments
+                    Erlaubte Abteilungen
                   </label>
                   <select
                     multiple
@@ -575,13 +576,13 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
               onClick={onClose}
               className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
             >
-              Cancel
+              Abbrechen
             </button>
             <button
               type="submit"
               className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
             >
-              Upload Document
+              Dokument hochladen
             </button>
           </div>
         </form>
