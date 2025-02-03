@@ -18,7 +18,6 @@ interface DepartmentStructure {
         'Backend Developer',
         'DevOps Engineer',
         'Software Architect',
-        'Scrum Master',
         'Product Owner',
       ],
     },

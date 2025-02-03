@@ -18,7 +18,7 @@ const navigation = [
   { name: 'Dashbaord', href: '/', icon: LayoutDashboard },
   { name: 'Schulungen', href: '/trainings', icon: GraduationCap },
   { name: 'Qualifikationen', href: '/qualifications', icon: Award },
-/*   { name: 'Mitarbeiter', href: '/employees', icon: Users }, */
+  { name: 'Mitarbeiter', href: '/employees', icon: Users },
 /*   { name: 'Departments', href: '/departments', icon: Building2 }, */
   { name: 'Dokumente', href: '/documents', icon: FileText },
 /*   { name: 'Settings', href: '/settings', icon: Settings }, */

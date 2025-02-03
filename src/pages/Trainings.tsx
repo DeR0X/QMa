@@ -111,7 +111,7 @@ const handleAddTraining = (newTraining: Omit<Training, 'id'> & { targetAudience?
             Durchsuchen und buchen Sie Schulungen für Ihre berufliche Entwicklung
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        {/* <div className="flex items-center gap-4">
           {canCreateTraining && (
             <button
               onClick={() => setShowAddModal(true)}
@@ -122,7 +122,7 @@ const handleAddTraining = (newTraining: Omit<Training, 'id'> & { targetAudience?
             </button>
           )}
           <GraduationCap className="h-8 w-8 text-primary" />
-        </div>
+        </div> */}
       </div>
 
       <div className="bg-white dark:bg-[#121212] shadow rounded-lg">

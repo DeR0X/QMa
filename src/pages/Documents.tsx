@@ -203,7 +203,7 @@ export default function Documents() {
                     {doc.category}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    {activeTab === 'employee' ? doc.department : doc.trainer}
+                    {('department' in doc) ? doc.department : doc.trainer}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     {new Date(doc.date).toLocaleDateString()}

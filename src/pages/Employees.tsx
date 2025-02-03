@@ -165,7 +165,6 @@ export default function Employees() {
     </tr>
   );
 
-  // Only allow access if user is a supervisor or HR
   if (!isHRAdmin && user?.role !== 'supervisor') {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
