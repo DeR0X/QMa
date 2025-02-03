@@ -1,4 +1,4 @@
-import { User, Training, TrainingBooking, Qualification, QualificationHistory } from '../types';
+import { User, Training, TrainingBooking, Qualification, QualificationHistory, TrainingDocument } from '../types';
 
 export const users: User[] = [
   {
@@ -383,4 +383,28 @@ export const bookings: TrainingBooking[] = [
     status: 'ausstehend',
     createdAt: '2024-02-01T14:30:00',
   },
+];
+
+
+export const trainingDocuments: TrainingDocument[] = [
+  {
+    id: '1',
+    trainingId: '1',
+    fileName: 'Sicherheitsrichtlinien_2024.pdf',
+    fileType: 'application/pdf',
+    uploadedBy: '6', // HR user ID
+    uploadedAt: '2024-03-15T10:00:00',
+    fileUrl: '/documents/training/1/Sicherheitsrichtlinien_2024.pdf',
+    description: 'Aktuelle Sicherheitsrichtlinien für IT-Systeme'
+  },
+  {
+    id: '2',
+    trainingId: '2',
+    fileName: 'Kranführerschein_Handbuch.pdf',
+    fileType: 'application/pdf',
+    uploadedBy: '6',
+    uploadedAt: '2024-03-14T15:30:00',
+    fileUrl: '/documents/training/2/Kranführerschein_Handbuch.pdf',
+    description: 'Handbuch für Kranführerschein-Qualifikation'
+  }
 ];
