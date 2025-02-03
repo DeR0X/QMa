@@ -42,6 +42,16 @@ export interface TrainingSession {
   availableSpots: number;
 }
 
+export interface TrainingDocument {
+  id: string;
+  trainingId: string;
+  fileName: string;
+  fileType: string;
+  uploadedBy: string;
+  uploadedAt: string;
+  fileUrl: string;
+  description?: string;
+}
 
 
 
@@ -135,3 +145,46 @@ export interface Certification {
   status: 'active' | 'expired' | 'pending';
 }
 
+export interface DocumentMetadata {
+  id: string;
+  title: string;
+  type: string;
+  category: string;
+  department: string;
+  classification: 'employee' | 'training' | 'policy' | 'procedure';
+  expirationDate?: string;
+  version: string;
+  owner: string;
+  createdAt: string;
+  updatedAt: string;
+  tags: string[];
+  description: string;
+  relatedDocuments: string[];
+  approvalStatus: 'pending' | 'approved' | 'rejected';
+  retentionPeriod: number; // in months
+  language: string;
+  accessControl: {
+    visibility: 'public' | 'department' | 'role' | 'private';
+    allowedDepartments: string[];
+    allowedRoles: string[];
+    allowedUsers: string[];
+    permissions: {
+      read: string[];
+      write: string[];
+      delete: string[];
+    };
+  };
+  auditTrail: {
+    id: string;
+    action: string;
+    performedBy: string;
+    timestamp: string;
+    details: string;
+  }[];
+}
+
+export interface DocumentUploadFormData {
+  file: File | null;
+  url: string;
+  metadata: Omit<DocumentMetadata, 'id' | 'createdAt' | 'updatedAt' | 'auditTrail'>;
+}

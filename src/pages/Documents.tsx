@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Calendar, Filter, Search, FileText, Users, GraduationCap, X } from 'lucide-react';
+import { Calendar, Filter, Search, FileText, Users, GraduationCap, X, Upload, Plus } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { trainings } from '../data/mockData';
+import { toast } from 'sonner';
+import EnhancedDocumentUploader from '../components/documents/EnhancedDocumentUploader';
 
 // Beispiel-Dokumente mit PDF URLs
 const employeeDocuments = [
@@ -73,6 +75,7 @@ export default function Documents() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   // Filter Funktionen
   const filteredEmployeeDocuments = employeeDocuments.filter(doc => {
@@ -111,7 +114,16 @@ export default function Documents() {
             Durchsuchen Sie Mitarbeiter- und Schulungsdokumente
           </p>
         </div>
-        <FileText className="h-8 w-8 text-primary" />
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a]"
+          >
+            <Upload className="h-5 w-5 mr-2" />
+            Dokument hochladen
+          </button>
+          <FileText className="h-8 w-8 text-primary" />
+        </div>
       </div>
 
       <div className="flex space-x-4 mb-6">
@@ -239,6 +251,18 @@ export default function Documents() {
             </div>
           </div>
         </div>
+      )}
+
+      {showUploadModal && (
+        <EnhancedDocumentUploader
+          onClose={() => setShowUploadModal(false)}
+          onUpload={(data) => {
+            console.log('Uploading document:', data);
+            // Handle document upload
+            toast.success('Document uploaded successfully');
+            setShowUploadModal(false);
+          }}
+        />
       )}
     </div>
   );
