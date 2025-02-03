@@ -23,6 +23,8 @@ import { RootState } from '../../store';
 import type { DocumentUploadFormData } from '../../types';
 import { itDepartments, manufacturingDepartments } from '../../data/departments';
 import { DOCUMENT_CATEGORIES, DOCUMENT_TYPES, DOCUMENT_CLASSIFICATIONS, VISIBILITY_LEVELS, LANGUAGES, ROLES, PERMISSIONS } from './constants';
+import RoleAccess from './access-control/RoleAccess';
+import DepartmentAccess from './access-control/DepartmentAccess';
 
 
 interface Props {
@@ -70,6 +72,7 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
   const [currentTag, setCurrentTag] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isDragging, setIsDragging] = useState(false);
+  const [activeAccessTab, setActiveAccessTab] = useState<'departments' | 'roles'>('departments');
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -465,140 +468,63 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
             />
           </div>
 
-        {/* Zugriffssteuerung */}
-<div className="space-y-6">
-  <div className="flex items-center justify-between">
-    <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-      Zugriffssteuerung
-    </h3>
-    <select
-      value=""
-      onChange={(e) => {
-        const dept = e.target.value;
-        if (dept && !formData.metadata.accessControl.allowedDepartments.includes(dept)) {
-          setFormData(prev => ({
-            ...prev,
-            metadata: {
-              ...prev.metadata,
-              accessControl: {
-                ...prev.metadata.accessControl,
-                allowedDepartments: [...prev.metadata.accessControl.allowedDepartments, dept],
-                permissions: {
-                  ...prev.metadata.accessControl.permissions,
-                  view: [
-                    ...((prev.metadata.accessControl.permissions as Record<string, string[]>).view || []),
-                    dept,
-                  ],
-                } as unknown as DocumentUploadFormData['metadata']['accessControl']['permissions'],
-              },
-            }
-          }));
-        }
-      }}
-      className="w-64 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-    >
-      <option value="">Abteilung hinzufügen...</option>
-      {[...itDepartments, ...manufacturingDepartments]
-        .filter(dept => !formData.metadata.accessControl.allowedDepartments.includes(dept.name))
-        .map(dept => (
-          <option key={dept.name} value={dept.name}>{dept.name}</option>
-        ))}
-    </select>
-  </div>
-
-  {/* Abteilungszugriffsrechte */}
-  <div className="space-y-4">
-    {formData.metadata.accessControl.allowedDepartments.map(deptName => (
-      <div key={deptName} className="bg-white dark:bg-[#181818] border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center">
-            <Building2 className="h-5 w-5 text-gray-400 mr-2" />
-            <h4 className="text-sm font-medium text-gray-900 dark:text-white">
-              {deptName}
-            </h4>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setFormData(prev => ({
-                ...prev,
-                metadata: {
-                  ...prev.metadata,
-                  accessControl: {
-                    ...prev.metadata.accessControl,
-                    allowedDepartments: prev.metadata.accessControl.allowedDepartments
-                      .filter(d => d !== deptName),
-                    permissions: Object.fromEntries(
-                      Object.entries(prev.metadata.accessControl.permissions)
-                        .map(([key, values]) => [
-                          key,
-                          (values as string[]).filter(v => v !== deptName)
-                        ])
-                    ) as DocumentUploadFormData['metadata']['accessControl']['permissions']
-                  }
-                }
-              }));
-            }}
-            className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          {PERMISSIONS.map(permission => (
-            <label key={permission.value} className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                className="rounded border-gray-300 text-primary focus:ring-primary"
-                checked={
-                  ((formData.metadata.accessControl.permissions as Record<string, string[]>)[permission.value] || [])
-                    .includes(deptName)
-                }
-                onChange={(e) => {
-                  setFormData(prev => {
-                    const permissions = prev.metadata.accessControl.permissions as Record<string, string[]>;
-                    const currentPermissions = permissions[permission.value] || [];
-                    const newPermissions = e.target.checked
-                      ? [...currentPermissions, deptName]
-                      : currentPermissions.filter(name => name !== deptName);
-
-                    return {
-                      ...prev,
-                      metadata: {
-                        ...prev.metadata,
-                        accessControl: {
-                          ...prev.metadata.accessControl,
-                          permissions: {
-                            ...permissions,
-                            [permission.value]: newPermissions,
-                          } as unknown as DocumentUploadFormData['metadata']['accessControl']['permissions'],
-                        },
-                      }
-                    };
-                  });
-                }}
-              />
-              <div>
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {permission.label}
-                </span>
+          {/* Zugriffssteuerung */}
+          <div className="bg-gray-50 dark:bg-[#181818] rounded-lg p-6 space-y-6">
+            <div className="flex flex-col space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
+                  <Lock className="h-5 w-5 mr-2" />
+                  Zugriffssteuerung
+                </h3>
               </div>
-            </label>
-          ))}
-        </div>
-      </div>
-    ))}
 
-    {formData.metadata.accessControl.allowedDepartments.length === 0 && (
-      <div className="text-center py-8 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181818] rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
-        <Building2 className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-        <p>Keine Abteilungen ausgewählt</p>
-        <p className="text-sm">Wählen Sie oben Abteilungen aus, um Zugriffsrechte zu vergeben</p>
-      </div>
-    )}
-  </div>
-</div>
+              {/* Access Control Tabs */}
+              <div className="flex space-x-2 border-b border-gray-200 dark:border-gray-700">
+                <button
+                  type="button"
+                  onClick={() => setActiveAccessTab('departments')}
+                  className={`flex items-center px-4 py-2 text-sm font-medium border-b-2 ${
+                    activeAccessTab === 'departments'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                  }`}
+                >
+                  <Building2 className="h-5 w-5 mr-2" />
+                  Abteilungen
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveAccessTab('roles')}
+                  className={`flex items-center px-4 py-2 text-sm font-medium border-b-2 ${
+                    activeAccessTab === 'roles'
+                      ? 'border-primary text-primary'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                  }`}
+                >
+                  <Users className="h-5 w-5 mr-2" />
+                  Rollen
+                </button>
+              </div>
+
+              {/* Access Control Content */}
+              <div className="mt-4">
+                {activeAccessTab === 'departments' && (
+                  <DepartmentAccess
+                    formData={formData}
+                    onUpdate={setFormData}
+                    departments={[...itDepartments, ...manufacturingDepartments]}
+                  />
+                )}
+
+                {activeAccessTab === 'roles' && (
+                  <RoleAccess
+                    formData={formData}
+                    onUpdate={setFormData}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
 
           {/* Submit Buttons */}
           <div className="flex justify-end space-x-3 mt-6">

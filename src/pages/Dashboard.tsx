@@ -1,23 +1,118 @@
+import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { 
-  GraduationCap, 
-  Calendar, 
-  AlertTriangle, 
-  BookOpen,
-  Award,
-  X,
-  CheckCircle,
-  CalendarCheck
+  GraduationCap, Calendar, AlertTriangle, 
+  BookOpen, Award, X, CheckCircle, 
+  CalendarCheck, PieChart, Users, Clock
 } from 'lucide-react';
 import { RootState } from '../store';
-import { trainings, bookings, qualifications } from '../data/mockData';
+import { trainings, bookings, qualifications, users } from '../data/mockData';
 import { formatDate, calculateExpirationDate, isExpiringSoon } from '../lib/utils';
-import { useState, useEffect } from 'react';
+import { hasHRPermissions } from '../store/slices/authSlice';
 import type { Qualification } from '../types';
 import { sendQualificationExpiryNotification } from '../lib/notifications';
 
+function TrainingStatistics({ departmentFilter = 'all' }) {
+  const allUsers = users.filter(u => 
+    departmentFilter === 'all' || u.department === departmentFilter
+  );
+
+  const stats = {
+    totalEmployees: allUsers.length,
+    completedTrainings: 0,
+    pendingTrainings: 0,
+    expiringQualifications: 0,
+  };
+
+  allUsers.forEach(user => {
+    // Count completed trainings
+    const userCompletedTrainings = bookings.filter(
+      b => b.userId === user.id && b.status === 'abgeschlossen'
+    ).length;
+    stats.completedTrainings += userCompletedTrainings;
+
+    // Count pending trainings
+    const userPendingTrainings = bookings.filter(
+      b => b.userId === user.id && b.status === 'ausstehend'
+    ).length;
+    stats.pendingTrainings += userPendingTrainings;
+
+    // Count expiring qualifications
+    const userQuals = qualifications.filter(qual => 
+      user.qualifications.includes(qual.id)
+    );
+    const expiringQuals = userQuals.filter(qual => {
+      const lastTraining = bookings
+        .filter(b => b.userId === user.id && b.status === 'abgeschlossen')
+        .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())[0];
+
+      if (!lastTraining?.completedAt) return false;
+
+      const expirationDate = calculateExpirationDate(lastTraining.completedAt, qual.validityPeriod);
+      return isExpiringSoon(expirationDate);
+    }).length;
+    stats.expiringQualifications += expiringQuals;
+  });
+
+  return (
+    <div className="bg-white dark:bg-[#181818] rounded-lg shadow p-6">
+      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+        <PieChart className="h-5 w-5 mr-2" />
+        Schulungsstatistik
+      </h3>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="bg-gray-50 dark:bg-[#121212] p-4 rounded-lg">
+          <div className="flex items-center">
+            <Users className="h-5 w-5 text-gray-400 mr-2" />
+            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              Mitarbeiter
+            </span>
+          </div>
+          <p className="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">
+            {stats.totalEmployees}
+          </p>
+        </div>
+        <div className="bg-gray-50 dark:bg-[#121212] p-4 rounded-lg">
+          <div className="flex items-center">
+            <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              Abgeschlossen
+            </span>
+          </div>
+          <p className="mt-2 text-2xl font-semibold text-green-600 dark:text-green-400">
+            {stats.completedTrainings}
+          </p>
+        </div>
+        <div className="bg-gray-50 dark:bg-[#121212] p-4 rounded-lg">
+          <div className="flex items-center">
+            <Clock className="h-5 w-5 text-yellow-500 mr-2" />
+            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              Ausstehend
+            </span>
+          </div>
+          <p className="mt-2 text-2xl font-semibold text-yellow-600 dark:text-yellow-400">
+            {stats.pendingTrainings}
+          </p>
+        </div>
+        <div className="bg-gray-50 dark:bg-[#121212] p-4 rounded-lg">
+          <div className="flex items-center">
+            <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
+            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              Ablaufend
+            </span>
+          </div>
+          <p className="mt-2 text-2xl font-semibold text-red-600 dark:text-red-400">
+            {stats.expiringQualifications}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user } = useSelector((state: RootState) => state.auth);
+  const isHR = hasHRPermissions(user);
   const [selectedQual, setSelectedQual] = useState<Qualification | null>(null);
 
   useEffect(() => {
@@ -86,6 +181,8 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {isHR && <TrainingStatistics />}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
@@ -132,7 +229,6 @@ export default function Dashboard() {
               {upcomingTrainings.length > 0 ? (
                 <ul className="-my-5 divide-y divide-gray-200 dark:divide-gray-700">
                   {upcomingTrainings.map((booking) => {
-                    //linq
                     const training = trainings.find(t => t.id === booking.trainingId);
                     const session = training?.sessions.find(s => s.id === booking.sessionId);
                     if (!training || !session) return null;

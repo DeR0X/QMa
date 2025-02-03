@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { 
-  Calendar, Mail, Phone, MapPin, Award, FileText,
-  Download, Star, TrendingUp, DollarSign, BookOpen,
-  Award as CertificateIcon, Target, Plus, X,
-  Clock, AlertCircle
+  Calendar, Mail, Phone, MapPin, Award,
+  FileText, Download, Star, TrendingUp,
+  DollarSign, BookOpen, Award as CertificateIcon,
+  Target, Plus, X, Clock, AlertCircle,
+  GraduationCap, CheckCircle
 } from 'lucide-react';
 import { RootState } from '../../store';
 import { hasHRPermissions } from '../../store/slices/authSlice';
 import type { User, Qualification } from '../../types';
-import { qualifications, employeeQualifications } from '../../data/mockData';
+import { qualifications, employeeQualifications, trainings } from '../../data/mockData';
 import { toast } from 'sonner';
 import { formatDate } from '../../lib/utils';
 
@@ -23,9 +24,10 @@ interface Props {
   handleRejectTraining: (trainingId: string) => void;
 }
 
-export default function EmployeeDetails({ employee, onClose, onUpdate, approvals, trainings, handleApproveTraining, handleRejectTraining }: Props) {
-  const [activeTab, setActiveTab] = useState<'info' | 'qualifications' | 'documents' | 'approvals'>('info');
+export default function EmployeeDetails({ employee, onClose, onUpdate, approvals, trainings: employeeTrainings, handleApproveTraining, handleRejectTraining }: Props) {
+  const [activeTab, setActiveTab] = useState<'info' | 'qualifications' | 'documents' | 'approvals' | 'trainer'>('info');
   const [showAddQualModal, setShowAddQualModal] = useState(false);
+  const [selectedTrainings, setSelectedTrainings] = useState<string[]>(employee.trainerFor || []);
   const { user: currentUser } = useSelector((state: RootState) => state.auth);
   const isHRAdmin = hasHRPermissions(currentUser);
 
@@ -34,9 +36,10 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
     { id: 'qualifications', label: 'Qualifikationen' },
     { id: 'documents', label: 'Documents' },
     ...(isHRAdmin ? [
-      { id: 'approvals', label: 'Approvals' }
+      { id: 'approvals', label: 'Approvals' },
+      { id: 'trainer', label: 'Trainer-Status' }
     ] : []),
-  ].filter(Boolean) as Array<{ id: 'info' | 'qualifications' | 'documents' | 'approvals'; label: string }>;
+  ].filter(Boolean) as Array<{ id: 'info' | 'qualifications' | 'documents' | 'approvals' | 'trainer'; label: string }>;
 
   const handleAddQualification = (qualificationId: string) => {
     const updatedQualifications = [...employee.qualifications, qualificationId];
@@ -94,6 +97,27 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
       default:
         return 'Inaktiv';
     }
+  };
+
+  const handleTrainerStatusChange = (isTrainer: boolean) => {
+    onUpdate({
+      ...employee,
+      isTrainer,
+      trainerFor: isTrainer ? selectedTrainings : []
+    });
+    toast.success(`Trainer-Status ${isTrainer ? 'aktiviert' : 'deaktiviert'}`);
+  };
+
+  const handleTrainingSelection = (trainingId: string) => {
+    const newSelectedTrainings = selectedTrainings.includes(trainingId)
+      ? selectedTrainings.filter(id => id !== trainingId)
+      : [...selectedTrainings, trainingId];
+    
+    setSelectedTrainings(newSelectedTrainings);
+    onUpdate({
+      ...employee,
+      trainerFor: newSelectedTrainings
+    });
   };
 
   return (
@@ -283,6 +307,64 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                         </div>
                       );
                     })}
+                  </div>
+                )}
+
+                {activeTab === 'trainer' && isHRAdmin && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-lg font-medium text-gray-900 dark:text-white">
+                        Trainer-Verwaltung
+                      </h4>
+                      <label className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          checked={employee.isTrainer}
+                          onChange={(e) => handleTrainerStatusChange(e.target.checked)}
+                          className="rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                          Als Trainer aktivieren
+                        </span>
+                      </label>
+                    </div>
+
+                    {employee.isTrainer && (
+                      <div className="space-y-4">
+                        <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Schulungen, die dieser Trainer durchführen kann:
+                        </h5>
+                        <div className="grid grid-cols-1 gap-4">
+                          {trainings.map(training => (
+                            <div
+                              key={training.id}
+                              className={`p-4 rounded-lg border ${
+                                selectedTrainings.includes(training.id)
+                                  ? 'border-primary bg-primary/5'
+                                  : 'border-gray-200 dark:border-gray-700'
+                              }`}
+                            >
+                              <label className="flex items-start space-x-3">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedTrainings.includes(training.id)}
+                                  onChange={() => handleTrainingSelection(training.id)}
+                                  className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
+                                />
+                                <div>
+                                  <p className="font-medium text-gray-900 dark:text-white">
+                                    {training.title}
+                                  </p>
+                                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    {training.description}
+                                  </p>
+                                </div>
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

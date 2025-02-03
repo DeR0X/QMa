@@ -15,8 +15,9 @@ export interface User {
   failedLoginAttempts: number;
   requiredQualifications: string[];
   hasChangedPassword?: boolean;
+  isTrainer?: boolean;
+  trainerFor?: string[]; 
 }
-
 
 export interface Training {
   id: string;
@@ -52,34 +53,6 @@ export interface TrainingDocument {
   fileUrl: string;
   description?: string;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 export interface Qualification {
   id: string;
