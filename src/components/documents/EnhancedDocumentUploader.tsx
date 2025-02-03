@@ -24,6 +24,7 @@ import type { DocumentUploadFormData } from '../../types';
 import { itDepartments, manufacturingDepartments } from '../../data/departments';
 import { DOCUMENT_CATEGORIES, DOCUMENT_TYPES, DOCUMENT_CLASSIFICATIONS, VISIBILITY_LEVELS, LANGUAGES, ROLES, PERMISSIONS } from './constants';
 
+
 interface Props {
   onClose: () => void;
   onUpload: (data: DocumentUploadFormData) => void;
@@ -464,159 +465,136 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
             />
           </div>
 
-          {/* Zugriffssteuerung */}
-          <div className="space-y-4">
-  <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-    Zugriffssteuerung
-  </h3>
-  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-    <div>
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-        Sichtbarkeit
-      </label>
-      <select
-        value={formData.metadata.accessControl.visibility}
-        onChange={(e) => setFormData(prev => ({
-          ...prev,
-          metadata: {
-            ...prev.metadata,
-            accessControl: {
-              ...prev.metadata.accessControl,
-              visibility: e.target.value as DocumentUploadFormData['metadata']['accessControl']['visibility']
+        {/* Zugriffssteuerung */}
+<div className="space-y-6">
+  <div className="flex items-center justify-between">
+    <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+      Zugriffssteuerung
+    </h3>
+    <select
+      value=""
+      onChange={(e) => {
+        const dept = e.target.value;
+        if (dept && !formData.metadata.accessControl.allowedDepartments.includes(dept)) {
+          setFormData(prev => ({
+            ...prev,
+            metadata: {
+              ...prev.metadata,
+              accessControl: {
+                ...prev.metadata.accessControl,
+                allowedDepartments: [...prev.metadata.accessControl.allowedDepartments, dept],
+                permissions: {
+                  ...prev.metadata.accessControl.permissions,
+                  view: [
+                    ...((prev.metadata.accessControl.permissions as Record<string, string[]>).view || []),
+                    dept,
+                  ],
+                } as unknown as DocumentUploadFormData['metadata']['accessControl']['permissions'],
+              },
             }
-          }
-        }))}
-        className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-      >
-        {VISIBILITY_LEVELS.map(level => (
-          <option key={level.value} value={level.value}>
-            {level.label}
-          </option>
+          }));
+        }
+      }}
+      className="w-64 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
+    >
+      <option value="">Abteilung hinzufügen...</option>
+      {[...itDepartments, ...manufacturingDepartments]
+        .filter(dept => !formData.metadata.accessControl.allowedDepartments.includes(dept.name))
+        .map(dept => (
+          <option key={dept.name} value={dept.name}>{dept.name}</option>
         ))}
-      </select>
-    </div>
+    </select>
+  </div>
 
-    {formData.metadata.accessControl.visibility === 'department' && (
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Erlaubte Abteilungen
-        </label>
-        <select
-          multiple
-          value={formData.metadata.accessControl.allowedDepartments}
-          onChange={(e) => {
-            const selected = Array.from(e.target.selectedOptions, option => option.value);
-            setFormData(prev => ({
-              ...prev,
-              metadata: {
-                ...prev.metadata,
-                accessControl: {
-                  ...prev.metadata.accessControl,
-                  allowedDepartments: selected
+  {/* Abteilungszugriffsrechte */}
+  <div className="space-y-4">
+    {formData.metadata.accessControl.allowedDepartments.map(deptName => (
+      <div key={deptName} className="bg-white dark:bg-[#181818] border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center">
+            <Building2 className="h-5 w-5 text-gray-400 mr-2" />
+            <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+              {deptName}
+            </h4>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setFormData(prev => ({
+                ...prev,
+                metadata: {
+                  ...prev.metadata,
+                  accessControl: {
+                    ...prev.metadata.accessControl,
+                    allowedDepartments: prev.metadata.accessControl.allowedDepartments
+                      .filter(d => d !== deptName),
+                    permissions: Object.fromEntries(
+                      Object.entries(prev.metadata.accessControl.permissions)
+                        .map(([key, values]) => [
+                          key,
+                          (values as string[]).filter(v => v !== deptName)
+                        ])
+                    ) as DocumentUploadFormData['metadata']['accessControl']['permissions']
+                  }
                 }
-              }
-            }));
-          }}
-          className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-        >
-          {[...itDepartments, ...manufacturingDepartments].map(dept => (
-            <option key={dept.name} value={dept.name}>{dept.name}</option>
-          ))}
-        </select>
-      </div>
-    )}
+              }));
+            }}
+            className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
-    {formData.metadata.accessControl.visibility === 'role' && (
-      <div className="sm:col-span-2 space-y-4">
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Wählen Sie die Rollen und deren Berechtigungen aus
-        </p>
-        {ROLES.map(role => (
-          <div key={role.value} className="bg-gray-50 dark:bg-[#181818] p-4 rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-medium text-gray-900 dark:text-white">
-                {role.label}
-              </h4>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  className="rounded border-gray-300 text-primary focus:ring-primary"
-                  checked={formData.metadata.accessControl.allowedRoles.includes(role.value)}
-                  onChange={(e) => {
-                    setFormData(prev => {
-                      const newAllowedRoles = e.target.checked
-                        ? [...prev.metadata.accessControl.allowedRoles, role.value]
-                        : prev.metadata.accessControl.allowedRoles.filter(r => r !== role.value);
-                      
-                      return {
-                        ...prev,
-                        metadata: {
-                          ...prev.metadata,
-                          accessControl: {
-                            ...prev.metadata.accessControl,
-                            allowedRoles: newAllowedRoles
-                          }
-                        }
-                      };
-                    });
-                  }}
-                />
-                <span className="ml-2 text-sm text-gray-600 dark:text-gray-300">
-                  Rolle aktivieren
-                </span>
-              </label>
-            </div>
-            
-            {formData.metadata.accessControl.allowedRoles.includes(role.value) && (
-              <div className="grid grid-cols-2 gap-2">
-                {PERMISSIONS.map(permission => (
-                  <label key={permission.value} className="flex items-center">
-                    <input
-                      type="checkbox"
-                      className="rounded border-gray-300 text-primary focus:ring-primary"
-                      checked={
-                        (formData.metadata.accessControl.permissions as Record<string, string[]>)[permission.value]?.includes(role.value) || false
-                      }
-                      onChange={(e) => {
-                        setFormData(prev => {
-                          const permissions = prev.metadata.accessControl.permissions as Record<string, string[]>;
-                          const currentPermissions = permissions[permission.value] || [];
-                          const newPermissions = e.target.checked
-                            ? [...currentPermissions, role.value]
-                            : currentPermissions.filter(r => r !== role.value);
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {PERMISSIONS.map(permission => (
+            <label key={permission.value} className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                className="rounded border-gray-300 text-primary focus:ring-primary"
+                checked={
+                  ((formData.metadata.accessControl.permissions as Record<string, string[]>)[permission.value] || [])
+                    .includes(deptName)
+                }
+                onChange={(e) => {
+                  setFormData(prev => {
+                    const permissions = prev.metadata.accessControl.permissions as Record<string, string[]>;
+                    const currentPermissions = permissions[permission.value] || [];
+                    const newPermissions = e.target.checked
+                      ? [...currentPermissions, deptName]
+                      : currentPermissions.filter(name => name !== deptName);
 
-                          const updatedPermissions = {
+                    return {
+                      ...prev,
+                      metadata: {
+                        ...prev.metadata,
+                        accessControl: {
+                          ...prev.metadata.accessControl,
+                          permissions: {
                             ...permissions,
                             [permission.value]: newPermissions,
-                          } as unknown as DocumentUploadFormData['metadata']['accessControl']['permissions'];
-
-                          return {
-                            ...prev,
-                            metadata: {
-                              ...prev.metadata,
-                              accessControl: {
-                                ...prev.metadata.accessControl,
-                                permissions: updatedPermissions,
-                              },
-                            },
-                          };
-                        });
-                      }}
-                    />
-                    <div className="ml-2">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {permission.label}
-                      </span>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        {permission.description}
-                      </p>
-                    </div>
-                  </label>
-                ))}
+                          } as unknown as DocumentUploadFormData['metadata']['accessControl']['permissions'],
+                        },
+                      }
+                    };
+                  });
+                }}
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {permission.label}
+                </span>
               </div>
-            )}
-          </div>
-        ))}
+            </label>
+          ))}
+        </div>
+      </div>
+    ))}
+
+    {formData.metadata.accessControl.allowedDepartments.length === 0 && (
+      <div className="text-center py-8 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#181818] rounded-lg border border-dashed border-gray-300 dark:border-gray-700">
+        <Building2 className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+        <p>Keine Abteilungen ausgewählt</p>
+        <p className="text-sm">Wählen Sie oben Abteilungen aus, um Zugriffsrechte zu vergeben</p>
       </div>
     )}
   </div>
