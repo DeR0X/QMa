@@ -68,6 +68,21 @@ const LANGUAGES = [
   { code: 'en', name: 'Englisch' },
 ];
 
+const ROLES = [
+    { value: 'employee', label: 'Mitarbeiter' },
+    { value: 'supervisor', label: 'Vorgesetzter' },
+    { value: 'hr', label: 'HR' },
+  ];
+  
+  const PERMISSIONS = [
+    { value: 'view', label: 'Ansehen', description: 'Kann das Dokument öffnen und lesen' },
+    { value: 'download', label: 'Herunterladen', description: 'Kann das Dokument herunterladen' },
+    { value: 'edit', label: 'Bearbeiten', description: 'Kann das Dokument bearbeiten' },
+    { value: 'delete', label: 'Löschen', description: 'Kann das Dokument löschen' },
+    { value: 'share', label: 'Teilen', description: 'Kann das Dokument mit anderen teilen' },
+    { value: 'print', label: 'Drucken', description: 'Kann das Dokument drucken' },
+  ];
+
 interface Props {
   onClose: () => void;
   onUpload: (data: DocumentUploadFormData) => void;
@@ -99,10 +114,13 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
         allowedRoles: [],
         allowedUsers: [],
         permissions: {
-          read: [],
-          write: [],
+          view: [],
+          download: [],
+          edit: [],
           delete: [],
-        },
+          share: [],
+          print: []
+        } as unknown as DocumentUploadFormData['metadata']['accessControl']['permissions']
       },
     },
   });
@@ -507,67 +525,161 @@ export default function EnhancedDocumentUploader({ onClose, onUpload }: Props) {
 
           {/* Zugriffssteuerung */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-              Zugriffssteuerung
-            </h3>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Sichtbarkeit
-                </label>
-                <select
-                  value={formData.metadata.accessControl.visibility}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    metadata: {
-                      ...prev.metadata,
-                      accessControl: {
-                        ...prev.metadata.accessControl,
-                        visibility: e.target.value as DocumentUploadFormData['metadata']['accessControl']['visibility']
-                      }
-                    }
-                  }))}
-                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-                >
-                  {VISIBILITY_LEVELS.map(level => (
-                    <option key={level.value} value={level.value}>
-                      {level.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+  <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+    Zugriffssteuerung
+  </h3>
+  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div>
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+        Sichtbarkeit
+      </label>
+      <select
+        value={formData.metadata.accessControl.visibility}
+        onChange={(e) => setFormData(prev => ({
+          ...prev,
+          metadata: {
+            ...prev.metadata,
+            accessControl: {
+              ...prev.metadata.accessControl,
+              visibility: e.target.value as DocumentUploadFormData['metadata']['accessControl']['visibility']
+            }
+          }
+        }))}
+        className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
+      >
+        {VISIBILITY_LEVELS.map(level => (
+          <option key={level.value} value={level.value}>
+            {level.label}
+          </option>
+        ))}
+      </select>
+    </div>
 
-              {formData.metadata.accessControl.visibility === 'department' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Erlaubte Abteilungen
-                  </label>
-                  <select
-                    multiple
-                    value={formData.metadata.accessControl.allowedDepartments}
-                    onChange={(e) => {
-                      const selected = Array.from(e.target.selectedOptions, option => option.value);
-                      setFormData(prev => ({
+    {formData.metadata.accessControl.visibility === 'department' && (
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          Erlaubte Abteilungen
+        </label>
+        <select
+          multiple
+          value={formData.metadata.accessControl.allowedDepartments}
+          onChange={(e) => {
+            const selected = Array.from(e.target.selectedOptions, option => option.value);
+            setFormData(prev => ({
+              ...prev,
+              metadata: {
+                ...prev.metadata,
+                accessControl: {
+                  ...prev.metadata.accessControl,
+                  allowedDepartments: selected
+                }
+              }
+            }));
+          }}
+          className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
+        >
+          {[...itDepartments, ...manufacturingDepartments].map(dept => (
+            <option key={dept.name} value={dept.name}>{dept.name}</option>
+          ))}
+        </select>
+      </div>
+    )}
+
+    {formData.metadata.accessControl.visibility === 'role' && (
+      <div className="sm:col-span-2 space-y-4">
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Wählen Sie die Rollen und deren Berechtigungen aus
+        </p>
+        {ROLES.map(role => (
+          <div key={role.value} className="bg-gray-50 dark:bg-[#181818] p-4 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                {role.label}
+              </h4>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300 text-primary focus:ring-primary"
+                  checked={formData.metadata.accessControl.allowedRoles.includes(role.value)}
+                  onChange={(e) => {
+                    setFormData(prev => {
+                      const newAllowedRoles = e.target.checked
+                        ? [...prev.metadata.accessControl.allowedRoles, role.value]
+                        : prev.metadata.accessControl.allowedRoles.filter(r => r !== role.value);
+                      
+                      return {
                         ...prev,
                         metadata: {
                           ...prev.metadata,
                           accessControl: {
                             ...prev.metadata.accessControl,
-                            allowedDepartments: selected
+                            allowedRoles: newAllowedRoles
                           }
                         }
-                      }));
-                    }}
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-                  >
-                    {[...itDepartments, ...manufacturingDepartments].map(dept => (
-                      <option key={dept.name} value={dept.name}>{dept.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+                      };
+                    });
+                  }}
+                />
+                <span className="ml-2 text-sm text-gray-600 dark:text-gray-300">
+                  Rolle aktivieren
+                </span>
+              </label>
             </div>
+            
+            {formData.metadata.accessControl.allowedRoles.includes(role.value) && (
+              <div className="grid grid-cols-2 gap-2">
+                {PERMISSIONS.map(permission => (
+                  <label key={permission.value} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      className="rounded border-gray-300 text-primary focus:ring-primary"
+                      checked={
+                        (formData.metadata.accessControl.permissions as Record<string, string[]>)[permission.value]?.includes(role.value) || false
+                      }
+                      onChange={(e) => {
+                        setFormData(prev => {
+                          const permissions = prev.metadata.accessControl.permissions as Record<string, string[]>;
+                          const currentPermissions = permissions[permission.value] || [];
+                          const newPermissions = e.target.checked
+                            ? [...currentPermissions, role.value]
+                            : currentPermissions.filter(r => r !== role.value);
+
+                          const updatedPermissions = {
+                            ...permissions,
+                            [permission.value]: newPermissions,
+                          } as unknown as DocumentUploadFormData['metadata']['accessControl']['permissions'];
+
+                          return {
+                            ...prev,
+                            metadata: {
+                              ...prev.metadata,
+                              accessControl: {
+                                ...prev.metadata.accessControl,
+                                permissions: updatedPermissions,
+                              },
+                            },
+                          };
+                        });
+                      }}
+                    />
+                    <div className="ml-2">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {permission.label}
+                      </span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {permission.description}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
+        ))}
+      </div>
+    )}
+  </div>
+</div>
 
           {/* Submit Buttons */}
           <div className="flex justify-end space-x-3 mt-6">

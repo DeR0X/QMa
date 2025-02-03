@@ -4,6 +4,8 @@ import { useSelector } from 'react-redux';
 import { trainings } from '../data/mockData';
 import { toast } from 'sonner';
 import EnhancedDocumentUploader from '../components/documents/EnhancedDocumentUploader';
+import DocumentViewer from '../components/documents/DocumentViewer';
+import type { DocumentUploadFormData, TrainingDocument } from '../types';
 
 // Beispiel-Dokumente mit PDF URLs
 const employeeDocuments = [
@@ -101,6 +103,12 @@ export default function Documents() {
 
   const handleDocumentClick = (doc: Document) => {
     setSelectedDocument(doc);
+  };
+
+  const handleUpload = (data: DocumentUploadFormData) => {
+    console.log('Uploading document:', data);
+    toast.success('Dokument erfolgreich hochgeladen');
+    setShowUploadModal(false);
   };
 
   return (
@@ -256,12 +264,7 @@ export default function Documents() {
       {showUploadModal && (
         <EnhancedDocumentUploader
           onClose={() => setShowUploadModal(false)}
-          onUpload={(data) => {
-            console.log('Uploading document:', data);
-            // Handle document upload
-            toast.success('Document uploaded successfully');
-            setShowUploadModal(false);
-          }}
+          onUpload={handleUpload}
         />
       )}
     </div>
