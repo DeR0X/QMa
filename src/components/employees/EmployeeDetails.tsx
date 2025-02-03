@@ -3,13 +3,15 @@ import { useSelector } from 'react-redux';
 import { 
   Calendar, Mail, Phone, MapPin, Award, FileText,
   Download, Star, TrendingUp, DollarSign, BookOpen,
-  Award as CertificateIcon, Target, Plus, X
+  Award as CertificateIcon, Target, Plus, X,
+  Clock, AlertCircle
 } from 'lucide-react';
 import { RootState } from '../../store';
 import { hasHRPermissions } from '../../store/slices/authSlice';
 import type { User, Qualification } from '../../types';
-import { qualifications } from '../../data/mockData';
+import { qualifications, employeeQualifications } from '../../data/mockData';
 import { toast } from 'sonner';
+import { formatDate } from '../../lib/utils';
 
 interface Props {
   employee: User;
@@ -19,15 +21,6 @@ interface Props {
   trainings: Array<{ id: string; title: string }>;
   handleApproveTraining: (trainingId: string) => void;
   handleRejectTraining: (trainingId: string) => void;
-}
-
-interface EmployeeQualification {
-  id: string;
-  employeeId: string;
-  qualificationId: string;
-  qualifiedFrom: string;
-  toQualifyUntil: string;
-  isQualifiedUntil: string;
 }
 
 export default function EmployeeDetails({ employee, onClose, onUpdate, approvals, trainings, handleApproveTraining, handleRejectTraining }: Props) {
@@ -45,10 +38,62 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
     ] : []),
   ].filter(Boolean) as Array<{ id: 'info' | 'qualifications' | 'documents' | 'approvals'; label: string }>;
 
-  const handleAddQualification = (qualificationData: Omit<EmployeeQualification, 'id'>) => {
-    // In a real app, this would make an API call
-    toast.success('Qualifikation erfolgreich hinzugefügt');
+  const handleAddQualification = (qualificationId: string) => {
+    const updatedQualifications = [...employee.qualifications, qualificationId];
+    onUpdate({ qualifications: updatedQualifications });
     setShowAddQualModal(false);
+  };
+
+  const handleRemoveQualification = (qualificationId: string) => {
+    const updatedQualifications = employee.qualifications.filter(id => id !== qualificationId);
+    onUpdate({ qualifications: updatedQualifications });
+  };
+
+  const availableQualifications = qualifications.filter(
+    qual => !employee.qualifications.includes(qual.id)
+  );
+
+  const getQualificationStatus = (qualId: string) => {
+    const employeeQual = employeeQualifications.find(
+      eq => eq.employeeId === employee.id && eq.qualificationId === qualId
+    );
+
+    if (!employeeQual) return 'inactive';
+
+    const expiryDate = new Date(employeeQual.isQualifiedUntil);
+    const today = new Date();
+    const twoMonthsFromNow = new Date();
+    twoMonthsFromNow.setMonth(today.getMonth() + 2);
+
+    if (expiryDate < today) return 'expired';
+    if (expiryDate <= twoMonthsFromNow) return 'expiring';
+    return 'active';
+  };
+
+  const getStatusStyles = (status: string) => {
+    switch (status) {
+      case 'active':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'expiring':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      case 'expired':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'active':
+        return 'Aktiv';
+      case 'expiring':
+        return 'Läuft bald ab';
+      case 'expired':
+        return 'Abgelaufen';
+      default:
+        return 'Inaktiv';
+    }
   };
 
   return (
@@ -113,9 +158,6 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                         </span>
                       </div>
                     )}
-                    <div className="flex items-center">
-                      <Calendar className="h-5 w-5 text-gray-400" />
-                    </div>
                   </div>
                 )}
 
@@ -139,22 +181,49 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                     <div className="space-y-4">
                       {employee.qualifications.map(qualId => {
                         const qual = qualifications.find(q => q.id === qualId);
+                        const employeeQual = employeeQualifications.find(
+                          eq => eq.employeeId === employee.id && eq.qualificationId === qualId
+                        );
+                        const status = getQualificationStatus(qualId);
+
                         return qual && (
                           <div
                             key={qual.id}
                             className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg"
                           >
-                            <div>
+                            <div className="flex-1">
                               <h5 className="text-sm font-medium text-gray-900 dark:text-white">
                                 {qual.name}
                               </h5>
                               <p className="text-sm text-gray-500 dark:text-gray-400">
                                 {qual.description}
                               </p>
+                              {employeeQual && (
+                                <div className="mt-2 space-y-1">
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                    <Clock className="h-4 w-4 mr-1" />
+                                    Qualifiziert seit: {formatDate(employeeQual.qualifiedFrom)}
+                                  </p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                    <AlertCircle className="h-4 w-4 mr-1" />
+                                    Gültig bis: {formatDate(employeeQual.isQualifiedUntil)}
+                                  </p>
+                                </div>
+                              )}
                             </div>
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                              Aktiv
-                            </span>
+                            <div className="flex items-center space-x-4">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles(status)}`}>
+                                {getStatusText(status)}
+                              </span>
+                              {isHRAdmin && (
+                                <button
+                                  onClick={() => handleRemoveQualification(qual.id)}
+                                  className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                                >
+                                  <X className="h-5 w-5" />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
@@ -238,92 +307,31 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
               </button>
             </div>
 
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              handleAddQualification({
-                employeeId: employee.id,
-                qualificationId: formData.get('qualificationId') as string,
-                qualifiedFrom: formData.get('qualifiedFrom') as string,
-                toQualifyUntil: formData.get('toQualifyUntil') as string,
-                isQualifiedUntil: formData.get('isQualifiedUntil') as string,
-              });
-            }}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Qualifikation
-                  </label>
-                  <select
-                    name="qualificationId"
-                    required
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-                  >
-                    <option value="">Qualifikation auswählen</option>
-                    {qualifications
-                      .filter(qual => !employee.qualifications.includes(qual.id))
-                      .map(qual => (
-                        <option key={qual.id} value={qual.id}>
-                          {qual.name}
-                        </option>
-                      ))
-                    }
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Qualifiziert seit
-                  </label>
-                  <input
-                    type="date"
-                    name="qualifiedFrom"
-                    required
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Zu qualifizieren bis
-                  </label>
-                  <input
-                    type="date"
-                    name="toQualifyUntil"
-                    required
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Qualifiziert bis
-                  </label>
-                  <input
-                    type="date"
-                    name="isQualifiedUntil"
-                    required
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setShowAddQualModal(false)}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700a dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+            <div className="space-y-4">
+              {availableQualifications.map(qual => (
+                <div
+                  key={qual.id}
+                  className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                  onClick={() => handleAddQualification(qual.id)}
                 >
-                  Abbrechen
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
-                >
-                  Hinzufügen
-                </button>
-              </div>
-            </form>
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                    {qual.name}
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {qual.description}
+                  </p>
+                  <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
+                    Gültigkeitsdauer: {qual.validityPeriod} Monate
+                  </p>
+                </div>
+              ))}
+
+              {availableQualifications.length === 0 && (
+                <p className="text-center text-gray-500 dark:text-gray-400 py-4">
+                  Keine weiteren Qualifikationen verfügbar
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}
