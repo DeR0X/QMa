@@ -3,11 +3,13 @@ import { useSelector } from 'react-redux';
 import { 
   Calendar, Mail, Phone, MapPin, Award, FileText,
   Download, Star, TrendingUp, DollarSign, BookOpen,
-  Award as CertificateIcon, Target
+  Award as CertificateIcon, Target, Plus, X
 } from 'lucide-react';
 import { RootState } from '../../store';
 import { hasHRPermissions } from '../../store/slices/authSlice';
-import type { User } from '../../types';
+import type { User, Qualification } from '../../types';
+import { qualifications } from '../../data/mockData';
+import { toast } from 'sonner';
 
 interface Props {
   employee: User;
@@ -19,17 +21,35 @@ interface Props {
   handleRejectTraining: (trainingId: string) => void;
 }
 
+interface EmployeeQualification {
+  id: string;
+  employeeId: string;
+  qualificationId: string;
+  qualifiedFrom: string;
+  toQualifyUntil: string;
+  isQualifiedUntil: string;
+}
+
 export default function EmployeeDetails({ employee, onClose, onUpdate, approvals, trainings, handleApproveTraining, handleRejectTraining }: Props) {
-  const [activeTab, setActiveTab] = useState<'info'  | 'development' | 'documents' | 'approvals'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'qualifications' | 'documents' | 'approvals'>('info');
+  const [showAddQualModal, setShowAddQualModal] = useState(false);
   const { user: currentUser } = useSelector((state: RootState) => state.auth);
   const isHRAdmin = hasHRPermissions(currentUser);
 
   const tabs = [
     { id: 'info', label: 'Information' },
+    { id: 'qualifications', label: 'Qualifikationen' },
     { id: 'documents', label: 'Documents' },
     ...(isHRAdmin ? [
+      { id: 'approvals', label: 'Approvals' }
     ] : []),
-  ].filter(Boolean) as Array<{ id: 'info' | 'development' | 'documents' | 'approvals'; label: string }>;
+  ].filter(Boolean) as Array<{ id: 'info' | 'qualifications' | 'documents' | 'approvals'; label: string }>;
+
+  const handleAddQualification = (qualificationData: Omit<EmployeeQualification, 'id'>) => {
+    // In a real app, this would make an API call
+    toast.success('Qualifikation erfolgreich hinzugefügt');
+    setShowAddQualModal(false);
+  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -42,9 +62,7 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
               onClick={onClose}
             >
               <span className="sr-only">Close</span>
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="h-6 w-6" />
             </button>
           </div>
 
@@ -98,7 +116,48 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                     <div className="flex items-center">
                       <Calendar className="h-5 w-5 text-gray-400" />
                     </div>
-                    <div className="sm:col-span-2">
+                  </div>
+                )}
+
+                {activeTab === 'qualifications' && (
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                      <h4 className="text-lg font-medium text-gray-900 dark:text-white">
+                        Qualifikationen
+                      </h4>
+                      {isHRAdmin && (
+                        <button
+                          onClick={() => setShowAddQualModal(true)}
+                          className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a]"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Qualifikation hinzufügen
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-4">
+                      {employee.qualifications.map(qualId => {
+                        const qual = qualifications.find(q => q.id === qualId);
+                        return qual && (
+                          <div
+                            key={qual.id}
+                            className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg"
+                          >
+                            <div>
+                              <h5 className="text-sm font-medium text-gray-900 dark:text-white">
+                                {qual.name}
+                              </h5>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                {qual.description}
+                              </p>
+                            </div>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              Aktiv
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -162,6 +221,112 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
           </div>
         </div>
       </div>
+
+      {/* Add Qualification Modal */}
+      {showAddQualModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-md w-full m-4">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                Qualifikation hinzufügen
+              </h2>
+              <button
+                onClick={() => setShowAddQualModal(false)}
+                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              handleAddQualification({
+                employeeId: employee.id,
+                qualificationId: formData.get('qualificationId') as string,
+                qualifiedFrom: formData.get('qualifiedFrom') as string,
+                toQualifyUntil: formData.get('toQualifyUntil') as string,
+                isQualifiedUntil: formData.get('isQualifiedUntil') as string,
+              });
+            }}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Qualifikation
+                  </label>
+                  <select
+                    name="qualificationId"
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
+                  >
+                    <option value="">Qualifikation auswählen</option>
+                    {qualifications
+                      .filter(qual => !employee.qualifications.includes(qual.id))
+                      .map(qual => (
+                        <option key={qual.id} value={qual.id}>
+                          {qual.name}
+                        </option>
+                      ))
+                    }
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Qualifiziert seit
+                  </label>
+                  <input
+                    type="date"
+                    name="qualifiedFrom"
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Zu qualifizieren bis
+                  </label>
+                  <input
+                    type="date"
+                    name="toQualifyUntil"
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Qualifiziert bis
+                  </label>
+                  <input
+                    type="date"
+                    name="isQualifiedUntil"
+                    required
+                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAddQualModal(false)}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700a dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                >
+                  Abbrechen
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
+                >
+                  Hinzufügen
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

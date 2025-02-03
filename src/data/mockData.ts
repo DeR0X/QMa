@@ -126,7 +126,7 @@ export const trainings: Training[] = [
     title: 'Kranführerschein - Qualifikation',
     description: 'Ein Kranführerschein ist ein Nachweis, der es einer Person ermöglicht, einen Kran sicher zu bedienen. Die Ausbildung umfasst theoretische Inhalte wie rechtliche Vorschriften, technische Grundlagen und Sicherheitsbestimmungen sowie praktische Übungen im Steuern des Krans und Heben von Lasten. Nach Bestehen einer schriftlichen und praktischen Prüfung erhält der Teilnehmer den Führerschein. Dieser ist in der Regel fünf Jahre gültig und muss danach gegebenenfalls erneuert werden. Der Kranführerschein ist erforderlich, um Kranarbeiten auf Baustellen oder in anderen Bereichen durchzuführen.',
     duration: '4 hours',
-    validityPeriod: 60, // months
+    validityPeriod: 60,
     isMandatory: false,
     trainer: 'Robert Johnson',
     maxParticipants: 10,
@@ -148,7 +148,7 @@ export const trainings: Training[] = [
     title: 'Agiles Projektmanagement',
     description: 'Schulung in agilen Methoden wie Scrum und Kanban für das Projektmanagement.',
     duration: '3 Tage',
-    validityPeriod: 24, // Monate
+    validityPeriod: 24,
     isMandatory: false,
     trainer: 'Emily Carter',
     maxParticipants: 15,
@@ -176,7 +176,7 @@ export const trainings: Training[] = [
     title: 'Grundlagen des Cloud Computing',
     description: 'Einführung in Cloud-Computing-Konzepte, -Dienste und -Bereitstellungsmodelle.',
     duration: '1 Tag',
-    validityPeriod: 36, // Monate
+    validityPeriod: 36,
     isMandatory: true,
     trainer: 'David Lee',
     maxParticipants: 25,
@@ -198,7 +198,7 @@ export const trainings: Training[] = [
     title: 'Datenschutz und DSGVO',
     description: 'Schulung zu Datenschutzprinzipien und Einhaltung der DSGVO.',
     duration: '4 Stunden',
-    validityPeriod: 12, // Monate
+    validityPeriod: 12,
     isMandatory: true,
     trainer: 'Laura White',
     maxParticipants: 20,
@@ -220,7 +220,7 @@ export const trainings: Training[] = [
     title: 'Sicherheit am Arbeitsplatz',
     description: 'Grundlegende Schulung zu Sicherheitsverfahren und Unfallverhütung am Arbeitsplatz.',
     duration: '2 Stunden',
-    validityPeriod: 24, // Monate
+    validityPeriod: 24,
     isMandatory: true,
     trainer: 'Hans Müller',
     maxParticipants: 30,
@@ -242,7 +242,7 @@ export const trainings: Training[] = [
     title: 'Qualitätsmanagement in der Produktion',
     description: 'Schulung zu Qualitätsstandards und -kontrollen in der Fertigung.',
     duration: '1 Tag',
-    validityPeriod: 36, // Monate
+    validityPeriod: 36,
     isMandatory: false,
     trainer: 'Maria Schmidt',
     maxParticipants: 20,
@@ -264,7 +264,7 @@ export const trainings: Training[] = [
     title: 'Maschinenbedienung und Wartung',
     description: 'Schulung zur sicheren Bedienung und grundlegenden Wartung von Produktionsmaschinen.',
     duration: '4 Stunden',
-    validityPeriod: 48, // Monate
+    validityPeriod: 48,
     isMandatory: true,
     trainer: 'Peter Wagner',
     maxParticipants: 15,
@@ -289,42 +289,60 @@ export const qualifications: Qualification[] = [
     name: 'IT Security Certification',
     description: 'Basic IT security certification required for all IT staff',
     requiredTrainings: ['1'],
-    validityPeriod: 12, // months
+    validityPeriod: 12,
   },
   {
     id: '2',
     name: 'Kranführerschein',
     description: 'Kranführerschein – Berechtigung zum sicheren Führen eines Krans',
     requiredTrainings: ['2'],
-    validityPeriod: 60, // months
+    validityPeriod: 60,
   },
 ];
 
+export interface EmployeeQualification {
+  id: string;
+  employeeId: string;
+  qualificationId: string;
+  qualifiedFrom: string;
+  toQualifyUntil: string;
+  isQualifiedUntil: string;
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+export const employeeQualifications: EmployeeQualification[] = [
+  {
+    id: '1',
+    employeeId: '1',
+    qualificationId: '1',
+    qualifiedFrom: '2024-01-01',
+    toQualifyUntil: '2024-12-31',
+    isQualifiedUntil: '2024-12-31'
+  },
+  {
+    id: '2',
+    employeeId: '2',
+    qualificationId: '2',
+    qualifiedFrom: '2024-02-01',
+    toQualifyUntil: '2025-01-31',
+    isQualifiedUntil: '2025-01-31'
+  },
+  {
+    id: '3',
+    employeeId: '3',
+    qualificationId: '1',
+    qualifiedFrom: '2024-03-01',
+    toQualifyUntil: '2024-12-31',
+    isQualifiedUntil: '2024-12-31'
+  },
+  {
+    id: '4',
+    employeeId: '4',
+    qualificationId: '2',
+    qualifiedFrom: '2024-01-15',
+    toQualifyUntil: '2025-01-14',
+    isQualifiedUntil: '2025-01-14'
+  }
+];
 
 export const qualificationHistory: QualificationHistory[] = [
   {
@@ -366,4 +384,3 @@ export const bookings: TrainingBooking[] = [
     createdAt: '2024-02-01T14:30:00',
   },
 ];
-
