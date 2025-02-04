@@ -5,7 +5,8 @@ import {
   FileText, Download, Star, TrendingUp,
   DollarSign, BookOpen, Award as CertificateIcon,
   Target, Plus, X, Clock, AlertCircle,
-  GraduationCap, CheckCircle
+  GraduationCap, CheckCircle, Users, Calendar as CalendarIcon,
+  Timer, BookOpen as BookOpenIcon, Tag
 } from 'lucide-react';
 import { RootState } from '../../store';
 import { hasHRPermissions } from '../../store/slices/authSlice';
@@ -28,6 +29,7 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
   const [activeTab, setActiveTab] = useState<'info' | 'qualifications' | 'documents' | 'approvals' | 'trainer'>('info');
   const [showAddQualModal, setShowAddQualModal] = useState(false);
   const [selectedTrainings, setSelectedTrainings] = useState<string[]>(employee.trainerFor || []);
+  const [isTrainer, setIsTrainer] = useState(employee.isTrainer || false);
   const { user: currentUser } = useSelector((state: RootState) => state.auth);
   const isHRAdmin = hasHRPermissions(currentUser);
 
@@ -99,13 +101,17 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
     }
   };
 
-  const handleTrainerStatusChange = (isTrainer: boolean) => {
+  const handleTrainerStatusChange = (checked: boolean) => {
+    setIsTrainer(checked);
+    if (!checked) {
+      setSelectedTrainings([]);
+    }
     onUpdate({
       ...employee,
-      isTrainer,
-      trainerFor: isTrainer ? selectedTrainings : []
+      isTrainer: checked,
+      trainerFor: checked ? selectedTrainings : []
     });
-    toast.success(`Trainer-Status ${isTrainer ? 'aktiviert' : 'deaktiviert'}`);
+    //add notification to user
   };
 
   const handleTrainingSelection = (trainingId: string) => {
@@ -119,6 +125,16 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
       trainerFor: newSelectedTrainings
     });
   };
+
+  // Add new helper function to group trainings by category
+  const groupedTrainings = trainings.reduce((acc, training) => {
+    const category = training.isMandatory ? 'Pflichtschulungen' : 'Optionale Schulungen';
+    if (!acc[category]) {
+      acc[category] = [];
+    }
+    acc[category].push(training);
+    return acc;
+  }, {} as Record<string, typeof trainings>);
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -319,7 +335,7 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                       <label className="flex items-center space-x-2">
                         <input
                           type="checkbox"
-                          checked={employee.isTrainer}
+                          checked={isTrainer}
                           onChange={(e) => handleTrainerStatusChange(e.target.checked)}
                           className="rounded border-gray-300 text-primary focus:ring-primary"
                         />
@@ -329,40 +345,92 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                       </label>
                     </div>
 
-                    {employee.isTrainer && (
-                      <div className="space-y-4">
+                    {isTrainer && (
+                      <div className="space-y-6">
                         <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300">
                           Schulungen, die dieser Trainer durchführen kann:
                         </h5>
-                        <div className="grid grid-cols-1 gap-4">
-                          {trainings.map(training => (
-                            <div
-                              key={training.id}
-                              className={`p-4 rounded-lg border ${
-                                selectedTrainings.includes(training.id)
-                                  ? 'border-primary bg-primary/5'
-                                  : 'border-gray-200 dark:border-gray-700'
-                              }`}
-                            >
-                              <label className="flex items-start space-x-3">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedTrainings.includes(training.id)}
-                                  onChange={() => handleTrainingSelection(training.id)}
-                                  className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
-                                />
-                                <div>
-                                  <p className="font-medium text-gray-900 dark:text-white">
-                                    {training.title}
-                                  </p>
-                                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    {training.description}
-                                  </p>
+                        
+                        {Object.entries(groupedTrainings).map(([category, categoryTrainings]) => (
+                          <div key={category} className="space-y-4">
+                            <h6 className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center">
+                              {category === 'Pflichtschulungen' ? (
+                                <AlertCircle className="h-4 w-4 mr-2 text-red-500" />
+                              ) : (
+                                <BookOpenIcon className="h-4 w-4 mr-2 text-blue-500" />
+                              )}
+                              {category}
+                            </h6>
+                            
+                            <div className="grid grid-cols-1 gap-4">
+                              {categoryTrainings.map(training => (
+                                <div
+                                  key={training.id}
+                                  className={`p-4 rounded-lg border transition-all ${
+                                    selectedTrainings.includes(training.id)
+                                      ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                                      : 'border-gray-200 dark:border-gray-700'
+                                  }`}
+                                >
+                                  <div className="flex items-start space-x-4">
+                                    <div className="flex-shrink-0 pt-1">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedTrainings.includes(training.id)}
+                                        onChange={() => handleTrainingSelection(training.id)}
+                                        className="rounded border-gray-300 text-primary focus:ring-primary"
+                                      />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center justify-between">
+                                        <p className="font-medium text-gray-900 dark:text-white">
+                                          {training.title}
+                                        </p>
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                          training.isMandatory
+                                            ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'
+                                            : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
+                                        }`}>
+                                          {training.isMandatory ? 'Pflicht' : 'Optional'}
+                                        </span>
+                                      </div>
+                                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                        {training.description}
+                                      </p>
+                                      <div className="mt-2 flex flex-wrap gap-4 text-sm">
+                                        <div className="flex items-center text-gray-500 dark:text-gray-400">
+                                          <Timer className="h-4 w-4 mr-1" />
+                                          {training.duration}
+                                        </div>
+                                        <div className="flex items-center text-gray-500 dark:text-gray-400">
+                                          <Users className="h-4 w-4 mr-1" />
+                                          Max. {training.maxParticipants} Teilnehmer
+                                        </div>
+                                        <div className="flex items-center text-gray-500 dark:text-gray-400">
+                                          <CalendarIcon className="h-4 w-4 mr-1" />
+                                          {training.validityPeriod} Monate gültig
+                                        </div>
+                                      </div>
+                                      {training.targetPositions.length > 0 && (
+                                        <div className="mt-2 flex flex-wrap gap-2">
+                                          {training.targetPositions.map(position => (
+                                            <span
+                                              key={position}
+                                              className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                                            >
+                                              <Tag className="h-3 w-3 mr-1" />
+                                              {position}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
-                              </label>
+                              ))}
                             </div>
-                          ))}
-                        </div>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
