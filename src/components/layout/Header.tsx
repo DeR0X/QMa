@@ -12,7 +12,7 @@ export default function Header() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { employee } = useSelector((state: RootState) => state.auth);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -57,7 +57,7 @@ export default function Header() {
               <span className="sr-only">Open user menu</span>
               <div className="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center"> 
                   <span className="text-sm font-medium">
-                    {user?.name ? getInitials(user.name) : '??'}
+                    {employee?.fullName ? getInitials(employee.fullName) : '??'}
                   </span>
               </div>
               <span className="hidden lg:flex lg:items-center">
@@ -65,7 +65,7 @@ export default function Header() {
                   className="text-sm font-semibold leading-6 text-gray-900 dark:text-white"
                   aria-hidden="true"
                 >
-                  {user?.name}
+                  {employee?.fullName}
                 </span>
               </span>
             </button>

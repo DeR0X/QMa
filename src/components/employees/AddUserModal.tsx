@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import type { User, Role } from '../../types';
+import type { Employee, Role } from '../../types';
 import { itDepartments, manufacturingDepartments } from '../../data/departments';
 
 interface Props {
   onClose: () => void;
-  onAdd: (user: Omit<User, 'id' | 'isActive' | 'failedLoginAttempts'>) => void;
+  onAdd: (user: Omit<Employee, 'id' | 'isActive' | 'failedLoginAttempts'>) => void;
 }
 
 // Combine all departments

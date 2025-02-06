@@ -10,15 +10,15 @@ import {
 } from 'lucide-react';
 import { RootState } from '../../store';
 import { hasHRPermissions } from '../../store/slices/authSlice';
-import type { User, Qualification } from '../../types';
+import type { Employee, Qualification } from '../../types';
 import { qualifications, employeeQualifications, trainings } from '../../data/mockData';
 import { toast } from 'sonner';
 import { formatDate } from '../../lib/utils';
 
 interface Props {
-  employee: User;
+  employee: Employee;
   onClose: () => void;
-  onUpdate: (data: Partial<User>) => void;
+  onUpdate: (data: Partial<Employee>) => void;
   approvals: Array<{ trainingId: string; date: string; status: string }>;
   trainings: Array<{ id: string; title: string }>;
   handleApproveTraining: (trainingId: string) => void;
@@ -30,8 +30,8 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
   const [showAddQualModal, setShowAddQualModal] = useState(false);
   const [selectedTrainings, setSelectedTrainings] = useState<string[]>(employee.trainerFor || []);
   const [isTrainer, setIsTrainer] = useState(employee.isTrainer || false);
-  const { user: currentUser } = useSelector((state: RootState) => state.auth);
-  const isHRAdmin = hasHRPermissions(currentUser);
+  const { employee: currentEmployee } = useSelector((state: RootState) => state.auth);
+  const isHRAdmin = hasHRPermissions(currentEmployee);
 
   const tabs = [
     { id: 'info', label: 'Information' },
@@ -44,23 +44,23 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
   ].filter(Boolean) as Array<{ id: 'info' | 'qualifications' | 'documents' | 'approvals' | 'trainer'; label: string }>;
 
   const handleAddQualification = (qualificationId: string) => {
-    const updatedQualifications = [...employee.qualifications, qualificationId];
-    onUpdate({ qualifications: updatedQualifications });
+    const updatedQualifications = [...employee.qualificationIDs, qualificationId];
+    onUpdate({ qualificationIDs: updatedQualifications });
     setShowAddQualModal(false);
   };
 
   const handleRemoveQualification = (qualificationId: string) => {
-    const updatedQualifications = employee.qualifications.filter(id => id !== qualificationId);
-    onUpdate({ qualifications: updatedQualifications });
+    const updatedQualifications = employee.qualificationIDs.filter(id => id !== qualificationId);
+    onUpdate({ qualificationIDs: updatedQualifications });
   };
 
   const availableQualifications = qualifications.filter(
-    qual => !employee.qualifications.includes(qual.id)
+    qual => !employee.qualificationIDs.includes(qual.id)
   );
 
   const getQualificationStatus = (qualId: string) => {
     const employeeQual = employeeQualifications.find(
-      eq => eq.employeeId === employee.id && eq.qualificationId === qualId
+      eq => eq.employeeID === employee.id && eq.qualificationID === qualId
     );
 
     if (!employeeQual) return 'inactive';
@@ -155,14 +155,14 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
             <div className="w-full">
               <div className="flex items-center">
                 <div className="h-16 w-16 rounded-full bg-primary text-white flex items-center justify-center text-xl">
-                  {employee.name.split(' ').map((n: string) => n[0]).join('')}
+                  {employee.fullName.split(' ').map((n: string) => n[0]).join('')}
                 </div>
                 <div className="ml-4">
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                    {employee.name}
+                    {employee.fullName}
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {employee.position} • {employee.department}
+                    {employee.jobTitleID} • {employee.departmentID}
                   </p>
                 </div>
               </div>
@@ -190,11 +190,11 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
               <div className="mt-6">
                 {activeTab === 'info' && (
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                    {employee.email && (
+                    {employee.eMail && (
                       <div className="flex items-center">
                         <Mail className="h-5 w-5 text-gray-400" />
                         <span className="ml-2 text-sm text-gray-900 dark:text-white">
-                          {employee.email}
+                          {employee.eMail}
                         </span>
                       </div>
                     )}
@@ -219,10 +219,10 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                     </div>
                     
                     <div className="space-y-4">
-                      {employee.qualifications.map(qualId => {
+                      {employee.qualificationIDs.map(qualId => {
                         const qual = qualifications.find(q => q.id === qualId);
                         const employeeQual = employeeQualifications.find(
-                          eq => eq.employeeId === employee.id && eq.qualificationId === qualId
+                          eq => eq.employeeID === employee.id && eq.qualificationID === qualId
                         );
                         const status = getQualificationStatus(qualId);
 
@@ -402,28 +402,7 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                                           <Timer className="h-4 w-4 mr-1" />
                                           {training.duration}
                                         </div>
-                                        <div className="flex items-center text-gray-500 dark:text-gray-400">
-                                          <Users className="h-4 w-4 mr-1" />
-                                          Max. {training.maxParticipants} Teilnehmer
-                                        </div>
-                                        <div className="flex items-center text-gray-500 dark:text-gray-400">
-                                          <CalendarIcon className="h-4 w-4 mr-1" />
-                                          {training.validityPeriod} Monate gültig
-                                        </div>
                                       </div>
-                                      {training.targetPositions.length > 0 && (
-                                        <div className="mt-2 flex flex-wrap gap-2">
-                                          {training.targetPositions.map(position => (
-                                            <span
-                                              key={position}
-                                              className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                                            >
-                                              <Tag className="h-3 w-3 mr-1" />
-                                              {position}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      )}
                                     </div>
                                   </div>
                                 </div>
@@ -471,7 +450,7 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                     {qual.description}
                   </p>
                   <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
-                    Gültigkeitsdauer: {qual.validityPeriod} Monate
+                    Gültigkeitsdauer: {qual.validityInMonth} Monate
                   </p>
                 </div>
               ))}

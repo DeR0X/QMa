@@ -1,4 +1,4 @@
-import type { AuditLog } from '../types';
+/* import type { AuditLog } from '../types';
 
 export const logAction = (
   userId: string,
@@ -19,4 +19,4 @@ export const logAction = (
 
   // In a real application, this would be sent to a backend API
   console.log('Audit Log:', auditLog);
-};
+}; */

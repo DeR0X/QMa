@@ -3,13 +3,13 @@ import { useSelector } from 'react-redux';
 import { Building2, Plus, Users, Mail, Phone, CheckCircle, XCircle, GraduationCap, X } from 'lucide-react';
 import { itDepartments, manufacturingDepartments } from '../data/departments';
 import { RootState } from '../store';
-import { users } from '../data/mockData';
-import type { User } from '../types';
+import { employees } from '../data/mockData';
+import type { Employee } from '../types';
 import { hasHRPermissions } from '../store/slices/authSlice';
 
 export default function Departments() {
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
-  const { user: currentUser } = useSelector((state: RootState) => state.auth);
+  const { employee: currentUser } = useSelector((state: RootState) => state.auth);
   const [searchTerm, setSearchTerm] = useState('');
 
   const isHR = hasHRPermissions(currentUser);
@@ -24,19 +24,19 @@ export default function Departments() {
     if (isHR) {
       return matchesSearch; // HR can see all departments
     } else if (isSupervisor) {
-      return dept.name === currentUser?.department && matchesSearch;
+      return dept.name === currentUser?.departmentID && matchesSearch;
     }
     return false;
   });
 
   // Get employees for selected department
   const departmentEmployees = selectedDepartment
-    ? users.filter(user => user.department === selectedDepartment)
+    ? employees.filter(user => user.departmentID === selectedDepartment)
     : [];
 
   // Get employee count for each department
   const getDepartmentEmployeeCount = (departmentName: string) => {
-    return users.filter(user => user.department === departmentName).length;
+    return employees.filter(user => user.departmentID === departmentName).length;
   };
 
   // Only allow access if user is a supervisor or HR
@@ -145,15 +145,15 @@ export default function Departments() {
                       <div className="flex items-center">
                         <div className="h-12 w-12 rounded-full bg-primary text-white flex items-center justify-center">
                           <span className="text-lg font-medium">
-                            {employee.name.split(' ').map((n) => n[0]).join('')}
+                            {employee.fullName.split(' ').map((n) => n[0]).join('')}
                           </span>
                         </div>
                         <div className="ml-4">
                           <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                            {employee.name}
+                            {employee.fullName}
                           </h3>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {employee.position}
+                            {employee.jobTitleID}
                           </p>
                         </div>
                       </div>
@@ -176,11 +176,11 @@ export default function Departments() {
                         <div className="space-y-2">
                           <p className="text-sm flex items-center text-gray-500 dark:text-gray-400">
                             <Mail className="h-4 w-4 mr-2" />
-                            {employee.email}
+                            {employee.eMail}
                           </p>
                           <p className="text-sm flex items-center text-gray-500 dark:text-gray-400">
                             <Users className="h-4 w-4 mr-2" />
-                            Personalnummer: {employee.personalNumber}
+                            Personalnummer: {employee.id}
                           </p>
                         </div>
                       </div>
@@ -192,17 +192,7 @@ export default function Departments() {
                         <div className="space-y-2">
                           <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
                             <GraduationCap className="h-4 w-4 mr-2" />
-                            {employee.qualifications.length} Qualifikationen
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {employee.trainings.map((trainingId) => (
-                              <span
-                                key={trainingId}
-                                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                              >
-                                Training #{trainingId}
-                              </span>
-                            ))}
+                            {employee.qualificationIDs.length} Qualifikationen
                           </div>
                         </div>
                       </div>

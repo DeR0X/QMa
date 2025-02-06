@@ -7,9 +7,9 @@ import { markAsRead, clearNotifications } from '../../store/slices/notificationS
 export default function NotificationCenter() {
   const [isOpen, setIsOpen] = useState(false);
   const dispatch = useDispatch();
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { employee } = useSelector((state: RootState) => state.auth);
   const notifications = useSelector((state: RootState) => 
-    state.notifications.notifications.filter(n => n.userId === user?.id)
+    state.notifications.notifications.filter(n => n.userId === employee?.id)
   );
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -18,8 +18,8 @@ export default function NotificationCenter() {
   };
 
   const handleClearAll = () => {
-    if (user) {
-      dispatch(clearNotifications(user.id));
+    if (employee) {
+      dispatch(clearNotifications(employee.id));
     }
   };
 

@@ -30,7 +30,7 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
       date: '',
       location: '',
       availableSpots: 10
-    }] as TrainingSession[],
+    }] ,
     qualificationIds: [] as string[]
   });
 
@@ -308,7 +308,7 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
                         {qual.description}
                       </p>
                       <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                        Gültigkeitsdauer: {qual.validityPeriod} Monate
+                        Gültigkeitsdauer: {qual.validityInMonth} Monate
                       </p>
                     </div>
                   </label>

@@ -2,18 +2,17 @@ import { useState, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { Search, FileText, Download, Calendar, CheckCircle, Upload, X, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { RootState } from '../store';
-import { users, bookings, trainings, trainingDocuments } from '../data/mockData';
+import { employees, trainings, bookings } from '../data/mockData';
 import { formatDate } from '../lib/utils';
 import { hasHRPermissions } from '../store/slices/authSlice';
 import { toast } from 'sonner';
 import DocumentViewer from '../components/documents/DocumentViewer';
 import DocumentUploader from '../components/documents/DocumentUploader';
-import type { TrainingDocument } from '../types';
 
 const ITEMS_PER_PAGE = 10;
 
 export default function TrainingHistory() {
-  const { user: currentUser } = useSelector((state: RootState) => state.auth);
+  const { employee: curentEmployee } = useSelector((state: RootState) => state.auth);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState<string | 'all'>('all');
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -21,72 +20,49 @@ export default function TrainingHistory() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedDepartment, setSelectedDepartment] = useState<string | 'all'>('all');
   const [selectedYear, setSelectedYear] = useState<string | 'all'>('all');
-  const [selectedDocument, setSelectedDocument] = useState<TrainingDocument | null>(null);
 
-  const isHR = hasHRPermissions(currentUser);
+  const isHR = hasHRPermissions(curentEmployee);
 
-  const departments = useMemo(() => {
-    return Array.from(new Set(users.map(user => user.department)));
-  }, []);
+const departments = useMemo(() => {
+  return Array.from(new Set(employees.map(emp => emp.departmentID)));
+}, []);
 
-  const years = useMemo(() => {
-    return Array.from(new Set(bookings
-      .filter(b => b.completedAt)
-      .map(b => new Date(b.completedAt!).getFullYear())
-    )).sort((a, b) => b - a);
-  }, []);
+const completedTrainings = useMemo(() => {
+  const filtered = bookings
+    .filter(booking => {
+      const matchesUser = selectedEmployee === 'all' || booking.userId === selectedEmployee;
+      const matchesStatus = booking.status === 'abgeschlossen';
+      const employee = employees.find(e => e.id === booking.userId);
+      const matchesDepartment = selectedDepartment === 'all' || 
+        employee?.departmentID === selectedDepartment;
+      const matchesYear = selectedYear === 'all' || 
+        (booking.completedAt && new Date(booking.completedAt).getFullYear().toString() === selectedYear);
+      
+      return matchesUser && matchesStatus && matchesDepartment && matchesYear;
+    })
+    .map(booking => {
+      const training = trainings.find(t => t.id === booking.trainingId);
+      const employee = employees.find(e => e.id === booking.userId);
+      return {
+        ...booking,
+        training,
+        employee,
+      };
+    })
+    .filter(item => 
+      item.training?.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.employee?.fullName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
-  const completedTrainings = useMemo(() => {
-    const filtered = bookings
-      .filter(booking => {
-        const matchesUser = selectedEmployee === 'all' || booking.userId === selectedEmployee;
-        const matchesStatus = booking.status === 'abgeschlossen';
-        const user = users.find(u => u.id === booking.userId);
-        const matchesDepartment = selectedDepartment === 'all' || user?.department === selectedDepartment;
-        const matchesYear = selectedYear === 'all' || 
-          (booking.completedAt && new Date(booking.completedAt).getFullYear().toString() === selectedYear);
-        
-        return matchesUser && matchesStatus && matchesDepartment && matchesYear;
-      })
-      .map(booking => {
-        const training = trainings.find(t => t.id === booking.trainingId);
-        const user = users.find(u => u.id === booking.userId);
-        return {
-          ...booking,
-          training,
-          user,
-        };
-      })
-      .filter(item => 
-        item.training?.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.user?.name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+  return filtered;
+}, [selectedEmployee, selectedDepartment, selectedYear, searchTerm]);
 
-    return filtered;
-  }, [selectedEmployee, selectedDepartment, selectedYear, searchTerm]);
 
   const totalPages = Math.ceil(completedTrainings.length / ITEMS_PER_PAGE);
   const paginatedTrainings = completedTrainings.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
-
-  const handleFileUpload = (trainingId: string, file: File, description: string) => {
-    const newDocument: TrainingDocument = {
-      id: Date.now().toString(),
-      trainingId,
-      fileName: file.name,
-      fileType: file.type,
-      uploadedBy: currentUser?.id || '',
-      uploadedAt: new Date().toISOString(),
-      fileUrl: URL.createObjectURL(file),
-      description,
-    };
-
-    toast.success(`Dokument "${file.name}" erfolgreich hochgeladen`);
-    setShowUploadModal(false);
-    setSelectedTraining(null);
-  };
 
   return (
     <div className="space-y-6">
@@ -124,18 +100,21 @@ export default function TrainingHistory() {
             {isHR && (
               <>
                 <select
-                  value={selectedDepartment}
-                  onChange={(e) => {
-                    setSelectedDepartment(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-40 pl-3 pr-10 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm dark:bg-[#181818] dark:text-white"
-                >
-                  <option value="all">Alle Abteilungen</option>
-                  {departments.map((dept) => (
-                    <option key={dept} value={dept}>{dept}</option>
-                  ))}
-                </select>
+  value={selectedEmployee}
+  onChange={(e) => {
+    setSelectedEmployee(e.target.value);
+    setCurrentPage(1);
+  }}
+  className="w-40 pl-3 pr-10 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm dark:bg-[#181818] dark:text-white"
+>
+  <option value="all">Alle Mitarbeiter</option>
+  {employees
+    .filter(emp => selectedDepartment === 'all' || emp.departmentID === selectedDepartment)
+    .map((emp) => (
+      <option key={emp.id} value={emp.id}>{emp.fullName}</option>
+    ))}
+</select>
+
 
                 <select
                   value={selectedEmployee}
@@ -146,10 +125,10 @@ export default function TrainingHistory() {
                   className="w-40 pl-3 pr-10 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm dark:bg-[#181818] dark:text-white"
                 >
                   <option value="all">Alle Mitarbeiter</option>
-                  {users
-                    .filter(user => selectedDepartment === 'all' || user.department === selectedDepartment)
-                    .map((user) => (
-                      <option key={user.id} value={user.id}>{user.name}</option>
+                  {employees
+                    .filter(employee => selectedDepartment === 'all' || employee.departmentID === selectedDepartment)
+                    .map((employee) => (
+                      <option key={employee.id} value={employee.id}>{employee.fullName}</option>
                   ))}
                 </select>
               </>
@@ -209,16 +188,16 @@ export default function TrainingHistory() {
                         {item.training?.title}
                       </div>
                       <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {item.training?.trainer}
+                        {item.training?.qualification_TrainerID}
                       </div>
                     </td>
                     {isHR && (
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900 dark:text-white">
-                          {item.user?.name}
+                          {item.employee?.fullName}
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {item.user?.department}
+                          {item.employee?.departmentID}
                         </div>
                       </td>
                     )}
@@ -235,18 +214,6 @@ export default function TrainingHistory() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-2">
-                        {trainingDocuments
-                          .filter(doc => doc.trainingId === item.trainingId)
-                          .map(doc => (
-                            <button
-                              key={doc.id}
-                              onClick={() => setSelectedDocument(doc)}
-                              className="text-primary hover:text-primary/80 dark:text-blue-400 dark:hover:text-blue-300"
-                              title={doc.fileName}
-                            >
-                              <Download className="h-5 w-5" />
-                            </button>
-                          ))}
                         {isHR && (
                           <button
                             onClick={() => {
@@ -365,23 +332,6 @@ export default function TrainingHistory() {
         </div>
       </div>
 
-      {selectedDocument && (
-        <DocumentViewer
-          document={selectedDocument}
-          onClose={() => setSelectedDocument(null)}
-        />
-      )}
-
-      {showUploadModal && selectedTraining && (
-        <DocumentUploader
-          trainingId={selectedTraining}
-          onClose={() => {
-            setShowUploadModal(false);
-            setSelectedTraining(null);
-          }}
-          onUpload={(file, description) => handleFileUpload(selectedTraining, file, description)}
-        />
-      )}
     </div>
   );
 }

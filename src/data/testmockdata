@@ -1,0 +1,444 @@
+/* import type { 
+    Employee,
+    Department,
+    JobTitle,
+    AdditionalSkill,
+    Qualification,
+    EmployeeQualification,
+    QualificationTrainer,
+    EmployeeQualificationTraining,
+    Training,
+  } from '../types';
+  
+  export const departments: Department[] = [
+    {
+      id: '1',
+      departmentID_Atoss: 'IT001',
+      department: 'IT-Betrieb'
+    },
+    {
+      id: '2',
+      departmentID_Atoss: 'HR001',
+      department: 'Personalabteilung'
+    },
+    {
+      id: '3',
+      departmentID_Atoss: 'DEV001',
+      department: 'Softwareentwicklung'
+    },
+    {
+      id: '4',
+      departmentID_Atoss: 'QA001',
+      department: 'Qualitätssicherung'
+    },
+    {
+      id: '5',
+      departmentID_Atoss: 'PM001',
+      department: 'Projektmanagement'
+    }
+  ];
+  
+  export const jobTitles: JobTitle[] = [
+    {
+      id: '1',
+      jobTitle: 'Softwareentwickler',
+      description: 'Entwickelt und wartet Softwareanwendungen'
+    },
+    {
+      id: '2',
+      jobTitle: 'Personalleiter',
+      description: 'Leitet die Personalabteilung'
+    },
+    {
+      id: '3',
+      jobTitle: 'Systemadministrator',
+      description: 'Verwaltet IT-Infrastruktur und Systeme'
+    },
+    {
+      id: '4',
+      jobTitle: 'IT-Sicherheitsspezialist',
+      description: 'Gewährleistet die Sicherheit von IT-Systemen und Daten'
+    },
+    {
+      id: '5',
+      jobTitle: 'Projektleiter',
+      description: 'Leitet und koordiniert Projekte'
+    }
+  ];
+  
+  export const employees: Employee[] = [
+    {
+      id: '1',
+      staffNumber: '123',
+      surName: 'Acer',
+      firstName: 'John',
+      fullName: 'John Acer',
+      eMail: 'john.acer@firma.de',
+      departmentID: '1',
+      jobTitleID: '1',
+      supervisorID: '4',
+      isActive: true,
+      passwordHash: 'hashed_password_1'
+    },
+    {
+      id: '2',
+      staffNumber: '124',
+      surName: 'Mustermann',
+      firstName: 'Max',
+      fullName: 'Max Mustermann',
+      eMail: 'max.mustermann@firma.de',
+      departmentID: '2',
+      jobTitleID: '2',
+      supervisorID: '4',
+      isActive: true,
+      passwordHash: 'hashed_password_2'
+    },
+    {
+      id: '3',
+      staffNumber: '125',
+      surName: 'Müller',
+      firstName: 'Hans',
+      fullName: 'Hans Müller',
+      eMail: 'hans.mueller@firma.de',
+      departmentID: '1',
+      jobTitleID: '4',
+      supervisorID: '4',
+      isActive: true,
+      passwordHash: 'hashed_password_3'
+    },
+    {
+      id: '4',
+      staffNumber: '126',
+      surName: 'Braun',
+      firstName: 'Michael',
+      fullName: 'Michael Braun',
+      eMail: 'michael.braun@firma.de',
+      departmentID: '1',
+      jobTitleID: '3',
+      supervisorID: '7',
+      isActive: true,
+      passwordHash: 'hashed_password_4'
+    },
+    {
+      id: '5',
+      staffNumber: '127',
+      surName: 'Schmidt',
+      firstName: 'Anna',
+      fullName: 'Anna Schmidt',
+      eMail: 'anna.schmidt@firma.de',
+      departmentID: '3',
+      jobTitleID: '1',
+      supervisorID: '4',
+      isActive: true,
+      passwordHash: 'hashed_password_5'
+    },
+    {
+      id: '6',
+      staffNumber: '128',
+      surName: 'Weber',
+      firstName: 'Sarah',
+      fullName: 'Sarah Weber',
+      eMail: 'sarah.weber@firma.de',
+      departmentID: '2',
+      jobTitleID: '2',
+      supervisorID: '4',
+      isActive: true,
+      passwordHash: 'hashed_password_6'
+    },
+    {
+      id: '7',
+      staffNumber: '129',
+      surName: 'Fischer',
+      firstName: 'Thomas',
+      fullName: 'Thomas Fischer',
+      eMail: 'thomas.fischer@firma.de',
+      departmentID: '1',
+      jobTitleID: '3',
+      supervisorID: '0',
+      isActive: true,
+      passwordHash: 'hashed_password_7'
+    }
+  ];
+  
+  export const qualifications: Qualification[] = [
+    {
+      id: '1',
+      name: 'IT-Sicherheitszertifizierung',
+      description: 'Grundlegende IT-Sicherheitszertifizierung für alle IT-Mitarbeiter',
+      validityInMonth: 12,
+      isMandatory: true
+    },
+    {
+      id: '2',
+      name: 'Kranführerschein',
+      description: 'Berechtigung zum sicheren Führen eines Krans',
+      validityInMonth: 60,
+      isMandatory: false
+    },
+    {
+      id: '3',
+      name: 'Agiles Projektmanagement',
+      description: 'Zertifizierung in agilen Methoden und Scrum',
+      validityInMonth: 24,
+      isMandatory: false
+    },
+    {
+      id: '4',
+      name: 'Datenschutz',
+      description: 'DSGVO und Datenschutzzertifizierung',
+      validityInMonth: 12,
+      isMandatory: true
+    },
+    {
+      id: '5',
+      name: 'Erste Hilfe',
+      description: 'Erste-Hilfe-Zertifizierung',
+      validityInMonth: 24,
+      isMandatory: true
+    }
+  ];
+  
+  export const trainings: Training[] = [
+    {
+      id: '1',
+      name: 'IT-Sicherheit Grundlagen',
+      description: 'Grundlegende IT-Sicherheitsschulung',
+      qualificationID: '1',
+      qualification_TrainerID: '1',
+      trainingDate: '2024-03-15',
+      completed: true
+    },
+    {
+      id: '2',
+      name: 'Kranbedienung',
+      description: 'Schulung zur Kranbedienung',
+      qualificationID: '2',
+      qualification_TrainerID: '2',
+      trainingDate: '2024-03-20',
+      completed: false
+    },
+    {
+      id: '3',
+      name: 'Agile Grundlagen',
+      description: 'Einführung in agile Methoden',
+      qualificationID: '3',
+      qualification_TrainerID: '3',
+      trainingDate: '2024-04-01',
+      completed: false
+    },
+    {
+      id: '4',
+      name: 'DSGVO Grundlagen',
+      description: 'Grundlegendes Wissen zur DSGVO',
+      qualificationID: '4',
+      qualification_TrainerID: '4',
+      trainingDate: '2024-04-15',
+      completed: false
+    },
+    {
+      id: '5',
+      name: 'Erste-Hilfe-Grundkurs',
+      description: 'Grundlegende Erste-Hilfe-Schulung',
+      qualificationID: '5',
+      qualification_TrainerID: '5',
+      trainingDate: '2024-05-01',
+      completed: false
+    }
+  ];
+  
+  export const additionalSkills: AdditionalSkill[] = [
+    {
+      id: '1',
+      name: 'Projektmanagement',
+      description: 'Projektmanagement-Fähigkeiten und -Methoden'
+    },
+    {
+      id: '2',
+      name: 'Teamleitung',
+      description: 'Teamführung und Managementfähigkeiten'
+    },
+    {
+      id: '3',
+      name: 'Cloud Computing',
+      description: 'Erfahrung mit Cloud-Plattformen und -Diensten'
+    },
+    {
+      id: '4',
+      name: 'Datenanalyse',
+      description: 'Fähigkeiten in der Analyse und Interpretation von Daten'
+    },
+    {
+      id: '5',
+      name: 'Präsentationstechnik',
+      description: 'Fähigkeit zu präsentieren und öffentlich zu sprechen'
+    }
+  ];
+  
+  // Die restlichen Arrays bleiben unverändert, da sie nur IDs referenzieren
+  export const employeeQualifications = [
+    {
+      id: '1',
+      employeeID: '1',
+      qualificationID: '1',
+      qualifiedFrom: '2024-01-01',
+      toQualifyUntil: '2024-12-31',
+      isQualifiedUntil: '2024-12-31'
+    },
+    {
+      id: '2',
+      employeeID: '2',
+      qualificationID: '2',
+      qualifiedFrom: '2024-02-01',
+      toQualifyUntil: '2025-01-31',
+      isQualifiedUntil: '2025-01-31'
+    },
+    {
+      id: '3',
+      employeeID: '3',
+      qualificationID: '1',
+      qualifiedFrom: '2024-01-15',
+      toQualifyUntil: '2024-12-31',
+      isQualifiedUntil: '2024-12-31'
+    },
+    {
+      id: '4',
+      employeeID: '4',
+      qualificationID: '1',
+      qualifiedFrom: '2024-01-15',
+      toQualifyUntil: '2024-12-31',
+      isQualifiedUntil: '2024-12-31'
+    },
+    {
+      id: '5',
+      employeeID: '4',
+      qualificationID: '4',
+      qualifiedFrom: '2024-02-01',
+      toQualifyUntil: '2025-01-31',
+      isQualifiedUntil: '2025-01-31'
+    }
+  ];
+  
+  export const qualificationTrainers = [
+    {
+      id: '1',
+      qualificationID: '1',
+      employeeID: '3' // Hans Müller (IT-Sicherheitsspezialist)
+    },
+    {
+      id: '2',
+      qualificationID: '2',
+      employeeID: '4' // Michael Braun (Systemadministrator)
+    },
+    {
+      id: '3',
+      qualificationID: '3',
+      employeeID: '5' // Anna Schmidt
+    },
+    {
+      id: '4',
+      qualificationID: '4',
+      employeeID: '6' // Sarah Weber (Personal)
+    },
+    {
+      id: '5',
+      qualificationID: '5',
+      employeeID: '2' // Max Mustermann
+    }
+  ];
+  
+  export const employeeQualificationTrainings = [
+    {
+      id: '1',
+      employee_QualificationID: '1',
+      trainingID: '1'
+    },
+    {
+      id: '2',
+      employee_QualificationID: '2',
+      trainingID: '2'
+    },
+    {
+      id: '3',
+      employee_QualificationID: '3',
+      trainingID: '1'
+    },
+    {
+      id: '4',
+      employee_QualificationID: '4',
+      trainingID: '1'
+    },
+    {
+      id: '5',
+      employee_QualificationID: '5',
+      trainingID: '4'
+    }
+  ];
+  
+  export const employeeAdditionalSkills = [
+    {
+      id: '1',
+      employeeID: '1',
+      additionalSkillID: '1'
+    },
+    {
+      id: '2',
+      employeeID: '1',
+      additionalSkillID: '3'
+    },
+    {
+      id: '3',
+      employeeID: '2',
+      additionalSkillID: '2'
+    },
+    {
+      id: '4',
+      employeeID: '3',
+      additionalSkillID: '4'
+    },
+    {
+      id: '5',
+      employeeID: '4',
+      additionalSkillID: '5'
+    }
+  ];
+  
+  export const jobTitleQualifications = [
+    {
+      id: '1',
+      jobTitleID: '1', // Softwareentwickler
+      qualificationID: '1' // IT-Sicherheit
+    },
+    {
+      id: '2',
+      jobTitleID: '3', // Systemadministrator
+      qualificationID: '1' // IT-Sicherheit
+    },
+    {
+      id: '3',
+      jobTitleID: '4', // IT-Sicherheitsspezialist
+      qualificationID: '1' // IT-Sicherheit
+    },
+    {
+      id: '4',
+      jobTitleID: '2', // Personalleiter
+      qualificationID: '4' // DSGVO
+    }
+  ];
+  
+  export const additionalSkillQualifications = [
+    {
+      id: '1',
+      additionalSkillID: '1', // Projektmanagement
+      qualificationID: '3' // Agiles Projektmanagement
+    },
+    {
+      id: '2',
+      additionalSkillID: '2', // Teamleitung
+      qualificationID: '3' // Agiles Projektmanagement
+    },
+    {
+      id: '3',
+      additionalSkillID: '3', // Cloud Computing
+      qualificationID: '1' // IT-Sicherheit
+    }
+  ]; */

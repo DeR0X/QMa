@@ -1,16 +1,16 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import type { User } from '../../types';
-import { users } from '../../data/mockData';
+import type { Employee } from '../../types';
+import { employees } from '../../data/mockData';
 
 interface AuthState {
-  user: User | null;
+  employee: Employee | null;
   isAuthenticated: boolean;
   loading: boolean;
   error: string | null;
 }
 
 const initialState: AuthState = {
-  user: null,
+  employee: null,
   isAuthenticated: false,
   loading: false,
   error: null,
@@ -24,8 +24,8 @@ const authSlice = createSlice({
       state.loading = true;
       state.error = null;
     },
-    loginSuccess: (state, action: PayloadAction<User>) => {
-      state.user = action.payload;
+    loginSuccess: (state, action: PayloadAction<Employee>) => {
+      state.employee = action.payload;
       state.isAuthenticated = true;
       state.loading = false;
       state.error = null;
@@ -35,14 +35,14 @@ const authSlice = createSlice({
       state.error = action.payload;
     },
     logout: (state) => {
-      state.user = null;
+      state.employee = null;
       state.isAuthenticated = false;
       state.loading = false;
       state.error = null;
     },
     updateUserActiveStatus: (state, action: PayloadAction<{ userId: string; isActive: boolean }>) => {
-      if (state.user?.id === action.payload.userId) {
-        state.user.isActive = action.payload.isActive;
+      if (state.employee?.id === action.payload.userId) {
+        state.employee.isActive = action.payload.isActive;
       }
     },
   },
@@ -50,16 +50,16 @@ const authSlice = createSlice({
 
 export const { loginStart, loginSuccess, loginFailure, logout, updateUserActiveStatus } = authSlice.actions;
 
-export const hasHRPermissions = (user: User | null) => {
-  return user?.role === 'hr';
+export const hasHRPermissions = (employee: Employee | null) => {
+  return employee?.role === 'hr';
 };
 
-export const canManageEmployees = (user: User | null) => {
-  return user?.role === 'hr' || user?.role === 'supervisor';
+export const canManageEmployees = (employee: Employee | null) => {
+  return employee?.role === 'hr' || employee?.role === 'supervisor';
 };
 
-export const canAccessAnalytics = (user: User | null) => {
-  return user?.role === 'hr';
+export const canAccessAnalytics = (employee: Employee | null) => {
+  return employee?.role === 'hr';
 };
 
 // Load inactive users from localStorage
@@ -74,21 +74,21 @@ const saveInactiveUsers = (inactiveUsers: Record<string, boolean>) => {
 };
 
 // Thunk for login
-export const login = (personalNumber: string, password: string) => async (dispatch: any) => {
+export const login = (staffNumber: string, password: string) => async (dispatch: any) => {
   dispatch(loginStart());
 
   try {
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    const user = users.find(u => u.personalNumber === personalNumber);
+    const employee = employees.find(e => e.staffNumber === staffNumber);
 
-    if (!user) {
+    if (!employee) {
       throw new Error('Ungültige Anmeldedaten');
     }
 
     // Check if user is inactive in localStorage
     const inactiveUsers = getInactiveUsers();
-    if (inactiveUsers[user.id] || !user.isActive) {
+    if (inactiveUsers[employee.id] || !employee.isActive) {
       throw new Error(
         'Ihr Account wurde gesperrt. Bitte kontaktieren Sie Ihren Vorgesetzten oder die IT-Abteilung für Unterstützung.'
       );
@@ -98,7 +98,12 @@ export const login = (personalNumber: string, password: string) => async (dispat
       throw new Error('Password wird benötigt');
     }
 
-    dispatch(loginSuccess(user));
+    // In a real app, we would verify the password hash here
+    if (password !== employee.passwordHash) {
+      throw new Error('Ungültige Anmeldedaten');
+    }
+
+    dispatch(loginSuccess(employee));
   } catch (error) {
     dispatch(loginFailure(error instanceof Error ? error.message : 'Login fehlgeschlagen'));
   }

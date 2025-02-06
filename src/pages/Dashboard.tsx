@@ -6,15 +6,15 @@ import {
   CalendarCheck, PieChart, Users, Clock
 } from 'lucide-react';
 import { RootState } from '../store';
-import { trainings, bookings, qualifications, users } from '../data/mockData';
+import { trainings, bookings, qualifications, employees } from '../data/mockData';
 import { formatDate, calculateExpirationDate, isExpiringSoon } from '../lib/utils';
 import { hasHRPermissions } from '../store/slices/authSlice';
 import type { Qualification } from '../types';
 import { sendQualificationExpiryNotification } from '../lib/notifications';
 
 function TrainingStatistics({ departmentFilter = 'all' }) {
-  const allUsers = users.filter(u => 
-    departmentFilter === 'all' || u.department === departmentFilter
+  const allUsers = employees.filter(u => 
+    departmentFilter === 'all' || u.departmentID === departmentFilter
   );
 
   const stats = {
@@ -24,31 +24,31 @@ function TrainingStatistics({ departmentFilter = 'all' }) {
     expiringQualifications: 0,
   };
 
-  allUsers.forEach(user => {
+  allUsers.forEach(employee => {
     // Count completed trainings
     const userCompletedTrainings = bookings.filter(
-      b => b.userId === user.id && b.status === 'abgeschlossen'
+      b => b.userId === employee.id && b.status === 'abgeschlossen'
     ).length;
     stats.completedTrainings += userCompletedTrainings;
 
     // Count pending trainings
     const userPendingTrainings = bookings.filter(
-      b => b.userId === user.id && b.status === 'ausstehend'
+      b => b.userId === employee.id && b.status === 'ausstehend'
     ).length;
     stats.pendingTrainings += userPendingTrainings;
 
     // Count expiring qualifications
     const userQuals = qualifications.filter(qual => 
-      user.qualifications.includes(qual.id)
+      employee.qualificationIDs.includes(qual.id)
     );
     const expiringQuals = userQuals.filter(qual => {
       const lastTraining = bookings
-        .filter(b => b.userId === user.id && b.status === 'abgeschlossen')
+        .filter(b => b.userId === employee.id && b.status === 'abgeschlossen')
         .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())[0];
 
       if (!lastTraining?.completedAt) return false;
 
-      const expirationDate = calculateExpirationDate(lastTraining.completedAt, qual.validityPeriod);
+      const expirationDate = calculateExpirationDate(lastTraining.completedAt, qual.validityInMonth);
       return isExpiringSoon(expirationDate);
     }).length;
     stats.expiringQualifications += expiringQuals;
@@ -111,35 +111,35 @@ function TrainingStatistics({ departmentFilter = 'all' }) {
 }
 
 export default function Dashboard() {
-  const { user } = useSelector((state: RootState) => state.auth);
-  const isHR = hasHRPermissions(user);
+  const { employee } = useSelector((state: RootState) => state.auth);
+  const isHR = hasHRPermissions(employee);
   const [selectedQual, setSelectedQual] = useState<Qualification | null>(null);
 
   useEffect(() => {
-    if (user) {
+    if (employee) {
       // Check for expiring qualifications and send notifications
-      const userQuals = qualifications.filter(qual => user.qualifications.includes(qual.id));
+      const userQuals = qualifications.filter(qual => employee.qualificationIDs.includes(qual.id));
       userQuals.forEach(qual => {
         const lastTraining = bookings
-          .filter(b => b.userId === user.id && b.status === 'abgeschlossen')
+          .filter(b => b.userId === employee.id && b.status === 'abgeschlossen')
           .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())[0];
 
         if (lastTraining?.completedAt) {
-          const expirationDate = calculateExpirationDate(lastTraining.completedAt, qual.validityPeriod);
+          const expirationDate = calculateExpirationDate(lastTraining.completedAt, qual.validityInMonth);
           if (isExpiringSoon(expirationDate)) {
             const daysUntilExpiry = Math.ceil((expirationDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-            sendQualificationExpiryNotification(user, qual.name, daysUntilExpiry);
+            sendQualificationExpiryNotification(employee, qual.name, daysUntilExpiry);
           }
         }
       });
     }
-  }, [user]);
+  }, [employee]);
 
-  if (!user) return null;
+  if (!employee) return null;
 
-  const userBookings = bookings.filter(booking => booking.userId === user.id);
-  const userTrainings = trainings.filter(training => user.trainings.includes(training.id));
-  const userQualifications = qualifications.filter(qual => user.qualifications.includes(qual.id));
+  const userBookings = bookings.filter(booking => booking.userId === employee.id);
+  const userTrainings = trainings.filter(training => employee.qualificationIDs.includes(training.id));
+  const userQualifications = qualifications.filter(qual => employee.qualificationIDs.includes(qual.id));
 
   // Calculate expiring qualifications (2 months warning)
   const expiringQualifications = userQualifications.filter(qual => {
@@ -149,17 +149,11 @@ export default function Dashboard() {
 
     if (!lastTraining?.completedAt) return false;
 
-    const expirationDate = calculateExpirationDate(lastTraining.completedAt, qual.validityPeriod);
+    const expirationDate = calculateExpirationDate(lastTraining.completedAt, qual.validityInMonth);
     return isExpiringSoon(expirationDate);
   });
 
   const pendingBookings = userBookings.filter(b => b.status === 'ausstehend');
-  const upcomingTrainings = userBookings.filter(b => {
-    const session = trainings
-      .find(t => t.id === b.trainingId)
-      ?.sessions.find(s => s.id === b.sessionId);
-    return session && new Date(session.date) > new Date() && b.status === 'genehmigt';
-  });
 
   const stats = [
     { 
@@ -186,7 +180,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-            {user.name}
+            {employee.fullName}
           </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Ihre Schulungsübersicht und bevorstehende Sitzungen
@@ -226,37 +220,9 @@ export default function Dashboard() {
               Bevorstehende Schulungen
             </h2>
             <div className="mt-6 flow-root">
-              {upcomingTrainings.length > 0 ? (
-                <ul className="-my-5 divide-y divide-gray-200 dark:divide-gray-700">
-                  {upcomingTrainings.map((booking) => {
-                    const training = trainings.find(t => t.id === booking.trainingId);
-                    const session = training?.sessions.find(s => s.id === booking.sessionId);
-                    if (!training || !session) return null;
-
-                    return (
-                      <li key={booking.id} className="py-5">
-                        <div className="flex items-center space-x-4">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                              {training.title}
-                            </p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              {formatDate(session.date)} at {session.location}
-                            </p>
-                          </div>
-                          <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
-                            Bestätigt
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
                 <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
                   Keine bevorstehenden Schulungen geplant
                 </p>
-              )}
             </div>
           </div>
         </div>
@@ -275,7 +241,7 @@ export default function Dashboard() {
                   .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())[0];
 
                 const expirationDate = lastTraining?.completedAt
-                  ? calculateExpirationDate(lastTraining.completedAt, qual.validityPeriod)
+                  ? calculateExpirationDate(lastTraining.completedAt, qual.validityInMonth)
                   : null;
 
                 return (
@@ -331,7 +297,7 @@ export default function Dashboard() {
             </p>
             
             <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-              <p>Gültigkeitsdauer: {selectedQual.validityPeriod} Monate</p>
+              <p>Gültigkeitsdauer: {selectedQual.validityInMonth} Monate</p>
               <p className="mt-2">Erforderliche Schulungen:</p>
               <ul className="list-disc list-inside mt-1">
                 {selectedQual.requiredTrainings.map(trainingId => {

@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Search, Plus, Download, Upload, Filter, Lock, Unlock, ChevronDown, ChevronRight, X } from 'lucide-react';
-import { User } from '../types';
+import { Employee } from '../types';
 import EmployeeDetails from '../components/employees/EmployeeDetails';
 import AddUserModal from '../components/employees/AddUserModal';
 import { RootState, AppDispatch } from '../store';
 import { toast } from 'sonner';
-import { trainings, bookings, users } from '../data/mockData';
+import { employees, departments } from '../data/mockData';
 import { toggleUserActive } from '../store/slices/authSlice';
-import { logAction } from '../lib/audit';
 import { hasHRPermissions } from '../store/slices/authSlice';
 
 type FilterType = 'all' | 'employees' | 'supervisors' | 'active' | 'inactive';
@@ -16,14 +15,14 @@ type FilterType = 'all' | 'employees' | 'supervisors' | 'active' | 'inactive';
 export default function Employees() {
   const dispatch = useDispatch<AppDispatch>();
   const [searchTerm, setSearchTerm] = useState('');
-  const [employees, setEmployees] = useState<User[]>(users);
-  const [selectedEmployee, setSelectedEmployee] = useState<User | null>(null);
+  const [employeesList, setEmployeesList] = useState<Employee[]>(employees);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [expandedSupervisors, setExpandedSupervisors] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [showFilters, setShowFilters] = useState(false);
-  const { user } = useSelector((state: RootState) => state.auth);
-  const isHRAdmin = hasHRPermissions(user);
+  const { employee: currentEmployee } = useSelector((state: RootState) => state.auth);
+  const isHRAdmin = hasHRPermissions(currentEmployee);
 
   const filterOptions: { value: FilterType; label: string }[] = [
     { value: 'all', label: 'Alle' },
@@ -35,17 +34,16 @@ export default function Employees() {
 
   // Get supervisors and their direct reports
   const getSupervisorsWithEmployees = () => {
-    if (!user) return [];
+    if (!currentEmployee) return [];
     
-    const supervisors = employees.filter(emp => emp.role === 'supervisor');
+    const supervisors = employeesList.filter(emp => emp.role === 'supervisor');
     return supervisors.map(supervisor => ({
       ...supervisor,
-      directReports: employees.filter(emp => emp.supervisorId === supervisor.id)
+      directReports: employeesList.filter(emp => emp.supervisorID === supervisor.id)
     }));
   };
 
   const toggleSupervisor = (e: React.MouseEvent, supervisorId: string) => {
-    // Stop event from bubbling up to prevent details modal from opening
     e.stopPropagation();
     setExpandedSupervisors(prev => 
       prev.includes(supervisorId)
@@ -54,13 +52,13 @@ export default function Employees() {
     );
   };
 
-  const filterEmployees = (employeesToFilter: User[]) => {
+  const filterEmployees = (employeesToFilter: Employee[]) => {
     return employeesToFilter.filter(emp => {
       const matchesSearch = 
-        emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        emp.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        emp.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        emp.position.toLowerCase().includes(searchTerm.toLowerCase());
+        emp.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.eMail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.departmentID.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        emp.jobTitleID.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesFilter = 
         activeFilter === 'all' ? true :
@@ -74,40 +72,37 @@ export default function Employees() {
     });
   };
 
-  const handleAddUser = (newUser: Omit<User, 'id' | 'isActive' | 'failedLoginAttempts'>) => {
-    const user: User = {
-      ...newUser,
-      id: (employees.length + 1).toString(),
+  const handleAddUser = (newEmployee: Omit<Employee, 'id' | 'isActive'>) => {
+    const employee: Employee = {
+      ...newEmployee,
+      id: (employeesList.length + 1).toString(),
       isActive: true,
-      failedLoginAttempts: 0,
     };
-    setEmployees([...employees, user]);
-    logAction(user.id, 'create_user', 'Neuer Mitarbeiter angelegt', user.id, 'user');
+    setEmployeesList([...employeesList, employee]);
     toast.success('Mitarbeiter erfolgreich hinzugefügt');
   };
 
-  const handleUpdateEmployee = (id: string, data: Partial<User>) => {
-    setEmployees(employees.map(emp => emp.id === id ? { ...emp, ...data } : emp));
+  const handleUpdateEmployee = (id: string, data: Partial<Employee>) => {
+    setEmployeesList(employeesList.map(emp => emp.id === id ? { ...emp, ...data } : emp));
     toast.success('Mitarbeiter erfolgreich aktualisiert');
   };
 
   const handleToggleActive = (e: React.MouseEvent, employeeId: string) => {
-    e.stopPropagation(); // Prevent opening details when toggling active status
-    const employee = employees.find(emp => emp.id === employeeId);
+    e.stopPropagation();
+    const employee = employeesList.find(emp => emp.id === employeeId);
     if (employee) {
       const newActiveStatus = !employee.isActive;
-      setEmployees(employees.map(emp => 
+      setEmployeesList(employeesList.map(emp => 
         emp.id === employeeId 
           ? { ...emp, isActive: newActiveStatus }
           : emp
       ));
       dispatch(toggleUserActive(employeeId, newActiveStatus));
-      logAction(employeeId, 'toggle_user_active', `Mitarbeiter ${newActiveStatus ? 'aktiviert' : 'deaktiviert'}`, employeeId, 'user');
       toast.success(`Mitarbeiter wurde ${newActiveStatus ? 'entsperrt' : 'gesperrt'}`);
     }
   };
 
-  const renderEmployeeRow = (employee: User, isSubRow: boolean = false) => (
+  const renderEmployeeRow = (employee: Employee, isSubRow: boolean = false) => (
     <tr
       key={employee.id}
       className={`hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${
@@ -120,24 +115,24 @@ export default function Employees() {
           {isSubRow && <div className="w-6" />}
           <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
             <span className="text-sm font-medium">
-              {employee.name.split(' ').map((n) => n[0]).join('')}
+              {employee.fullName.split(' ').map((n) => n[0]).join('')}
             </span>
           </div>
           <div className="ml-4">
             <div className="text-sm font-medium text-gray-900 dark:text-white">
-              {employee.name}
+              {employee.fullName}
             </div>
             <div className="text-sm text-gray-500 dark:text-gray-400">
-              {employee.email}
+              {employee.eMail}
             </div>
           </div>
         </div>
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-        {employee.department}
+        {departments.find(d => d.id === employee.departmentID)?.department || employee.departmentID}
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-        {employee.position}
+        {employee.jobTitleID}
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -148,7 +143,7 @@ export default function Employees() {
           {!employee.isActive ? 'Gesperrt' : 'Aktiv'}
         </span>
       </td>
-      {(isHRAdmin || user?.role === 'supervisor') && (
+      {(isHRAdmin || currentEmployee?.role === 'supervisor') && (
         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
           <button
             onClick={(e) => handleToggleActive(e, employee.id)}
@@ -165,7 +160,7 @@ export default function Employees() {
     </tr>
   );
 
-  if (!isHRAdmin && user?.role !== 'supervisor') {
+  if (!isHRAdmin && currentEmployee?.role !== 'supervisor') {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
         <p className="text-lg text-gray-500 dark:text-gray-400">
@@ -259,7 +254,7 @@ export default function Employees() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Status
                 </th>
-                {(isHRAdmin || user?.role === 'supervisor') && (
+                {(isHRAdmin || currentEmployee?.role === 'supervisor') && (
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Aktionen
                   </th>
@@ -288,24 +283,24 @@ export default function Employees() {
                         </button>
                         <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
                           <span className="text-sm font-medium">
-                            {supervisor.name.split(' ').map((n) => n[0]).join('')}
+                            {supervisor.fullName.split(' ').map((n) => n[0]).join('')}
                           </span>
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {supervisor.name}
+                            {supervisor.fullName}
                           </div>
                           <div className="text-sm text-gray-500 dark:text-gray-400">
-                            {supervisor.email}
+                            {supervisor.eMail}
                           </div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {supervisor.department}
+                      {departments.find(d => d.id === supervisor.departmentID)?.department || supervisor.departmentID}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {supervisor.position}
+                      {supervisor.jobTitleID}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -316,7 +311,7 @@ export default function Employees() {
                         {!supervisor.isActive ? 'Gesperrt' : 'Aktiv'}
                       </span>
                     </td>
-                    {(isHRAdmin || user?.role === 'supervisor') && (
+                    {(isHRAdmin || currentEmployee?.role === 'supervisor') && (
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <button
                           onClick={(e) => handleToggleActive(e, supervisor.id)}
@@ -347,14 +342,8 @@ export default function Employees() {
           employee={selectedEmployee}
           onClose={() => setSelectedEmployee(null)}
           onUpdate={(data) => handleUpdateEmployee(selectedEmployee.id, data)}
-          approvals={bookings
-            .filter(b => b.userId === selectedEmployee.id && b.status === 'ausstehend')
-            .map(b => ({
-              trainingId: b.trainingId,
-              date: b.createdAt,
-              status: b.status
-            }))}
-          trainings={trainings}
+          approvals={[]}
+          trainings={[]}
           handleApproveTraining={() => {}}
           handleRejectTraining={() => {}}
         />
