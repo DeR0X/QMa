@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Building2, Plus, Users, Mail, Phone, CheckCircle, XCircle, GraduationCap, X } from 'lucide-react';
-import { itDepartments, manufacturingDepartments } from '../data/departments';
 import { RootState } from '../store';
-import { employees } from '../data/mockData';
+import { employees, departments } from '../data/mockData';
 import type { Employee } from '../types';
 import { hasHRPermissions } from '../store/slices/authSlice';
 
@@ -15,16 +14,13 @@ export default function Departments() {
   const isHR = hasHRPermissions(currentUser);
   const isSupervisor = currentUser?.role === 'supervisor';
 
-  // Combine all departments
-  const allDepartments = [...itDepartments, ...manufacturingDepartments];
-
   // Filter departments based on user role and search term
-  const filteredDepartments = allDepartments.filter(dept => {
-    const matchesSearch = dept.name.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredDepartments = departments.filter(dept => {
+    const matchesSearch = dept.department.toLowerCase().includes(searchTerm.toLowerCase());
     if (isHR) {
       return matchesSearch; // HR can see all departments
     } else if (isSupervisor) {
-      return dept.name === currentUser?.departmentID && matchesSearch;
+      return dept.id === currentUser?.departmentID && matchesSearch;
     }
     return false;
   });
@@ -35,8 +31,8 @@ export default function Departments() {
     : [];
 
   // Get employee count for each department
-  const getDepartmentEmployeeCount = (departmentName: string) => {
-    return employees.filter(user => user.departmentID === departmentName).length;
+  const getDepartmentEmployeeCount = (departmentId: string) => {
+    return employees.filter(user => user.departmentID === departmentId).length;
   };
 
   // Only allow access if user is a supervisor or HR
@@ -78,40 +74,22 @@ export default function Departments() {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredDepartments.map((dept) => (
             <div
-              key={dept.name}
-              onClick={() => setSelectedDepartment(dept.name)}
+              key={dept.id}
+              onClick={() => setSelectedDepartment(dept.id)}
               className="bg-white dark:bg-[#181818] shadow rounded-lg p-6 cursor-pointer hover:shadow-lg transition-shadow border border-gray-200 dark:border-gray-700"
             >
               <div className="flex items-center">
                 <Building2 className="h-8 w-8 text-primary" />
                 <div className="ml-4">
                   <h2 className="text-lg font-medium text-gray-900 dark:text-white">
-                    {dept.name}
+                    {dept.department}
                   </h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {getDepartmentEmployeeCount(dept.name)} Mitarbeiter
+                    {getDepartmentEmployeeCount(dept.id)} Mitarbeiter
                   </p>
-                </div>
-              </div>
-
-              <div className="mt-4 space-y-2">
-                <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-                  Positionen:
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {dept.positions.slice(0, 3).map((position) => (
-                    <span
-                      key={position}
-                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                    >
-                      {position}
-                    </span>
-                  ))}
-                  {dept.positions.length > 3 && (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200">
-                      +{dept.positions.length - 3} weitere
-                    </span>
-                  )}
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    ID: {dept.departmentID_Atoss}
+                  </p>
                 </div>
               </div>
             </div>
@@ -124,7 +102,7 @@ export default function Departments() {
           <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-4xl w-full m-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                {selectedDepartment} - Mitarbeiterübersicht
+                {departments.find(d => d.id === selectedDepartment)?.department} - Mitarbeiterübersicht
               </h2>
               <button
                 onClick={() => setSelectedDepartment(null)}
@@ -180,7 +158,7 @@ export default function Departments() {
                           </p>
                           <p className="text-sm flex items-center text-gray-500 dark:text-gray-400">
                             <Users className="h-4 w-4 mr-2" />
-                            Personalnummer: {employee.id}
+                            Personalnummer: {employee.staffNumber}
                           </p>
                         </div>
                       </div>
@@ -194,6 +172,12 @@ export default function Departments() {
                             <GraduationCap className="h-4 w-4 mr-2" />
                             {employee.qualificationIDs.length} Qualifikationen
                           </div>
+                          {employee.isTrainer && (
+                            <div className="flex items-center text-sm text-blue-500 dark:text-blue-400">
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Trainer für {employee.trainerFor?.length || 0} Schulung(en)
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
