@@ -4,6 +4,7 @@ export interface Department {
   id: string;
   departmentID_Atoss: string;
   department: string;
+  positions: string[];
 }
 
 export interface JobTitle {

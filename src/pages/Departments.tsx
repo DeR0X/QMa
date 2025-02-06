@@ -92,6 +92,27 @@ export default function Departments() {
                   </p>
                 </div>
               </div>
+
+              <div className="mt-4 space-y-2">
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                  Positionen:
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {dept.positions.slice(0, 5).map((position) => (
+                    <span
+                      key={position}
+                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                    >
+                      {position}
+                    </span>
+                  ))}
+                  {dept.positions.length > 5 && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 dark:bg-primary/20 text-primary">
+                      +{dept.positions.length - 5} weitere
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           ))}
         </div>

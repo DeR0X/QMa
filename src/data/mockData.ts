@@ -3,11 +3,76 @@
 import { Department, JobTitle, Employee, Qualification, Training, EmployeeQualification, QualificationTrainer, AdditionalSkill, TrainingBooking, TrainingDocument } from '../types';
 
 export const departments: Department[] = [
-  { id: '1', departmentID_Atoss: 'IT001', department: 'IT-Abteilung' },
-  { id: '2', departmentID_Atoss: 'PR001', department: 'Produktion' },
-  { id: '3', departmentID_Atoss: 'QS001', department: 'Qualitätssicherung' },
-  { id: '4', departmentID_Atoss: 'HR001', department: 'Personalabteilung' },
-  { id: '5', departmentID_Atoss: 'LG001', department: 'Logistik' }
+  { 
+    id: '1', 
+    departmentID_Atoss: 'IT001', 
+    department: 'IT-Abteilung',
+    positions: [
+      'Software Engineer',
+      'System Administrator',
+      'Network Engineer',
+      'Database Administrator',
+      'IT Security Specialist',
+      'DevOps Engineer',
+      'IT Support',
+      'Project Manager'
+    ]
+  },
+  { 
+    id: '2', 
+    departmentID_Atoss: 'PR001', 
+    department: 'Produktion',
+    positions: [
+      'Produktionsleiter',
+      'Schichtführer',
+      'Maschinenbediener',
+      'Qualitätsprüfer',
+      'Instandhalter',
+      'Produktionstechniker',
+      'CNC-Operator',
+      'Schweißer'
+    ]
+  },
+  { 
+    id: '3', 
+    departmentID_Atoss: 'QS001', 
+    department: 'Qualitätssicherung',
+    positions: [
+      'Qualitätsmanager',
+      'QS-Techniker',
+      'Laborant',
+      'Prüftechniker',
+      'Dokumentationsbeauftragter',
+      'Auditmanager'
+    ]
+  },
+  { 
+    id: '4', 
+    departmentID_Atoss: 'HR001', 
+    department: 'Personalabteilung',
+    positions: [
+      'HR Manager',
+      'Personalreferent',
+      'Recruiting Specialist',
+      'Payroll Manager',
+      'HR Business Partner',
+      'Ausbildungsleiter'
+    ]
+  },
+  { 
+    id: '5', 
+    departmentID_Atoss: 'LG001', 
+    department: 'Logistik',
+    positions: [
+      'Logistikleiter',
+      'Lagerverwalter',
+      'Staplerfahrer',
+      'Versandmitarbeiter',
+      'Disponenten',
+      'Supply Chain Manager',
+      'Kommissionierer'
+    ]
+  }
 ];
 
 export const jobTitles: JobTitle[] = [
