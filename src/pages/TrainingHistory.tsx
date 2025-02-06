@@ -11,58 +11,68 @@ import DocumentUploader from '../components/documents/DocumentUploader';
 
 const ITEMS_PER_PAGE = 10;
 
+// Generate years array from 2020 to current year
+const currentYear = new Date().getFullYear();
+const years = Array.from({ length: currentYear - 2019 }, (_, i) => (currentYear - i).toString());
+
 export default function TrainingHistory() {
-  const { employee: curentEmployee } = useSelector((state: RootState) => state.auth);
+  const { employee: currentEmployee } = useSelector((state: RootState) => state.auth);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedEmployee, setSelectedEmployee] = useState<string | 'all'>('all');
+  const [selectedEmployee, setSelectedEmployee] = useState<string | 'all'>(currentEmployee?.id || 'all');
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedTraining, setSelectedTraining] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedDepartment, setSelectedDepartment] = useState<string | 'all'>('all');
   const [selectedYear, setSelectedYear] = useState<string | 'all'>('all');
 
-  const isHR = hasHRPermissions(curentEmployee);
+  const isHR = hasHRPermissions(currentEmployee);
 
-const departments = useMemo(() => {
-  return Array.from(new Set(employees.map(emp => emp.departmentID)));
-}, []);
+  const departments = useMemo(() => {
+    return Array.from(new Set(employees.map(emp => emp.departmentID)));
+  }, []);
 
-const completedTrainings = useMemo(() => {
-  const filtered = bookings
-    .filter(booking => {
-      const matchesUser = selectedEmployee === 'all' || booking.userId === selectedEmployee;
-      const matchesStatus = booking.status === 'abgeschlossen';
-      const employee = employees.find(e => e.id === booking.userId);
-      const matchesDepartment = selectedDepartment === 'all' || 
-        employee?.departmentID === selectedDepartment;
-      const matchesYear = selectedYear === 'all' || 
-        (booking.completedAt && new Date(booking.completedAt).getFullYear().toString() === selectedYear);
-      
-      return matchesUser && matchesStatus && matchesDepartment && matchesYear;
-    })
-    .map(booking => {
-      const training = trainings.find(t => t.id === booking.trainingId);
-      const employee = employees.find(e => e.id === booking.userId);
-      return {
-        ...booking,
-        training,
-        employee,
-      };
-    })
-    .filter(item => 
-      item.training?.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.employee?.fullName.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+  const completedTrainings = useMemo(() => {
+    const filtered = bookings
+      .filter(booking => {
+        const matchesUser = !isHR ? booking.userId === currentEmployee?.id :
+          (selectedEmployee === 'all' || booking.userId === selectedEmployee);
+        const matchesStatus = booking.status === 'abgeschlossen';
+        const employee = employees.find(e => e.id === booking.userId);
+        const matchesDepartment = selectedDepartment === 'all' || 
+          employee?.departmentID === selectedDepartment;
+        const matchesYear = selectedYear === 'all' || 
+          (booking.completedAt && new Date(booking.completedAt).getFullYear().toString() === selectedYear);
+        
+        return matchesUser && matchesStatus && matchesDepartment && matchesYear;
+      })
+      .map(booking => {
+        const training = trainings.find(t => t.id === booking.trainingId);
+        const employee = employees.find(e => e.id === booking.userId);
+        return {
+          ...booking,
+          training,
+          employee,
+        };
+      })
+      .filter(item => 
+        item.training?.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.employee?.fullName.toLowerCase().includes(searchTerm.toLowerCase())
+      );
 
-  return filtered;
-}, [selectedEmployee, selectedDepartment, selectedYear, searchTerm]);
-
+    return filtered;
+  }, [selectedEmployee, selectedDepartment, selectedYear, searchTerm, currentEmployee, isHR]);
 
   const totalPages = Math.ceil(completedTrainings.length / ITEMS_PER_PAGE);
   const paginatedTrainings = completedTrainings.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
+
+  const handleUploadDocument = (file: File, description: string) => {
+    // In a real app, this would upload the file to a server
+    toast.success('Dokument erfolgreich hochgeladen');
+    setShowUploadModal(false);
+  };
 
   return (
     <div className="space-y-6">
@@ -86,7 +96,7 @@ const completedTrainings = useMemo(() => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Suche..."
+                  placeholder="Suche nach Schulung oder Mitarbeiter..."
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value);
@@ -100,21 +110,19 @@ const completedTrainings = useMemo(() => {
             {isHR && (
               <>
                 <select
-  value={selectedEmployee}
-  onChange={(e) => {
-    setSelectedEmployee(e.target.value);
-    setCurrentPage(1);
-  }}
-  className="w-40 pl-3 pr-10 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm dark:bg-[#181818] dark:text-white"
->
-  <option value="all">Alle Mitarbeiter</option>
-  {employees
-    .filter(emp => selectedDepartment === 'all' || emp.departmentID === selectedDepartment)
-    .map((emp) => (
-      <option key={emp.id} value={emp.id}>{emp.fullName}</option>
-    ))}
-</select>
-
+                  value={selectedDepartment}
+                  onChange={(e) => {
+                    setSelectedDepartment(e.target.value);
+                    setSelectedEmployee('all');
+                    setCurrentPage(1);
+                  }}
+                  className="w-40 pl-3 pr-10 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-primary focus:border-primary sm:text-sm dark:bg-[#181818] dark:text-white"
+                >
+                  <option value="all">Alle Abteilungen</option>
+                  {departments.map((dept) => (
+                    <option key={dept} value={dept}>{dept}</option>
+                  ))}
+                </select>
 
                 <select
                   value={selectedEmployee}
@@ -126,10 +134,10 @@ const completedTrainings = useMemo(() => {
                 >
                   <option value="all">Alle Mitarbeiter</option>
                   {employees
-                    .filter(employee => selectedDepartment === 'all' || employee.departmentID === selectedDepartment)
-                    .map((employee) => (
-                      <option key={employee.id} value={employee.id}>{employee.fullName}</option>
-                  ))}
+                    .filter(emp => selectedDepartment === 'all' || emp.departmentID === selectedDepartment)
+                    .map((emp) => (
+                      <option key={emp.id} value={emp.id}>{emp.fullName}</option>
+                    ))}
                 </select>
               </>
             )}
@@ -188,7 +196,7 @@ const completedTrainings = useMemo(() => {
                         {item.training?.title}
                       </div>
                       <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {item.training?.qualification_TrainerID}
+                        {item.training?.description}
                       </div>
                     </td>
                     {isHR && (
@@ -221,6 +229,7 @@ const completedTrainings = useMemo(() => {
                               setShowUploadModal(true);
                             }}
                             className="text-primary hover:text-primary/80 dark:text-blue-400 dark:hover:text-blue-300"
+                            title="Dokument hochladen"
                           >
                             <Upload className="h-5 w-5" />
                           </button>
@@ -235,63 +244,73 @@ const completedTrainings = useMemo(() => {
         </div>
 
         {/* Pagination */}
-        <div className="px-6 py-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-700">
-          <div className="flex-1 flex justify-between sm:hidden">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1 || completedTrainings.length === 0}
-              className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Zurück
-            </button>
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages || completedTrainings.length === 0}
-              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Weiter
-            </button>
-          </div>
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                {completedTrainings.length > 0 ? (
-                  <>
-                    Zeige{' '}
-                    <span className="font-medium">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span>
-                    {' '}-{' '}
-                    <span className="font-medium">
-                      {Math.min(currentPage * ITEMS_PER_PAGE, completedTrainings.length)}
-                    </span>
-                    {' '}von{' '}
-                    <span className="font-medium">{completedTrainings.length}</span>
-                    {' '}Ergebnissen
-                  </>
-                ) : 'Keine Ergebnisse'}
-              </p>
+        {completedTrainings.length > 0 && (
+          <div className="px-6 py-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-700">
+            <div className="flex-1 flex justify-between sm:hidden">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Zurück
+              </button>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Weiter
+              </button>
             </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1 || completedTrainings.length === 0}
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-                {/* Page numbers */}
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter(page => 
-                    page === 1 || 
-                    page === totalPages || 
-                    (page >= currentPage - 1 && page <= currentPage + 1)
-                  )
-                  .map((page, index, array) => {
-                    if (index > 0 && array[index - 1] !== page - 1) {
-                      return [
-                        <span key={`ellipsis-${page}`} className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-700 dark:text-gray-300">
-                          ...
-                        </span>,
+            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  Zeige{' '}
+                  <span className="font-medium">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span>
+                  {' '}-{' '}
+                  <span className="font-medium">
+                    {Math.min(currentPage * ITEMS_PER_PAGE, completedTrainings.length)}
+                  </span>
+                  {' '}von{' '}
+                  <span className="font-medium">{completedTrainings.length}</span>
+                  {' '}Ergebnissen
+                </p>
+              </div>
+              <div>
+                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(page => 
+                      page === 1 || 
+                      page === totalPages || 
+                      (page >= currentPage - 1 && page <= currentPage + 1)
+                    )
+                    .map((page, index, array) => {
+                      if (index > 0 && array[index - 1] !== page - 1) {
+                        return [
+                          <span key={`ellipsis-${page}`} className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-700 dark:text-gray-300">
+                            ...
+                          </span>,
+                          <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            className={`relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium ${
+                              currentPage === page
+                                ? 'z-10 bg-primary text-white'
+                                : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1a1a1a]'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        ];
+                      }
+                      return (
                         <button
                           key={page}
                           onClick={() => setCurrentPage(page)}
@@ -303,35 +322,32 @@ const completedTrainings = useMemo(() => {
                         >
                           {page}
                         </button>
-                      ];
-                    }
-                    return (
-                      <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        className={`relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium ${
-                          currentPage === page
-                            ? 'z-10 bg-primary text-white'
-                            : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1a1a1a]'
-                        }`}
-                      >
-                        {page}
-                      </button>
-                    );
-                  })}
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages || completedTrainings.length === 0}
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </button>
-              </nav>
+                      );
+                    })}
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                </nav>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
+      {showUploadModal && selectedTraining && (
+        <DocumentUploader
+          trainingId={selectedTraining}
+          onClose={() => {
+            setShowUploadModal(false);
+            setSelectedTraining(null);
+          }}
+          onUpload={handleUploadDocument}
+        />
+      )}
     </div>
   );
 }
