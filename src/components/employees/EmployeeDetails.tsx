@@ -6,12 +6,12 @@ import {
   DollarSign, BookOpen, Award as CertificateIcon,
   Target, Plus, X, Clock, AlertCircle,
   GraduationCap, CheckCircle, Users, Calendar as CalendarIcon,
-  Timer, BookOpen as BookOpenIcon, Tag
+  Timer, BookOpen as BookOpenIcon, Tag, Building2
 } from 'lucide-react';
 import { RootState } from '../../store';
 import { hasHRPermissions } from '../../store/slices/authSlice';
 import type { Employee, Qualification } from '../../types';
-import { qualifications, employeeQualifications, trainings } from '../../data/mockData';
+import { qualifications, employeeQualifications, trainings, departments, jobTitles } from '../../data/mockData';
 import { toast } from 'sonner';
 import { formatDate } from '../../lib/utils';
 
@@ -32,6 +32,16 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
   const [isTrainer, setIsTrainer] = useState(employee.isTrainer || false);
   const { employee: currentEmployee } = useSelector((state: RootState) => state.auth);
   const isHRAdmin = hasHRPermissions(currentEmployee);
+
+  const getDepartmentName = (departmentId: string) => {
+    const department = departments.find(d => d.id === departmentId);
+    return department ? department.department : departmentId;
+  };
+
+  const getJobTitle = (jobTitleId: string) => {
+    const jobTitle = jobTitles.find(jt => jt.id === jobTitleId);
+    return jobTitle ? jobTitle.jobTitle : jobTitleId;
+  };
 
   const tabs = [
     { id: 'info', label: 'Information' },
@@ -111,7 +121,6 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
       isTrainer: checked,
       trainerFor: checked ? selectedTrainings : []
     });
-    //add notification to user
   };
 
   const handleTrainingSelection = (trainingId: string) => {
@@ -162,7 +171,7 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                     {employee.fullName}
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {employee.jobTitleID} • {employee.departmentID}
+                    {getJobTitle(employee.jobTitleID)} • {getDepartmentName(employee.departmentID)}
                   </p>
                 </div>
               </div>
@@ -198,6 +207,24 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                         </span>
                       </div>
                     )}
+                    <div className="flex items-center">
+                      <Users className="h-5 w-5 text-gray-400" />
+                      <span className="ml-2 text-sm text-gray-900 dark:text-white">
+                        Personal-Nr.: {employee.staffNumber}
+                      </span>
+                    </div>
+                    <div className="flex items-center">
+                      <Building2 className="h-5 w-5 text-gray-400" />
+                      <span className="ml-2 text-sm text-gray-900 dark:text-white">
+                        Abteilung: {getDepartmentName(employee.departmentID)}
+                      </span>
+                    </div>
+                    <div className="flex items-center">
+                      <Award className="h-5 w-5 text-gray-400" />
+                      <span className="ml-2 text-sm text-gray-900 dark:text-white">
+                        Position: {getJobTitle(employee.jobTitleID)}
+                      </span>
+                    </div>
                   </div>
                 )}
 

@@ -51,7 +51,22 @@ export default function AddUserModal({ onClose, onAdd }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onAdd(formData);
+
+    const newEmployee: Omit<Employee, "id" | "isActive" | "failedLoginAttempts"> = {
+      eMail: formData.email,
+      role: formData.role,
+      staffNumber: formData.personalNumber,
+      firstName: formData.name,
+      surName: '',
+      fullName: formData.name,
+      departmentID: formData.department,
+      jobTitleID: formData.position,
+      supervisorID: '',
+      qualificationIDs: formData.qualifications,
+      passwordHash: ''
+    };
+
+    onAdd(newEmployee);
     onClose();
   };
 

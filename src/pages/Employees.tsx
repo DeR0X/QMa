@@ -6,7 +6,7 @@ import EmployeeDetails from '../components/employees/EmployeeDetails';
 import AddUserModal from '../components/employees/AddUserModal';
 import { RootState, AppDispatch } from '../store';
 import { toast } from 'sonner';
-import { employees, departments } from '../data/mockData';
+import { employees, departments, jobTitles } from '../data/mockData';
 import { toggleUserActive } from '../store/slices/authSlice';
 import { hasHRPermissions } from '../store/slices/authSlice';
 
@@ -102,6 +102,11 @@ export default function Employees() {
     }
   };
 
+  const getJobTitle = (jobTitleId: string) => {
+    const jobTitle = jobTitles.find(jt => jt.id === jobTitleId);
+    return jobTitle ? jobTitle.jobTitle : jobTitleId;
+  };
+
   const renderEmployeeRow = (employee: Employee, isSubRow: boolean = false) => (
     <tr
       key={employee.id}
@@ -132,7 +137,7 @@ export default function Employees() {
         {departments.find(d => d.id === employee.departmentID)?.department || employee.departmentID}
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-        {employee.jobTitleID}
+        {getJobTitle(employee.jobTitleID)}
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -300,7 +305,7 @@ export default function Employees() {
                       {departments.find(d => d.id === supervisor.departmentID)?.department || supervisor.departmentID}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {supervisor.jobTitleID}
+                      {getJobTitle(supervisor.jobTitleID)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
