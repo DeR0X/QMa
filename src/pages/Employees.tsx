@@ -148,6 +148,20 @@ export default function Employees() {
           {!employee.isActive ? 'Gesperrt' : 'Aktiv'}
         </span>
       </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+          employee.isTrainer
+            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+            : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+        }`}>
+          {employee.isTrainer ? 'Trainer' : 'Kein Trainer'}
+        </span>
+        {employee.isTrainer && employee.trainerFor && employee.trainerFor.length > 0 && (
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            {employee.trainerFor.length} Schulung(en)
+          </div>
+        )}
+      </td>
       {(isHRAdmin || currentEmployee?.role === 'supervisor') && (
         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
           <button
@@ -259,6 +273,9 @@ export default function Employees() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Status
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Trainer
+                </th>
                 {(isHRAdmin || currentEmployee?.role === 'supervisor') && (
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Aktionen
@@ -315,6 +332,20 @@ export default function Employees() {
                       }`}>
                         {!supervisor.isActive ? 'Gesperrt' : 'Aktiv'}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        supervisor.isTrainer
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                          : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                      }`}>
+                        {supervisor.isTrainer ? 'Trainer' : 'Kein Trainer'}
+                      </span>
+                      {supervisor.isTrainer && supervisor.trainerFor && supervisor.trainerFor.length > 0 && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          {supervisor.trainerFor.length} Schulung(en)
+                        </div>
+                      )}
                     </td>
                     {(isHRAdmin || currentEmployee?.role === 'supervisor') && (
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
