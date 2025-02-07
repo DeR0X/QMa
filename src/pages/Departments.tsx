@@ -191,7 +191,7 @@ export default function Departments() {
                         <div className="space-y-2">
                           <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
                             <GraduationCap className="h-4 w-4 mr-2" />
-                            {employee.qualificationIDs.length} Qualifikationen
+                            {employee.jobTitleID.qualificationIds.length} Qualifikationen
                           </div>
                           {employee.isTrainer && (
                             <div className="flex items-center text-sm text-blue-500 dark:text-blue-400">

@@ -34,7 +34,13 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
     maxParticipants: 10,
     targetPositions: [] as string[],
     isForEntireDepartment: false,
-    sessions: [] as Session[],
+    sessions: [{ // Initialize with one session
+      id: Date.now().toString(),
+      date: '',
+      location: '',
+      availableSpots: 10,
+      trainer: ''
+    }] as Session[],
     qualificationIds: [] as string[],
     department: userDepartment || '',
   });
@@ -166,11 +172,7 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
   };
 
   // Add initial session on mount
-  useEffect(() => {
-    if (formData.sessions.length === 0) {
-      addSession();
-    }
-  }, []);
+
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

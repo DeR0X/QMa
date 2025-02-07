@@ -48,7 +48,7 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
     { id: 'qualifications', label: 'Qualifikationen' },
     { id: 'documents', label: 'Documents' },
     ...(isHRAdmin ? [
-      { id: 'approvals', label: 'Approvals' },
+      { id: 'approvals', label: 'Genehmigungen' },
       { id: 'trainer', label: 'Trainer-Status' }
     ] : []),
   ].filter(Boolean) as Array<{ id: 'info' | 'qualifications' | 'documents' | 'approvals' | 'trainer'; label: string }>;

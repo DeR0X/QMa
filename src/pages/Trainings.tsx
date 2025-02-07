@@ -17,7 +17,7 @@ export default function Trainings() {
   const [selectedTraining, setSelectedTraining] = useState<Training | null>(null);
   const [showMandatoryOnly, setShowMandatoryOnly] = useState(false);
   const [showUpcomingOnly, setShowUpcomingOnly] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false); //wird beides auf true gesetzt
+  const [showAddModal, setShowAddModal] = useState(false);
 
   if (!employee) return null;
 
@@ -27,15 +27,15 @@ export default function Trainings() {
 
   const userBookings = bookings.filter(booking => booking.userId === employee.id);
 
-const filteredTrainings = trainings.filter(training => {
-  const matchesSearch = training.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    training.description.toLowerCase().includes(searchTerm.toLowerCase());
-  const matchesMandatory = showMandatoryOnly ? training.isMandatory : true;
-  
-  return matchesSearch && matchesMandatory;
-});
+  const filteredTrainings = trainings.filter(training => {
+    const matchesSearch = training.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      training.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesMandatory = showMandatoryOnly ? training.isMandatory : true;
+    
+    return matchesSearch && matchesMandatory;
+  });
 
-  const handleBookSession = async (training: Training) => {
+  const handleBookSession = async (training: Training, sessionId: string) => {
     const existingBooking = userBookings.find(
       b => b.trainingId === training.id && ['ausstehend', 'genehmigt'].includes(b.status)
     );
@@ -45,31 +45,42 @@ const filteredTrainings = trainings.filter(training => {
       return;
     }
 
+    // In a real app, this would make an API call
     toast.success('Schulungssitzung erfolgreich gebucht! Warten auf Genehmigung.');
+
+    // Notify supervisor/HR about the booking
+    const supervisor = employees.find(e => e.id === employee.supervisorID);
+    if (supervisor) {
+      dispatch(addNotification({
+        userId: supervisor.id,
+        type: 'info',
+        title: 'Neue Schulungsbuchung',
+        message: `${employee.fullName} hat sich für die Schulung "${training.title}" angemeldet und wartet auf Genehmigung.`,
+      }));
+    }
   };
 
-// Update the handleAddTraining function
-const handleAddTraining = (newTraining: Omit<Training, 'id'> & { targetAudience?: string[] }) => {
-  // In a real app, this would make an API call
-  toast.success('Schulung erfolgreich erstellt');
+  const handleAddTraining = (newTraining: Omit<Training, 'id'> & { targetAudience?: string[] }) => {
+    // In a real app, this would make an API call
+    toast.success('Schulung erfolgreich erstellt');
 
-  // Send notifications to relevant employees
-  const affectedEmployees = employees.filter(emp => 
-    newTraining.targetAudience?.includes(emp.departmentID) ||
-    newTraining.isMandatory
-  );
+    // Send notifications to relevant employees
+    const affectedEmployees = employees.filter(emp => 
+      newTraining.targetAudience?.includes(emp.departmentID) ||
+      newTraining.isMandatory
+    );
 
-  affectedEmployees.forEach(employee => {
-    dispatch(addNotification({
-      userId: employee.id,
-      type: 'info',
-      title: 'Neue Schulung verfügbar',
-      message: `Eine neue Schulung "${newTraining.title}" ist für Sie verfügbar. Schauen Sie sich die Details an und buchen Sie bei Interesse einen Termin.`
-    }));
-  });
+    affectedEmployees.forEach(employee => {
+      dispatch(addNotification({
+        userId: employee.id,
+        type: 'info',
+        title: 'Neue Schulung verfügbar',
+        message: `Eine neue Schulung "${newTraining.title}" ist für Sie verfügbar. Schauen Sie sich die Details an und buchen Sie bei Interesse einen Termin.`,
+      }));
+    });
 
-  setShowAddModal(false);
-};
+    setShowAddModal(false);
+  };
 
   const getBookingStatus = (training: Training) => {
     const booking = userBookings.find(b => b.trainingId === training.id);
@@ -99,6 +110,35 @@ const handleAddTraining = (newTraining: Omit<Training, 'id'> & { targetAudience?
     );
   };
 
+  // Mock training sessions
+  const getTrainingSessions = (training: Training) => {
+    const sessions = [
+      {
+        id: '1',
+        date: '2024-04-15T09:00:00',
+        location: 'Schulungsraum A',
+        availableSpots: 10,
+        trainer: 'Max Mustermann'
+      },
+      {
+        id: '2',
+        date: '2024-04-22T14:00:00',
+        location: 'Schulungsraum B',
+        availableSpots: 8,
+        trainer: 'Anna Schmidt'
+      },
+      {
+        id: '3',
+        date: '2024-05-05T10:00:00',
+        location: 'Online',
+        availableSpots: 15,
+        trainer: 'Thomas Weber'
+      }
+    ];
+
+    return sessions;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -110,7 +150,7 @@ const handleAddTraining = (newTraining: Omit<Training, 'id'> & { targetAudience?
             Durchsuchen und buchen Sie Schulungen für Ihre berufliche Entwicklung
           </p>
         </div>
-        {/* <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4">
           {canCreateTraining && (
             <button
               onClick={() => setShowAddModal(true)}
@@ -121,7 +161,7 @@ const handleAddTraining = (newTraining: Omit<Training, 'id'> & { targetAudience?
             </button>
           )}
           <GraduationCap className="h-8 w-8 text-primary" />
-        </div> */}
+        </div>
       </div>
 
       <div className="bg-white dark:bg-[#121212] shadow rounded-lg">
@@ -149,7 +189,6 @@ const handleAddTraining = (newTraining: Omit<Training, 'id'> & { targetAudience?
                 />
                 <span>Nur Pflichtschulungen</span>
               </label>
-              
             </div>
           </div>
         </div>
@@ -192,7 +231,51 @@ const handleAddTraining = (newTraining: Omit<Training, 'id'> & { targetAudience?
                     Verfügbare Termine
                   </h4>
                   <div className="space-y-4">
-                    
+                    {getTrainingSessions(training).map((session) => (
+                      <div
+                        key={session.id}
+                        className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg"
+                      >
+                        <div className="flex items-center space-x-4">
+                          <div>
+                            <Calendar className="h-5 w-5 text-gray-400" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                              {new Date(session.date).toLocaleDateString('de-DE', {
+                                weekday: 'long',
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                            <div className="mt-1 flex items-center text-sm text-gray-500 dark:text-gray-400">
+                              <MapPin className="h-4 w-4 mr-1" />
+                              {session.location}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                          <div className="text-right">
+                            <p className="text-sm text-gray-900 dark:text-white">
+                              {session.trainer}
+                            </p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              {session.availableSpots} Plätze verfügbar
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleBookSession(training, session.id)}
+                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
+                            disabled={!session.availableSpots}
+                          >
+                            Buchen
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

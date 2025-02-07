@@ -11,6 +11,7 @@ export interface JobTitle {
   id: string;
   jobTitle: string;
   description: string;
+  qualificationIDs: string[];
 }
 
 export interface Employee {
@@ -23,8 +24,8 @@ export interface Employee {
   eMail: string;
   departmentID: string;
   jobTitleID: string;
-  supervisorID: string;
-  qualificationIDs: string[];
+  supervisorID?: string;
+  additionalSkillIDs?: string[];
   isActive: boolean;
   isTrainer?: boolean;
   trainerFor?: string[]; 
@@ -94,7 +95,7 @@ export interface EmployeeQualification {
   qualificationID: string;
   qualifiedFrom: string;
   toQualifyUntil: string;
-  isQualifiedUntil: string;
+  isQualifiedUntil?: string;
 }
 
 export interface QualificationTrainer {
@@ -113,6 +114,7 @@ export interface AdditionalSkill {
   id: string;
   name: string;
   description: string;
+  qualificationIDs: string[];
 }
 
 export interface EmployeeAdditionalSkill {
