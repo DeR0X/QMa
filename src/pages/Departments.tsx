@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Building2, Plus, Users, Mail, Phone, CheckCircle, XCircle, GraduationCap, X } from 'lucide-react';
 import { RootState } from '../store';
-import { employees, departments } from '../data/mockData';
+import { employees, departments, jobTitles } from '../data/mockData';
 import type { Employee } from '../types';
 import { hasHRPermissions } from '../store/slices/authSlice';
 
@@ -13,6 +13,16 @@ export default function Departments() {
 
   const isHR = hasHRPermissions(currentUser);
   const isSupervisor = currentUser?.role === 'supervisor';
+
+  const getJobTitle = (jobTitleId: string) => {
+    const jobTitle = jobTitles.find(jt => jt.id === jobTitleId);
+    return jobTitle ? jobTitle.jobTitle : jobTitleId;
+  };
+
+  const getEmployeeQualifications = (employee: Employee) => {
+    const jobTitle = jobTitles.find(jt => jt.id === employee.jobTitleID);
+    return jobTitle ? jobTitle.qualificationIDs : [];
+  };
 
   // Filter departments based on user role and search term
   const filteredDepartments = departments.filter(dept => {
@@ -152,7 +162,7 @@ export default function Departments() {
                             {employee.fullName}
                           </h3>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {employee.jobTitleID}
+                            {getJobTitle(employee.jobTitleID)}
                           </p>
                         </div>
                       </div>
@@ -191,7 +201,7 @@ export default function Departments() {
                         <div className="space-y-2">
                           <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
                             <GraduationCap className="h-4 w-4 mr-2" />
-                            {employee.jobTitleID.qualificationIds.length} Qualifikationen
+                            {getEmployeeQualifications(employee).length} Qualifikationen
                           </div>
                           {employee.isTrainer && (
                             <div className="flex items-center text-sm text-blue-500 dark:text-blue-400">

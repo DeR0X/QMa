@@ -43,6 +43,11 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
     return jobTitle ? jobTitle.jobTitle : jobTitleId;
   };
 
+  const getEmployeeQualifications = () => {
+    const jobTitle = jobTitles.find(jt => jt.id === employee.jobTitleID);
+    return jobTitle ? jobTitle.qualificationIDs : [];
+  };
+
   const tabs = [
     { id: 'info', label: 'Information' },
     { id: 'qualifications', label: 'Qualifikationen' },
@@ -54,18 +59,35 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
   ].filter(Boolean) as Array<{ id: 'info' | 'qualifications' | 'documents' | 'approvals' | 'trainer'; label: string }>;
 
   const handleAddQualification = (qualificationId: string) => {
-    const updatedQualifications = [...employee.qualificationIDs, qualificationId];
-    onUpdate({ qualificationIDs: updatedQualifications });
+    const jobTitle = jobTitles.find(jt => jt.id === employee.jobTitleID.id);
+    if (jobTitle) {
+      const updatedQualifications = [...jobTitle.qualificationIDs, qualificationId];
+      onUpdate({ 
+        jobTitleID: {
+          ...jobTitle,
+          qualificationIDs: updatedQualifications
+        }
+      });
+    }
     setShowAddQualModal(false);
   };
 
   const handleRemoveQualification = (qualificationId: string) => {
-    const updatedQualifications = employee.qualificationIDs.filter(id => id !== qualificationId);
-    onUpdate({ qualificationIDs: updatedQualifications });
+    const jobTitle = jobTitles.find(jt => jt.id === employee.jobTitleID.id);
+    if (jobTitle) {
+      const updatedQualifications = jobTitle.qualificationIDs.filter(id => id !== qualificationId);
+      onUpdate({ 
+        jobTitleID: {
+          ...jobTitle,
+          qualificationIDs: updatedQualifications
+        }
+      });
+    }
   };
 
+  const employeeQualificationIds = getEmployeeQualifications();
   const availableQualifications = qualifications.filter(
-    qual => !employee.qualificationIDs.includes(qual.id)
+    qual => !employeeQualificationIds.includes(qual.id)
   );
 
   const getQualificationStatus = (qualId: string) => {
@@ -75,7 +97,7 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
 
     if (!employeeQual) return 'inactive';
 
-    const expiryDate = new Date(employeeQual.isQualifiedUntil);
+    const expiryDate = new Date(employeeQual.isQualifiedUntil || Date.now());
     const today = new Date();
     const twoMonthsFromNow = new Date();
     twoMonthsFromNow.setMonth(today.getMonth() + 2);
@@ -145,6 +167,10 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
     return acc;
   }, {} as Record<string, typeof trainings>);
 
+  const userQualifications = qualifications.filter(qual => 
+    employeeQualificationIds.includes(qual.id)
+  );
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
@@ -171,7 +197,7 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                     {employee.fullName}
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {getJobTitle(employee.jobTitleID)} • {getDepartmentName(employee.departmentID)}
+                    {getJobTitle(employee.jobTitleID.id)} • {getDepartmentName(employee.departmentID)}
                   </p>
                 </div>
               </div>
@@ -222,7 +248,7 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                     <div className="flex items-center">
                       <Award className="h-5 w-5 text-gray-400" />
                       <span className="ml-2 text-sm text-gray-900 dark:text-white">
-                        Position: {getJobTitle(employee.jobTitleID)}
+                        Position: {getJobTitle(employee.jobTitleID.id)}
                       </span>
                     </div>
                   </div>
@@ -246,14 +272,13 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                     </div>
                     
                     <div className="space-y-4">
-                      {employee.qualificationIDs.map(qualId => {
-                        const qual = qualifications.find(q => q.id === qualId);
+                      {userQualifications.map(qual => {
                         const employeeQual = employeeQualifications.find(
-                          eq => eq.employeeID === employee.id && eq.qualificationID === qualId
+                          eq => eq.employeeID === employee.id && eq.qualificationID === qual.id
                         );
-                        const status = getQualificationStatus(qualId);
+                        const status = getQualificationStatus(qual.id);
 
-                        return qual && (
+                        return (
                           <div
                             key={qual.id}
                             className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg"
@@ -273,7 +298,7 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                                   </p>
                                   <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
                                     <AlertCircle className="h-4 w-4 mr-1" />
-                                    Gültig bis: {formatDate(employeeQual.isQualifiedUntil)}
+                                    Gültig bis: {employeeQual.isQualifiedUntil ? formatDate(employeeQual.isQualifiedUntil) : "Nicht verfügbar"}
                                   </p>
                                 </div>
                               )}
@@ -294,6 +319,12 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                           </div>
                         );
                       })}
+
+                      {userQualifications.length === 0 && (
+                        <p className="text-center text-gray-500 dark:text-gray-400 py-4">
+                          Keine Qualifikationen vorhanden
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}
