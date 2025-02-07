@@ -59,7 +59,7 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
   ].filter(Boolean) as Array<{ id: 'info' | 'qualifications' | 'documents' | 'approvals' | 'trainer'; label: string }>;
 
   const handleAddQualification = (qualificationId: string) => {
-    const jobTitle = jobTitles.find(jt => jt.id === employee.jobTitleID.id);
+    const jobTitle = jobTitles.find(jt => jt.id === employee.jobTitleID);
     if (jobTitle) {
       const updatedQualifications = [...jobTitle.qualificationIDs, qualificationId];
       onUpdate({ 
@@ -73,7 +73,7 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
   };
 
   const handleRemoveQualification = (qualificationId: string) => {
-    const jobTitle = jobTitles.find(jt => jt.id === employee.jobTitleID.id);
+    const jobTitle = jobTitles.find(jt => jt.id === employee.jobTitleID);
     if (jobTitle) {
       const updatedQualifications = jobTitle.qualificationIDs.filter(id => id !== qualificationId);
       onUpdate({ 
@@ -197,7 +197,7 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                     {employee.fullName}
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {getJobTitle(employee.jobTitleID.id)} • {getDepartmentName(employee.departmentID)}
+                    {getJobTitle(employee.jobTitleID)} • {getDepartmentName(employee.departmentID)}
                   </p>
                 </div>
               </div>
@@ -248,7 +248,7 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                     <div className="flex items-center">
                       <Award className="h-5 w-5 text-gray-400" />
                       <span className="ml-2 text-sm text-gray-900 dark:text-white">
-                        Position: {getJobTitle(employee.jobTitleID.id)}
+                        Position: {getJobTitle(employee.jobTitleID)}
                       </span>
                     </div>
                   </div>

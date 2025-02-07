@@ -39,7 +39,7 @@ function TrainingStatistics({ departmentFilter = 'all' }) {
 
     // Count expiring qualifications
     const userQuals = qualifications.filter(qual => 
-      employee.qualificationIDs.includes(qual.id)
+      employee.qualificationIDs?.includes(qual.id)
     );
     const expiringQuals = userQuals.filter(qual => {
       const lastTraining = bookings
@@ -118,7 +118,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (employee) {
       // Check for expiring qualifications and send notifications
-      const userQuals = qualifications.filter(qual => employee.qualificationIDs.includes(qual.id));
+      const userQuals = qualifications.filter(qual => employee.qualificationIDs?.includes(qual.id));
       userQuals.forEach(qual => {
         const lastTraining = bookings
           .filter(b => b.userId === employee.id && b.status === 'abgeschlossen')
@@ -138,8 +138,8 @@ export default function Dashboard() {
   if (!employee) return null;
 
   const userBookings = bookings.filter(booking => booking.userId === employee.id);
-  const userTrainings = trainings.filter(training => employee.qualificationIDs.includes(training.id));
-  const userQualifications = qualifications.filter(qual => employee.qualificationIDs.includes(qual.id));
+  const userTrainings = trainings.filter(training => employee.qualificationIDs?.includes(training.id));
+  const userQualifications = qualifications.filter(qual => employee.qualificationIDs?.includes(qual.id));
 
   // Calculate expiring qualifications (2 months warning)
   const expiringQualifications = userQualifications.filter(qual => {
