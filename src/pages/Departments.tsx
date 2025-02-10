@@ -28,7 +28,7 @@ export default function Departments() {
   const filteredDepartments = departments.filter(dept => {
     const matchesSearch = dept.department.toLowerCase().includes(searchTerm.toLowerCase());
     if (isHR) {
-      return matchesSearch; // HR can see all departments
+      return matchesSearch;
     } else if (isSupervisor) {
       return dept.id === currentUser?.departmentID && matchesSearch;
     }

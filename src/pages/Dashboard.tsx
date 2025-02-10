@@ -71,82 +71,84 @@ function StatisticsModal({
           </button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-[#181818]">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Mitarbeiter
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Abteilung
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Position
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Details
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-[#141616]">
-              {employees.map((employee) => (
-                <tr key={employee.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
-                        <span className="text-sm font-medium">
-                          {employee.fullName.split(' ').map((n: string) => n[0]).join('')}
-                        </span>
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {employee.fullName}
-                        </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {employee.staffNumber}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 dark:text-white">
-                      {departments.find(d => d.id === employee.departmentID)?.department}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 dark:text-white">
-                      {jobTitles.find(jt => jt.id === employee.jobTitleID)?.jobTitle}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    {type === 'expiring' && employee.expiringQualifications?.map((qual: any) => (
-                      <div key={qual.id} className="text-sm text-gray-500 dark:text-gray-400">
-                        {qual.name} - Läuft ab am {formatDate(qual.expirationDate)}
-                      </div>
-                    ))}
-                    {type === 'completed' && (
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {employee.completedTrainings} abgeschlossene Schulungen
-                      </div>
-                    )}
-                    {type === 'pending' && (
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {employee.pendingTrainings} ausstehende Schulungen
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {getStatusBadge(type)}
-                  </td>
+        {employees.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500 dark:text-gray-400">
+              Keine Mitarbeiter gefunden
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-[#181818]">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Mitarbeiter
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Abteilung
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Position
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-[#141616]">
+                {employees.map((employee) => (
+                  <tr key={employee.id}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
+                          <span className="text-sm font-medium">
+                            {employee.fullName.split(' ').map((n: string) => n[0]).join('')}
+                          </span>
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            {employee.fullName}
+                          </div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            {employee.staffNumber}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">
+                        {departments.find(d => d.id === employee.departmentID)?.department}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">
+                        {jobTitles.find(jt => jt.id === employee.jobTitleID)?.jobTitle}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {type === 'expiring' && employee.expiringQualifications?.map((qual: any) => (
+                        <div key={qual.id} className="text-sm text-gray-500 dark:text-gray-400">
+                          {qual.name} - Läuft ab am {formatDate(qual.expirationDate)}
+                        </div>
+                      ))}
+                      {type === 'completed' && (
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {employee.completedTrainings} abgeschlossene Schulungen
+                        </div>
+                      )}
+                      {type === 'pending' && (
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {employee.pendingTrainings} ausstehende Schulungen
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getStatusBadge(type)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -260,6 +262,7 @@ function TrainingStatistics({ departmentFilter = 'all' }) {
   ];
 
   return (
+    
     <div className="bg-white dark:bg-[#181818] rounded-lg shadow p-6">
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
@@ -462,15 +465,17 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
+      <div>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+            {employee.fullName}
+          </h1>
+        </div>
       {isHR && <TrainingStatistics />}
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-            {employee.fullName}
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             Ihre Schulungsübersicht und bevorstehende Sitzungen
           </p>
         </div>

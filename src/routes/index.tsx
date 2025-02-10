@@ -30,13 +30,12 @@ export default function AppRoutes() {
           path="/" 
           element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />} 
         />
-        <Route path="/employees" element={<Employees />} />
-        <Route path="/departments" element={<Departments />} />
-        <Route path="/trainings" element={<Trainings />} />
+        <Route path="/mitarbeiter" element={<Employees />} />
+        <Route path="/abteilungen" element={<Departments />} />
+        <Route path="/schulungen" element={<Trainings />} />
         <Route path="/training-history" element={<TrainingHistory />} />
-        <Route path="/qualifications" element={<Qualifications />} />
-        <Route path="/documents" element={<Documents />} />
-        <Route path="/settings" element={<PlaceholderComponent />} />
+        <Route path="/qualifikationen" element={<Qualifications />} />
+        <Route path="/dokumente" element={<Documents />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

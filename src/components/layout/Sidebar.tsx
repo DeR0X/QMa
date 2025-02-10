@@ -17,13 +17,12 @@ import { cn } from '../../lib/utils';
 
 const navigation = [
   { name: 'Dashbaord', href: '/', icon: LayoutDashboard },
-  { name: 'Schulungen', href: '/trainings', icon: GraduationCap },
+  { name: 'Schulungen', href: '/schulungen', icon: GraduationCap },
   { name: 'Schulungshistorie', href: '/training-history', icon: HistoryIcon },
-  { name: 'Qualifikationen', href: '/qualifications', icon: Award },
-  { name: 'Mitarbeiter', href: '/employees', icon: Users },
-   { name: 'Departments', href: '/departments', icon: Building2 },
-  { name: 'Dokumente', href: '/documents', icon: FileText },
-/*   { name: 'Settings', href: '/settings', icon: Settings }, */
+  { name: 'Qualifikationen', href: '/qualifikationen', icon: Award },
+  { name: 'Mitarbeiter', href: '/mitarbeiter', icon: Users },
+  { name: 'Abteilungen', href: '/abteilungen', icon: Building2 },
+  { name: 'Dokumente', href: '/dokumente', icon: FileText },
 ];
 
 export default function Sidebar() {
@@ -34,7 +33,7 @@ export default function Sidebar() {
   // Filter navigation items based on user role
   const filteredNavigation = navigation.filter(item => {
     if (employee?.role === 'employee') {
-      return !['Employees', 'Departments'].includes(item.name);
+      return !['Mitarbeiter', 'Abteilungen', 'Qualifikationen'].includes(item.name);
     }
     return true;
   });
