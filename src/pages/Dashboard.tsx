@@ -4,7 +4,7 @@ import {
   GraduationCap, Calendar, AlertTriangle, 
   BookOpen, Award, X, CheckCircle, 
   CalendarCheck, PieChart, Users, Clock,
-  Building2
+  Building2, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { RootState } from '../store';
 import { trainings, bookings, qualifications, employees, jobTitles, departments } from '../data/mockData';
@@ -12,6 +12,8 @@ import { formatDate, calculateExpirationDate, isExpiringSoon } from '../lib/util
 import { hasHRPermissions } from '../store/slices/authSlice';
 import type { Qualification } from '../types';
 import { sendQualificationExpiryNotification } from '../lib/notifications';
+
+const ITEMS_PER_PAGE = 10;
 
 function StatisticsModal({ 
   isOpen, 
@@ -26,6 +28,15 @@ function StatisticsModal({
   employees: Array<any>; 
   type: 'all' | 'completed' | 'pending' | 'expiring';
 }) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalItems = employees.length;
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+  
+  const paginatedEmployees = employees.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   if (!isOpen) return null;
 
   const getStatusBadge = (status: string) => {
@@ -71,83 +82,177 @@ function StatisticsModal({
           </button>
         </div>
 
-        {employees.length === 0 ? (
+        {paginatedEmployees.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-500 dark:text-gray-400">
               Keine Mitarbeiter gefunden
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-[#181818]">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Mitarbeiter
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Abteilung
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Position
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-[#141616]">
-                {employees.map((employee) => (
-                  <tr key={employee.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
-                          <span className="text-sm font-medium">
-                            {employee.fullName.split(' ').map((n: string) => n[0]).join('')}
-                          </span>
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {employee.fullName}
-                          </div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
-                            {employee.staffNumber}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white">
-                        {departments.find(d => d.id === employee.departmentID)?.department}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 dark:text-white">
-                        {jobTitles.find(jt => jt.id === employee.jobTitleID)?.jobTitle}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      {type === 'expiring' && employee.expiringQualifications?.map((qual: any) => (
-                        <div key={qual.id} className="text-sm text-gray-500 dark:text-gray-400">
-                          {qual.name} - Läuft ab am {formatDate(qual.expirationDate)}
-                        </div>
-                      ))}
-                      {type === 'completed' && (
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {employee.completedTrainings} abgeschlossene Schulungen
-                        </div>
-                      )}
-                      {type === 'pending' && (
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {employee.pendingTrainings} ausstehende Schulungen
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(type)}
-                    </td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-[#181818]">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Mitarbeiter
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Abteilung
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Position
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-[#141616]">
+                  {paginatedEmployees.map((employee) => (
+                    <tr key={employee.id}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
+                            <span className="text-sm font-medium">
+                              {employee.fullName.split(' ').map((n: string) => n[0]).join('')}
+                            </span>
+                          </div>
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                              {employee.fullName}
+                            </div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              {employee.staffNumber}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900 dark:text-white">
+                          {departments.find(d => d.id === employee.departmentID)?.department}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900 dark:text-white">
+                          {jobTitles.find(jt => jt.id === employee.jobTitleID)?.jobTitle}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {type === 'expiring' && employee.expiringQualifications?.map((qual: any) => (
+                          <div key={qual.id} className="text-sm text-gray-500 dark:text-gray-400">
+                            {qual.name} - Läuft ab am {formatDate(qual.expirationDate)}
+                          </div>
+                        ))}
+                        {type === 'completed' && (
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            {employee.completedTrainings} abgeschlossene Schulungen
+                          </div>
+                        )}
+                        {type === 'pending' && (
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            {employee.pendingTrainings} ausstehende Schulungen
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getStatusBadge(type)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            <div className="mt-6 flex items-center justify-between">
+              <div className="flex-1 flex justify-between sm:hidden">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Vorherige
+                </button>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Nächste
+                </button>
+              </div>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    Zeige{' '}
+                    <span className="font-medium">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span>
+                    {' '}-{' '}
+                    <span className="font-medium">
+                      {Math.min(currentPage * ITEMS_PER_PAGE, totalItems)}
+                    </span>
+                    {' '}von{' '}
+                    <span className="font-medium">{totalItems}</span>
+                    {' '}Ergebnissen
+                  </p>
+                </div>
+                <div>
+                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter(page => 
+                        page === 1 || 
+                        page === totalPages || 
+                        (page >= currentPage - 1 && page <= currentPage + 1)
+                      )
+                      .map((page, index, array) => {
+                        if (index > 0 && array[index - 1] !== page - 1) {
+                          return [
+                            <span key={`ellipsis-${page}`} className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-700 dark:text-gray-300">
+                              ...
+                            </span>,
+                            <button
+                              key={page}
+                              onClick={() => setCurrentPage(page)}
+                              className={`relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium ${
+                                currentPage === page
+                                  ? 'z-10 text-gray-700 dark:text-gray-300'
+                                  : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1a1a1a]'
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          ];
+                        }
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            className={`relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium ${
+                              currentPage === page
+                                ? 'z-10 text-gray-700 dark:text-gray-300'
+                                : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1a1a1a]'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      })}
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>

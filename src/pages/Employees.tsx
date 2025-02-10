@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Search, Plus, Download, Upload, Filter, Lock, Unlock, ChevronDown, ChevronRight, X } from 'lucide-react';
+import { Search, Plus, Download, Upload, Filter, Lock, Unlock, ChevronDown, ChevronRight, X, ChevronLeft } from 'lucide-react';
 import { Employee } from '../types';
 import EmployeeDetails from '../components/employees/EmployeeDetails';
 import AddUserModal from '../components/employees/AddUserModal';
@@ -12,6 +12,8 @@ import { hasHRPermissions } from '../store/slices/authSlice';
 
 type FilterType = 'all' | 'employees' | 'supervisors' | 'active' | 'inactive';
 
+const ITEMS_PER_PAGE = 10;
+
 export default function Employees() {
   const dispatch = useDispatch<AppDispatch>();
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,6 +23,7 @@ export default function Employees() {
   const [expandedSupervisors, setExpandedSupervisors] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const { employee: currentEmployee } = useSelector((state: RootState) => state.auth);
   const isHRAdmin = hasHRPermissions(currentEmployee);
 
@@ -71,6 +74,16 @@ export default function Employees() {
       return matchesSearch && matchesFilter;
     });
   };
+
+  const supervisorsWithEmployees = getSupervisorsWithEmployees();
+  const filteredSupervisors = filterEmployees(supervisorsWithEmployees);
+  const totalItems = filteredSupervisors.length;
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+  
+  const paginatedSupervisors = filteredSupervisors.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const handleAddUser = (newEmployee: Omit<Employee, 'id' | 'isActive'>) => {
     const employee: Employee = {
@@ -189,8 +202,6 @@ export default function Employees() {
     );
   }
 
-  const supervisorsWithEmployees = getSupervisorsWithEmployees();
-
   return (
     <div className="space-y-6">
       <div className="bg-white dark:bg-[#121212] shadow rounded-lg">
@@ -203,7 +214,10 @@ export default function Employees() {
                   type="text"
                   placeholder="Suche nach Name, Email, Abteilung oder Position..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                 />
               </div>
@@ -227,6 +241,7 @@ export default function Employees() {
                           onClick={() => {
                             setActiveFilter(option.value);
                             setShowFilters(false);
+                            setCurrentPage(1);
                           }}
                           className={`block w-full text-left px-4 py-2 text-sm ${
                             activeFilter === option.value
@@ -284,7 +299,7 @@ export default function Employees() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-[#141616]">
-              {supervisorsWithEmployees.map(supervisor => (
+              {paginatedSupervisors.map(supervisor => (
                 <>
                   <tr
                     key={supervisor.id}
@@ -362,14 +377,103 @@ export default function Employees() {
                       </td>
                     )}
                   </tr>
-                  {expandedSupervisors.includes(supervisor.id) && 
-                    supervisor.directReports.map(employee => 
-                      renderEmployeeRow(employee, true)
-                    )}
+                  
                 </>
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination */}
+        <div className="px-6 py-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-700">
+          <div className="flex-1 flex justify-between sm:hidden">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Vorherige
+            </button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Nächste
+            </button>
+          </div>
+          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-700 dark:text-gray-300">
+                Zeige{' '}
+                <span className="font-medium">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span>
+                {' '}-{' '}
+                <span className="font-medium">
+                  {Math.min(currentPage * ITEMS_PER_PAGE, totalItems)}
+                </span>
+                {' '}von{' '}
+                <span className="font-medium">{totalItems}</span>
+                {' '}Ergebnissen
+              </p>
+            </div>
+            <div>
+              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 dark:bg-[#181818] text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(page => 
+                    page === 1 || 
+                    page === totalPages || 
+                    (page >= currentPage - 1 && page <= currentPage + 1)
+                  )
+                  .map((page, index, array) => {
+                    if (index > 0 && array[index - 1] !== page - 1) {
+                      return [
+                        <span key={`ellipsis-${page}`} className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white dark:bg-[#181818] text-sm font-medium text-gray-700 dark:text-gray-300">
+                          ...
+                        </span>,
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          className={`relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium ${
+                            currentPage === page
+                              ? 'z-10 text-gray-700 dark:text-gray-300'
+                              : 'bg-white dark:bg-[#181818] text-white dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1a1a1a]'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ];
+                    }
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium ${
+                          currentPage === page
+                            ? 'z-10 text-gray-700 dark:text-gray-300'
+                            : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1a1a1a]'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  })}
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </nav>
+            </div>
+          </div>
         </div>
       </div>
 
