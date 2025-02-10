@@ -1,42 +1,48 @@
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Building2, Plus, Users, Mail, Phone, CheckCircle, XCircle, GraduationCap, X } from 'lucide-react';
-import { itDepartments, manufacturingDepartments } from '../data/departments';
 import { RootState } from '../store';
-import { users } from '../data/mockData';
-import type { User } from '../types';
+import { employees, departments, jobTitles } from '../data/mockData';
+import type { Employee } from '../types';
 import { hasHRPermissions } from '../store/slices/authSlice';
 
 export default function Departments() {
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
-  const { user: currentUser } = useSelector((state: RootState) => state.auth);
+  const { employee: currentUser } = useSelector((state: RootState) => state.auth);
   const [searchTerm, setSearchTerm] = useState('');
 
   const isHR = hasHRPermissions(currentUser);
   const isSupervisor = currentUser?.role === 'supervisor';
 
-  // Combine all departments
-  const allDepartments = [...itDepartments, ...manufacturingDepartments];
+  const getJobTitle = (jobTitleId: string) => {
+    const jobTitle = jobTitles.find(jt => jt.id === jobTitleId);
+    return jobTitle ? jobTitle.jobTitle : jobTitleId;
+  };
+
+  const getEmployeeQualifications = (employee: Employee) => {
+    const jobTitle = jobTitles.find(jt => jt.id === employee.jobTitleID);
+    return jobTitle ? jobTitle.qualificationIDs : [];
+  };
 
   // Filter departments based on user role and search term
-  const filteredDepartments = allDepartments.filter(dept => {
-    const matchesSearch = dept.name.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredDepartments = departments.filter(dept => {
+    const matchesSearch = dept.department.toLowerCase().includes(searchTerm.toLowerCase());
     if (isHR) {
       return matchesSearch; // HR can see all departments
     } else if (isSupervisor) {
-      return dept.name === currentUser?.department && matchesSearch;
+      return dept.id === currentUser?.departmentID && matchesSearch;
     }
     return false;
   });
 
   // Get employees for selected department
   const departmentEmployees = selectedDepartment
-    ? users.filter(user => user.department === selectedDepartment)
+    ? employees.filter(user => user.departmentID === selectedDepartment)
     : [];
 
   // Get employee count for each department
-  const getDepartmentEmployeeCount = (departmentName: string) => {
-    return users.filter(user => user.department === departmentName).length;
+  const getDepartmentEmployeeCount = (departmentId: string) => {
+    return employees.filter(user => user.departmentID === departmentId).length;
   };
 
   // Only allow access if user is a supervisor or HR
@@ -78,18 +84,21 @@ export default function Departments() {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredDepartments.map((dept) => (
             <div
-              key={dept.name}
-              onClick={() => setSelectedDepartment(dept.name)}
+              key={dept.id}
+              onClick={() => setSelectedDepartment(dept.id)}
               className="bg-white dark:bg-[#181818] shadow rounded-lg p-6 cursor-pointer hover:shadow-lg transition-shadow border border-gray-200 dark:border-gray-700"
             >
               <div className="flex items-center">
                 <Building2 className="h-8 w-8 text-primary" />
                 <div className="ml-4">
                   <h2 className="text-lg font-medium text-gray-900 dark:text-white">
-                    {dept.name}
+                    {dept.department}
                   </h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {getDepartmentEmployeeCount(dept.name)} Mitarbeiter
+                    {getDepartmentEmployeeCount(dept.id)} Mitarbeiter
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    ID: {dept.departmentID_Atoss}
                   </p>
                 </div>
               </div>
@@ -99,7 +108,7 @@ export default function Departments() {
                   Positionen:
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  {dept.positions.slice(0, 3).map((position) => (
+                  {dept.positions.slice(0, 5).map((position) => (
                     <span
                       key={position}
                       className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
@@ -107,9 +116,9 @@ export default function Departments() {
                       {position}
                     </span>
                   ))}
-                  {dept.positions.length > 3 && (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200">
-                      +{dept.positions.length - 3} weitere
+                  {dept.positions.length > 5 && (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 dark:bg-primary/20 text-primary">
+                      +{dept.positions.length - 5} weitere
                     </span>
                   )}
                 </div>
@@ -124,7 +133,7 @@ export default function Departments() {
           <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-4xl w-full m-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                {selectedDepartment} - Mitarbeiterübersicht
+                {departments.find(d => d.id === selectedDepartment)?.department} - Mitarbeiterübersicht
               </h2>
               <button
                 onClick={() => setSelectedDepartment(null)}
@@ -145,15 +154,15 @@ export default function Departments() {
                       <div className="flex items-center">
                         <div className="h-12 w-12 rounded-full bg-primary text-white flex items-center justify-center">
                           <span className="text-lg font-medium">
-                            {employee.name.split(' ').map((n) => n[0]).join('')}
+                            {employee.fullName.split(' ').map((n) => n[0]).join('')}
                           </span>
                         </div>
                         <div className="ml-4">
                           <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                            {employee.name}
+                            {employee.fullName}
                           </h3>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {employee.position}
+                            {getJobTitle(employee.jobTitleID)}
                           </p>
                         </div>
                       </div>
@@ -176,11 +185,11 @@ export default function Departments() {
                         <div className="space-y-2">
                           <p className="text-sm flex items-center text-gray-500 dark:text-gray-400">
                             <Mail className="h-4 w-4 mr-2" />
-                            {employee.email}
+                            {employee.eMail}
                           </p>
                           <p className="text-sm flex items-center text-gray-500 dark:text-gray-400">
                             <Users className="h-4 w-4 mr-2" />
-                            Personalnummer: {employee.personalNumber}
+                            Personalnummer: {employee.staffNumber}
                           </p>
                         </div>
                       </div>
@@ -192,18 +201,14 @@ export default function Departments() {
                         <div className="space-y-2">
                           <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
                             <GraduationCap className="h-4 w-4 mr-2" />
-                            {employee.qualifications.length} Qualifikationen
+                            {getEmployeeQualifications(employee).length} Qualifikationen
                           </div>
-                          <div className="flex flex-wrap gap-2">
-                            {employee.trainings.map((trainingId) => (
-                              <span
-                                key={trainingId}
-                                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                              >
-                                Training #{trainingId}
-                              </span>
-                            ))}
-                          </div>
+                          {employee.isTrainer && (
+                            <div className="flex items-center text-sm text-blue-500 dark:text-blue-400">
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Trainer für {employee.trainerFor?.length || 0} Schulung(en)
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

@@ -29,11 +29,11 @@ const navigation = [
 export default function Sidebar() {
   const dispatch = useDispatch();
   const { sidebarOpen } = useSelector((state: RootState) => state.ui);
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { employee } = useSelector((state: RootState) => state.auth);
 
   // Filter navigation items based on user role
   const filteredNavigation = navigation.filter(item => {
-    if (user?.role === 'employee') {
+    if (employee?.role === 'employee') {
       return !['Employees', 'Departments'].includes(item.name);
     }
     return true;

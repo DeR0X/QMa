@@ -11,14 +11,14 @@ import { itDepartments, manufacturingDepartments } from '../data/departments';
 const allDepartments = [...itDepartments, ...manufacturingDepartments];
 
 export default function Qualifications() {
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { employee } = useSelector((state: RootState) => state.auth);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingQual, setEditingQual] = useState<Qualification | null>(null);
   const [localQualifications, setLocalQualifications] = useState(qualifications);
 
-  const isHRAdmin = hasHRPermissions(user);
-  const isSupervisor = user?.role === 'supervisor';
+  const isHRAdmin = hasHRPermissions(employee);
+  const isSupervisor = employee?.role === 'supervisor';
 
   // Only allow access if user is a supervisor or HR
   if (!isHRAdmin && !isSupervisor) {
@@ -121,7 +121,7 @@ export default function Qualifications() {
               <div className="mt-4 grid grid-cols-2 gap-4 text-sm text-gray-500 dark:text-gray-400">
                 <div>
                   <span className="font-medium">Gültigkeitsdauer:</span>{' '}
-                  {qualification.validityPeriod} Monate
+                  {qualification.validityInMonth} Monate
                 </div>
                 <div>
                   <span className="font-medium">Erforderliche Schulungen:</span>
@@ -180,7 +180,7 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
   const [formData, setFormData] = useState({
     name: initialData?.name || '',
     description: initialData?.description || '',
-    validityPeriod: initialData?.validityPeriod || 12,
+    validityPeriod: initialData?.validityInMonth || 12,
     requiredTrainings: initialData?.requiredTrainings || [],
     department: '',
     positions: [] as string[],

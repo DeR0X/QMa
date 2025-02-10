@@ -6,19 +6,19 @@ import {
   DollarSign, BookOpen, Award as CertificateIcon,
   Target, Plus, X, Clock, AlertCircle,
   GraduationCap, CheckCircle, Users, Calendar as CalendarIcon,
-  Timer, BookOpen as BookOpenIcon, Tag
+  Timer, BookOpen as BookOpenIcon, Tag, Building2
 } from 'lucide-react';
 import { RootState } from '../../store';
 import { hasHRPermissions } from '../../store/slices/authSlice';
-import type { User, Qualification } from '../../types';
-import { qualifications, employeeQualifications, trainings } from '../../data/mockData';
+import type { Employee, Qualification } from '../../types';
+import { qualifications, employeeQualifications, trainings, departments, jobTitles } from '../../data/mockData';
 import { toast } from 'sonner';
 import { formatDate } from '../../lib/utils';
 
 interface Props {
-  employee: User;
+  employee: Employee;
   onClose: () => void;
-  onUpdate: (data: Partial<User>) => void;
+  onUpdate: (data: Partial<Employee>) => void;
   approvals: Array<{ trainingId: string; date: string; status: string }>;
   trainings: Array<{ id: string; title: string }>;
   handleApproveTraining: (trainingId: string) => void;
@@ -27,45 +27,90 @@ interface Props {
 
 export default function EmployeeDetails({ employee, onClose, onUpdate, approvals, trainings: employeeTrainings, handleApproveTraining, handleRejectTraining }: Props) {
   const [activeTab, setActiveTab] = useState<'info' | 'qualifications' | 'documents' | 'approvals' | 'trainer'>('info');
-  const [showAddQualModal, setShowAddQualModal] = useState(false);
+  const [showPositionModal, setShowPositionModal] = useState(false);
   const [selectedTrainings, setSelectedTrainings] = useState<string[]>(employee.trainerFor || []);
   const [isTrainer, setIsTrainer] = useState(employee.isTrainer || false);
-  const { user: currentUser } = useSelector((state: RootState) => state.auth);
-  const isHRAdmin = hasHRPermissions(currentUser);
+  const [localEmployee, setLocalEmployee] = useState(employee);
+  const { employee: currentEmployee } = useSelector((state: RootState) => state.auth);
+  const isHRAdmin = hasHRPermissions(currentEmployee);
+
+  const getDepartmentName = (departmentId: string) => {
+    const department = departments.find(d => d.id === departmentId);
+    return department ? department.department : departmentId;
+  };
+
+  const getJobTitle = (jobTitleId: string) => {
+    const jobTitle = jobTitles.find(jt => jt.id === jobTitleId);
+    return jobTitle ? jobTitle.jobTitle : jobTitleId;
+  };
+
+  // Get all qualifications from current and additional positions
+  const getEmployeeQualifications = () => {
+    const currentJobTitle = jobTitles.find(jt => jt.id === localEmployee.jobTitleID);
+    const additionalQuals = localEmployee.additionalPositions?.flatMap(posId => {
+      const jobTitle = jobTitles.find(jt => jt.id === posId);
+      return jobTitle ? jobTitle.qualificationIDs : [];
+    }) || [];
+    
+    return [...(currentJobTitle?.qualificationIDs || []), ...additionalQuals];
+  };
 
   const tabs = [
     { id: 'info', label: 'Information' },
     { id: 'qualifications', label: 'Qualifikationen' },
     { id: 'documents', label: 'Documents' },
     ...(isHRAdmin ? [
-      { id: 'approvals', label: 'Approvals' },
+      { id: 'approvals', label: 'Genehmigungen' },
       { id: 'trainer', label: 'Trainer-Status' }
     ] : []),
   ].filter(Boolean) as Array<{ id: 'info' | 'qualifications' | 'documents' | 'approvals' | 'trainer'; label: string }>;
 
-  const handleAddQualification = (qualificationId: string) => {
-    const updatedQualifications = [...employee.qualifications, qualificationId];
-    onUpdate({ qualifications: updatedQualifications });
-    setShowAddQualModal(false);
+  const handleUpdatePosition = (jobTitleId: string, isAdditional: boolean = false) => {
+    let updatedEmployee;
+    
+    if (isAdditional) {
+      // Add as additional position
+      const additionalPositions = [...(localEmployee.additionalPositions || []), jobTitleId];
+      updatedEmployee = {
+        ...localEmployee,
+        additionalPositions
+      };
+      toast.success('Zusätzliche Position erfolgreich hinzugefügt');
+    } else {
+      // Update main position
+      updatedEmployee = {
+        ...localEmployee,
+        jobTitleID: jobTitleId
+      };
+      toast.success('Hauptposition erfolgreich aktualisiert');
+    }
+    
+    setLocalEmployee(updatedEmployee);
+    onUpdate(updatedEmployee);
+    setShowPositionModal(false);
   };
 
-  const handleRemoveQualification = (qualificationId: string) => {
-    const updatedQualifications = employee.qualifications.filter(id => id !== qualificationId);
-    onUpdate({ qualifications: updatedQualifications });
+  const handleRemoveAdditionalPosition = (jobTitleId: string) => {
+    const additionalPositions = localEmployee.additionalPositions?.filter(id => id !== jobTitleId) || [];
+    const updatedEmployee = {
+      ...localEmployee,
+      additionalPositions
+    };
+    setLocalEmployee(updatedEmployee);
+    onUpdate(updatedEmployee);
+    toast.success('Zusätzliche Position erfolgreich entfernt');
   };
 
-  const availableQualifications = qualifications.filter(
-    qual => !employee.qualifications.includes(qual.id)
-  );
+  const employeeQualificationIds = getEmployeeQualifications();
 
   const getQualificationStatus = (qualId: string) => {
     const employeeQual = employeeQualifications.find(
-      eq => eq.employeeId === employee.id && eq.qualificationId === qualId
+      eq => eq.employeeID === localEmployee.id && eq.qualificationID === qualId
     );
 
     if (!employeeQual) return 'inactive';
 
-    const expiryDate = new Date(employeeQual.isQualifiedUntil);
+    const expiryDate = new Date(employeeQual.isQualifiedUntil || Date.now());
     const today = new Date();
     const twoMonthsFromNow = new Date();
     twoMonthsFromNow.setMonth(today.getMonth() + 2);
@@ -106,12 +151,13 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
     if (!checked) {
       setSelectedTrainings([]);
     }
-    onUpdate({
-      ...employee,
+    const updatedEmployee = {
+      ...localEmployee,
       isTrainer: checked,
       trainerFor: checked ? selectedTrainings : []
-    });
-    //add notification to user
+    };
+    setLocalEmployee(updatedEmployee);
+    onUpdate(updatedEmployee);
   };
 
   const handleTrainingSelection = (trainingId: string) => {
@@ -120,21 +166,24 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
       : [...selectedTrainings, trainingId];
     
     setSelectedTrainings(newSelectedTrainings);
-    onUpdate({
-      ...employee,
+    const updatedEmployee = {
+      ...localEmployee,
       trainerFor: newSelectedTrainings
-    });
+    };
+    setLocalEmployee(updatedEmployee);
+    onUpdate(updatedEmployee);
   };
 
-  // Add new helper function to group trainings by category
-  const groupedTrainings = trainings.reduce((acc, training) => {
-    const category = training.isMandatory ? 'Pflichtschulungen' : 'Optionale Schulungen';
-    if (!acc[category]) {
-      acc[category] = [];
-    }
-    acc[category].push(training);
-    return acc;
-  }, {} as Record<string, typeof trainings>);
+  // Get all qualifications
+  const userQualifications = qualifications.filter(qual => 
+    employeeQualificationIds.includes(qual.id)
+  );
+
+  // Get available job titles (excluding current and additional positions)
+  const availableJobTitles = jobTitles.filter(jt => 
+    jt.id !== localEmployee.jobTitleID && 
+    !localEmployee.additionalPositions?.includes(jt.id)
+  );
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -155,14 +204,14 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
             <div className="w-full">
               <div className="flex items-center">
                 <div className="h-16 w-16 rounded-full bg-primary text-white flex items-center justify-center text-xl">
-                  {employee.name.split(' ').map((n: string) => n[0]).join('')}
+                  {localEmployee.fullName.split(' ').map((n: string) => n[0]).join('')}
                 </div>
                 <div className="ml-4">
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                    {employee.name}
+                    {localEmployee.fullName}
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {employee.position} • {employee.department}
+                    {getJobTitle(localEmployee.jobTitleID)} • {getDepartmentName(localEmployee.departmentID)}
                   </p>
                 </div>
               </div>
@@ -190,14 +239,50 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
               <div className="mt-6">
                 {activeTab === 'info' && (
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                    {employee.email && (
+                    {localEmployee.eMail && (
                       <div className="flex items-center">
                         <Mail className="h-5 w-5 text-gray-400" />
                         <span className="ml-2 text-sm text-gray-900 dark:text-white">
-                          {employee.email}
+                          {localEmployee.eMail}
                         </span>
                       </div>
                     )}
+                    <div className="flex items-center">
+                      <Users className="h-5 w-5 text-gray-400" />
+                      <span className="ml-2 text-sm text-gray-900 dark:text-white">
+                        Personal-Nr.: {localEmployee.staffNumber}
+                      </span>
+                    </div>
+                    <div className="flex items-center">
+                      <Building2 className="h-5 w-5 text-gray-400" />
+                      <span className="ml-2 text-sm text-gray-900 dark:text-white">
+                        Abteilung: {getDepartmentName(localEmployee.departmentID)}
+                      </span>
+                    </div>
+                    <div className="flex items-center">
+                      <Award className="h-5 w-5 text-gray-400" />
+                      <span className="ml-2 text-sm text-gray-900 dark:text-white">
+                        Position: {getJobTitle(localEmployee.jobTitleID)}
+                      </span>
+                    </div>
+                    {localEmployee.additionalPositions?.map(posId => (
+                      <div key={posId} className="flex items-center justify-between col-span-2">
+                        <div className="flex items-center">
+                          <Award className="h-5 w-5 text-gray-400" />
+                          <span className="ml-2 text-sm text-gray-900 dark:text-white">
+                            Zusätzliche Position: {getJobTitle(posId)}
+                          </span>
+                        </div>
+                        {isHRAdmin && (
+                          <button
+                            onClick={() => handleRemoveAdditionalPosition(posId)}
+                            className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                          >
+                            <X className="h-5 w-5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
 
@@ -209,24 +294,23 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                       </h4>
                       {isHRAdmin && (
                         <button
-                          onClick={() => setShowAddQualModal(true)}
+                          onClick={() => setShowPositionModal(true)}
                           className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a]"
                         >
                           <Plus className="h-4 w-4 mr-1" />
-                          Qualifikation hinzufügen
+                          Position hinzufügen
                         </button>
                       )}
                     </div>
                     
                     <div className="space-y-4">
-                      {employee.qualifications.map(qualId => {
-                        const qual = qualifications.find(q => q.id === qualId);
+                      {userQualifications.map(qual => {
                         const employeeQual = employeeQualifications.find(
-                          eq => eq.employeeId === employee.id && eq.qualificationId === qualId
+                          eq => eq.employeeID === localEmployee.id && eq.qualificationID === qual.id
                         );
-                        const status = getQualificationStatus(qualId);
+                        const status = getQualificationStatus(qual.id);
 
-                        return qual && (
+                        return (
                           <div
                             key={qual.id}
                             className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg"
@@ -246,7 +330,7 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                                   </p>
                                   <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
                                     <AlertCircle className="h-4 w-4 mr-1" />
-                                    Gültig bis: {formatDate(employeeQual.isQualifiedUntil)}
+                                    Gültig bis: {employeeQual.isQualifiedUntil ? formatDate(employeeQual.isQualifiedUntil) : "Nicht verfügbar"}
                                   </p>
                                 </div>
                               )}
@@ -255,18 +339,16 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles(status)}`}>
                                 {getStatusText(status)}
                               </span>
-                              {isHRAdmin && (
-                                <button
-                                  onClick={() => handleRemoveQualification(qual.id)}
-                                  className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                                >
-                                  <X className="h-5 w-5" />
-                                </button>
-                              )}
                             </div>
                           </div>
                         );
                       })}
+
+                      {userQualifications.length === 0 && (
+                        <p className="text-center text-gray-500 dark:text-gray-400 py-4">
+                          Keine Qualifikationen vorhanden
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}
@@ -278,7 +360,7 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                   </div>
                 )}
 
-                {activeTab === 'approvals' && employee.role === 'supervisor' && (
+                {activeTab === 'approvals' && localEmployee.role === 'supervisor' && (
                   <div className="space-y-4">
                     {approvals.map((approval) => {
                       const training = trainings.find(t => t.id === approval.trainingId);
@@ -351,86 +433,52 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                           Schulungen, die dieser Trainer durchführen kann:
                         </h5>
                         
-                        {Object.entries(groupedTrainings).map(([category, categoryTrainings]) => (
-                          <div key={category} className="space-y-4">
-                            <h6 className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center">
-                              {category === 'Pflichtschulungen' ? (
-                                <AlertCircle className="h-4 w-4 mr-2 text-red-500" />
-                              ) : (
-                                <BookOpenIcon className="h-4 w-4 mr-2 text-blue-500" />
-                              )}
-                              {category}
-                            </h6>
-                            
-                            <div className="grid grid-cols-1 gap-4">
-                              {categoryTrainings.map(training => (
-                                <div
-                                  key={training.id}
-                                  className={`p-4 rounded-lg border transition-all ${
-                                    selectedTrainings.includes(training.id)
-                                      ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                                      : 'border-gray-200 dark:border-gray-700'
-                                  }`}
-                                >
-                                  <div className="flex items-start space-x-4">
-                                    <div className="flex-shrink-0 pt-1">
-                                      <input
-                                        type="checkbox"
-                                        checked={selectedTrainings.includes(training.id)}
-                                        onChange={() => handleTrainingSelection(training.id)}
-                                        className="rounded border-gray-300 text-primary focus:ring-primary"
-                                      />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center justify-between">
-                                        <p className="font-medium text-gray-900 dark:text-white">
-                                          {training.title}
-                                        </p>
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                          training.isMandatory
-                                            ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'
-                                            : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
-                                        }`}>
-                                          {training.isMandatory ? 'Pflicht' : 'Optional'}
-                                        </span>
-                                      </div>
-                                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                        {training.description}
-                                      </p>
-                                      <div className="mt-2 flex flex-wrap gap-4 text-sm">
-                                        <div className="flex items-center text-gray-500 dark:text-gray-400">
-                                          <Timer className="h-4 w-4 mr-1" />
-                                          {training.duration}
-                                        </div>
-                                        <div className="flex items-center text-gray-500 dark:text-gray-400">
-                                          <Users className="h-4 w-4 mr-1" />
-                                          Max. {training.maxParticipants} Teilnehmer
-                                        </div>
-                                        <div className="flex items-center text-gray-500 dark:text-gray-400">
-                                          <CalendarIcon className="h-4 w-4 mr-1" />
-                                          {training.validityPeriod} Monate gültig
-                                        </div>
-                                      </div>
-                                      {training.targetPositions.length > 0 && (
-                                        <div className="mt-2 flex flex-wrap gap-2">
-                                          {training.targetPositions.map(position => (
-                                            <span
-                                              key={position}
-                                              className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                                            >
-                                              <Tag className="h-3 w-3 mr-1" />
-                                              {position}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      )}
+                        <div className="grid grid-cols-1 gap-4">
+                          {trainings.map(training => (
+                            <div
+                              key={training.id}
+                              className={`p-4 rounded-lg border transition-all ${
+                                selectedTrainings.includes(training.id)
+                                  ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                                  : 'border-gray-200 dark:border-gray-700'
+                              }`}
+                            >
+                              <div className="flex items-start space-x-4">
+                                <div className="flex-shrink-0 pt-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedTrainings.includes(training.id)}
+                                    onChange={() => handleTrainingSelection(training.id)}
+                                    className="rounded border-gray-300 text-primary focus:ring-primary"
+                                  />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between">
+                                    <p className="font-medium text-gray-900 dark:text-white">
+                                      {training.title}
+                                    </p>
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                      training.isMandatory
+                                        ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'
+                                        : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
+                                    }`}>
+                                      {training.isMandatory ? 'Pflicht' : 'Optional'}
+                                    </span>
+                                  </div>
+                                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                    {training.description}
+                                  </p>
+                                  <div className="mt-2 flex flex-wrap gap-4 text-sm">
+                                    <div className="flex items-center text-gray-500 dark:text-gray-400">
+                                      <Timer className="h-4 w-4 mr-1" />
+                                      {training.duration}
                                     </div>
                                   </div>
                                 </div>
-                              ))}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -441,16 +489,16 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
         </div>
       </div>
 
-      {/* Add Qualification Modal */}
-      {showAddQualModal && (
+      {/* Position Modal */}
+      {showPositionModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-md w-full m-4">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Qualifikation hinzufügen
+                Position hinzufügen
               </h2>
               <button
-                onClick={() => setShowAddQualModal(false)}
+                onClick={() => setShowPositionModal(false)}
                 className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
               >
                 <X className="h-6 w-6" />
@@ -458,27 +506,42 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
             </div>
 
             <div className="space-y-4">
-              {availableQualifications.map(qual => (
+              {availableJobTitles.map((jobTitle) => (
                 <div
-                  key={qual.id}
-                  className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-                  onClick={() => handleAddQualification(qual.id)}
+                  key={jobTitle.id}
+                  className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
                   <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-                    {qual.name}
+                    {jobTitle.jobTitle}
                   </h3>
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    {qual.description}
+                    {jobTitle.description}
                   </p>
-                  <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
-                    Gültigkeitsdauer: {qual.validityPeriod} Monate
-                  </p>
+                  <div className="mt-4 flex justify-between items-center">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Erforderliche Qualifikationen: {jobTitle.qualificationIDs.length}
+                    </p>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleUpdatePosition(jobTitle.id)}
+                        className="px-3 py-1 text-xs font-medium text-white bg-primary rounded-md hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a]"
+                      >
+                        Als Hauptposition
+                      </button>
+                      <button
+                        onClick={() => handleUpdatePosition(jobTitle.id, true)}
+                        className="px-3 py-1 text-xs font-medium text-primary border border-primary rounded-md hover:bg-primary/10 dark:hover:bg-primary/5"
+                      >
+                        Als Zusatzposition
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ))}
 
-              {availableQualifications.length === 0 && (
+              {availableJobTitles.length === 0 && (
                 <p className="text-center text-gray-500 dark:text-gray-400 py-4">
-                  Keine weiteren Qualifikationen verfügbar
+                  Keine weiteren Positionen verfügbar
                 </p>
               )}
             </div>

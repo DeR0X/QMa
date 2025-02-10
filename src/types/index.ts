@@ -1,46 +1,82 @@
 export type Role = 'employee' | 'supervisor' | 'hr';
 
-export interface User {
+export interface Department {
   id: string;
-  personalNumber: string;
-  email?: string;
-  name: string;
-  role: Role;
+  departmentID_Atoss: string;
   department: string;
-  position: string;
-  supervisorId?: string;
+  positions: string[];
+}
+
+export interface JobTitle {
+  id: string;
+  jobTitle: string;
+  description: string;
+  qualificationIDs: string[];
+}
+
+export interface Employee {
+  id: string;
+  staffNumber: string;
+  surName: string;
+  firstName: string;
+  fullName: string;
+  role: Role;
+  eMail: string;
+  departmentID: string;
+  jobTitleID: string;
+  supervisorID?: string;
+  additionalSkillIDs?: string[];
+  additionalPositions?: string[];
   isActive: boolean;
-  trainings: string[];
-  qualifications: string[];
-  failedLoginAttempts: number;
-  requiredQualifications: string[];
-  hasChangedPassword?: boolean;
   isTrainer?: boolean;
   trainerFor?: string[]; 
+  passwordHash: string;
 }
+
+export interface Qualification {
+  id: string;
+  name: string;
+  description: string;
+  requiredTrainings: string[];
+  validityInMonth: number;
+  isMandatory: boolean;
+}
+
+export interface QualificationHistory {
+  id: string;
+  userId: string;
+  qualificationId: string;
+  type: string;
+  date: string; // months
+  reason?: string;
+  approvedBy: string;
+}
+
 
 export interface Training {
   id: string;
   title: string;
   description: string;
-  duration: string;
-  validityPeriod: number;
-  isMandatory: boolean;
-  trainer: string;
-  maxParticipants: number;
-  targetPositions: string[];
+  qualificationID: string;
+  qualification_TrainerID: string;
   isForEntireDepartment: boolean;
   department: string;
+  duration: string;
+  isMandatory: boolean;
+  trainingDate: string;
   qualificationIds: string[];
-  sessions: TrainingSession[];
+  completed: boolean;
 }
 
-
-export interface TrainingSession {
+export interface TrainingBooking {
   id: string;
-  date: string;
-  location: string;
-  availableSpots: number;
+  userId: string;
+  trainingId: string;
+  sessionId: string;
+  status: 'ausstehend' | 'genehmigt' | 'abgelehnt' | 'abgeschlossen';
+  completedAt?: string;
+  approvedBy?: string;
+  createdAt: string;
 }
 
 export interface TrainingDocument {
@@ -54,68 +90,50 @@ export interface TrainingDocument {
   description?: string;
 }
 
-export interface Qualification {
+export interface EmployeeQualification {
+  id: string;
+  employeeID: string;
+  qualificationID: string;
+  qualifiedFrom: string;
+  toQualifyUntil: string;
+  isQualifiedUntil?: string;
+}
+
+export interface QualificationTrainer {
+  id: string;
+  qualificationID: string;
+  employeeID: string;
+}
+
+export interface EmployeeQualificationTraining {
+  id: string;
+  employee_QualificationID: string;
+  trainingID: string;
+}
+
+export interface AdditionalSkill {
   id: string;
   name: string;
   description: string;
-  requiredTrainings: string[];
-  validityPeriod: number; // months
+  qualificationIDs: string[];
 }
 
-
-export interface QualificationHistory {
+export interface EmployeeAdditionalSkill {
   id: string;
-  userId: string;
-  qualificationId: string;
-  type: string;
-  date: string; // months
-  reason?: string;
-  approvedBy: string;
+  employeeID: string;
+  additionalSkillID: string;
 }
 
-
-export interface TrainingBooking {
+export interface JobTitleQualification {
   id: string;
-  userId: string;
-  trainingId: string;
-  sessionId: string;
-  status: 'ausstehend' | 'genehmigt' | 'abgelehnt' | 'abgeschlossen';
-  completedAt?: string;
-  approvedBy?: string;
-  createdAt: string;
+  jobTitleID: string;
+  qualificationID: string;
 }
 
-export interface Department {
+export interface AdditionalSkillQualification {
   id: string;
-  name: string;
-  head: string;
-  employeeCount: number;
-  budget: number;
-  kpis: {
-    metric: string;
-    value: number;
-    target: number;
-  }[];
-}
-
-export interface AuditLog {
-  id: string;
-  userId: string;
-  action: string;
-  details: string;
-  timestamp: string;
-  performedBy: string;
-  category: 'user' | 'training' | 'compensation' | 'performance' | 'system';
-}
-
-
-export interface Certification {
-  id: string;
-  name: string;
-  issuer: string;
-  dateObtained: string;
-  expiryDate?: string;
-  status: 'active' | 'expired' | 'pending';
+  additionalSkillID: string;
+  qualificationID: string;
 }
 
 export interface DocumentMetadata {
