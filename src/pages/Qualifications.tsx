@@ -20,10 +20,10 @@ export default function Qualifications() {
   const isHRAdmin = hasHRPermissions(employee);
   const isSupervisor = employee?.role === 'supervisor';
 
-  // Only allow access if user is a supervisor or HR
+  // Nur für Supervisoren oder HR freigeben
   if (!isHRAdmin && !isSupervisor) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+      <div className="flex items-center justify-center h-[calc(100vh-4rem)] p-4">
         <p className="text-lg text-gray-500 dark:text-gray-400">
           Sie haben keine Berechtigung, diese Seite zu sehen.
         </p>
@@ -42,8 +42,8 @@ export default function Qualifications() {
   };
 
   const handleEditQualification = (qualification: Qualification) => {
-    setLocalQualifications(prev => 
-      prev.map(q => q.id === qualification.id ? qualification : q)
+    setLocalQualifications(prev =>
+      prev.map(q => (q.id === qualification.id ? qualification : q))
     );
     toast.success('Qualifikation erfolgreich aktualisiert');
     setEditingQual(null);
@@ -55,8 +55,9 @@ export default function Qualifications() {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 p-4 sm:p-6">
+      {/* Header – mobile: gestapelt, ab sm: in einer Zeile */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
             Qualifikationen
@@ -65,7 +66,7 @@ export default function Qualifications() {
             Verwalten Sie Qualifikationen und deren Anforderungen
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <button
             onClick={() => setShowAddModal(true)}
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
@@ -77,48 +78,49 @@ export default function Qualifications() {
         </div>
       </div>
 
+      {/* Suchbereich */}
       <div className="bg-white dark:bg-[#121212] shadow rounded-lg">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Qualifikationen durchsuchen..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-                />
-              </div>
+        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex flex-col gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Qualifikationen durchsuchen..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+              />
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 p-6">
+        {/* Liste der Qualifikationen */}
+        <div className="grid grid-cols-1 gap-6 p-4 sm:p-6">
           {filteredQualifications.map((qualification) => (
             <div
               key={qualification.id}
               className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow p-6"
             >
-              <div className="flex items-start justify-between">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white break-words">
                     {qualification.name}
                   </h3>
-                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 break-words">
                     {qualification.description}
                   </p>
                 </div>
                 <button
                   onClick={() => setEditingQual(qualification)}
-                  className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                  className="self-start text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
                 >
                   <Edit2 className="h-5 w-5" />
                 </button>
               </div>
 
-              <div className="mt-4 grid grid-cols-2 gap-4 text-sm text-gray-500 dark:text-gray-400">
+              {/* Detailbereich: mobile zunächst 1 Spalte, ab sm 2 Spalten */}
+              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm text-gray-500 dark:text-gray-400">
                 <div>
                   <span className="font-medium">Gültigkeitsdauer:</span>{' '}
                   {qualification.validityInMonth} Monate
@@ -137,9 +139,10 @@ export default function Qualifications() {
         </div>
       </div>
 
+      {/* Modal für Hinzufügen / Bearbeiten */}
       {(showAddModal || editingQual) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-2xl w-full m-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-2xl w-full">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                 {editingQual ? 'Qualifikation bearbeiten' : 'Neue Qualifikation erstellen'}
@@ -188,7 +191,8 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
   });
 
   const [selectedDepartment, setSelectedDepartment] = useState('');
-  const availablePositions = allDepartments.find(d => d.name === selectedDepartment)?.positions || [];
+  const availablePositions =
+    allDepartments.find(d => d.name === selectedDepartment)?.positions || [];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -236,7 +240,9 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
           min="1"
           className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
           value={formData.validityPeriod}
-          onChange={(e) => setFormData({ ...formData, validityPeriod: parseInt(e.target.value) })}
+          onChange={(e) =>
+            setFormData({ ...formData, validityPeriod: parseInt(e.target.value) })
+          }
         />
       </div>
 
@@ -246,7 +252,9 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
             type="checkbox"
             className="rounded border-gray-300 text-primary focus:ring-primary"
             checked={formData.isFreeQualification}
-            onChange={(e) => setFormData({ ...formData, isFreeQualification: e.target.checked })}
+            onChange={(e) =>
+              setFormData({ ...formData, isFreeQualification: e.target.checked })
+            }
           />
           <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
             Freie Qualifikation (für alle Mitarbeiter verfügbar)

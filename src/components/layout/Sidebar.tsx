@@ -16,7 +16,7 @@ import { toggleSidebar } from '../../store/slices/uiSlice';
 import { cn } from '../../lib/utils';
 
 const navigation = [
-  { name: 'Dashbaord', href: '/', icon: LayoutDashboard },
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Schulungen', href: '/schulungen', icon: GraduationCap },
   { name: 'Schulungshistorie', href: '/training-history', icon: HistoryIcon },
   { name: 'Qualifikationen', href: '/qualifikationen', icon: Award },

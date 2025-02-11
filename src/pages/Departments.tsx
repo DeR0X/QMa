@@ -24,7 +24,7 @@ export default function Departments() {
     return jobTitle ? jobTitle.qualificationIDs : [];
   };
 
-  // Filter departments based on user role and search term
+  // Filtere Abteilungen anhand der Suchanfrage und Benutzerrolle
   const filteredDepartments = departments.filter(dept => {
     const matchesSearch = dept.department.toLowerCase().includes(searchTerm.toLowerCase());
     if (isHR) {
@@ -35,20 +35,20 @@ export default function Departments() {
     return false;
   });
 
-  // Get employees for selected department
+  // Hole Mitarbeiter der ausgewählten Abteilung
   const departmentEmployees = selectedDepartment
     ? employees.filter(user => user.departmentID === selectedDepartment)
     : [];
 
-  // Get employee count for each department
+  // Ermittel die Mitarbeiterzahl für eine Abteilung
   const getDepartmentEmployeeCount = (departmentId: string) => {
     return employees.filter(user => user.departmentID === departmentId).length;
   };
 
-  // Only allow access if user is a supervisor or HR
+  // Zugriff nur erlauben, wenn der Benutzer HR oder Supervisor ist
   if (!isHR && !isSupervisor) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+      <div className="flex items-center justify-center h-[calc(100vh-4rem)] p-4">
         <p className="text-lg text-gray-500 dark:text-gray-400">
           Sie haben keine Berechtigung, diese Seite zu sehen.
         </p>
@@ -57,8 +57,9 @@ export default function Departments() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 p-4 sm:p-6">
+      {/* Header: Basis (mobile) gestapelt, ab sm in einer Zeile */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
             Abteilungen
@@ -70,6 +71,7 @@ export default function Departments() {
         <Building2 className="h-8 w-8 text-primary" />
       </div>
 
+      {/* Suchfeld und Abteilungsübersicht */}
       <div className="bg-white dark:bg-[#121212] shadow rounded-lg p-6">
         <div className="mb-6">
           <input
@@ -81,6 +83,7 @@ export default function Departments() {
           />
         </div>
 
+        {/* Grid: mobile 1 Spalte, ab md 2 Spalten, ab lg 3 Spalten */}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredDepartments.map((dept) => (
             <div
@@ -128,16 +131,17 @@ export default function Departments() {
         </div>
       </div>
 
+      {/* Modal für die Mitarbeiterübersicht der ausgewählten Abteilung */}
       {selectedDepartment && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-4xl w-full m-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                {departments.find(d => d.id === selectedDepartment)?.department} - Mitarbeiterübersicht
+                {departments.find(d => d.id === selectedDepartment)?.department} – Mitarbeiterübersicht
               </h2>
               <button
                 onClick={() => setSelectedDepartment(null)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 mt-4 sm:mt-0"
               >
                 <X className="h-6 w-6" />
               </button>
@@ -150,18 +154,18 @@ export default function Departments() {
                     key={employee.id}
                     className="bg-gray-50 dark:bg-[#181818] rounded-lg p-4"
                   >
-                    <div className="flex items-start justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
                       <div className="flex items-center">
                         <div className="h-12 w-12 rounded-full bg-primary text-white flex items-center justify-center">
                           <span className="text-lg font-medium">
                             {employee.fullName.split(' ').map((n) => n[0]).join('')}
                           </span>
                         </div>
-                        <div className="ml-4">
-                          <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                        <div className="ml-0 mt-2 sm:ml-4 sm:mt-0">
+                          <h3 className="text-lg font-medium text-gray-900 dark:text-white break-words">
                             {employee.fullName}
                           </h3>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                          <p className="text-sm text-gray-500 dark:text-gray-400 break-words">
                             {getJobTitle(employee.jobTitleID)}
                           </p>
                         </div>
@@ -183,11 +187,11 @@ export default function Departments() {
                           Kontaktinformationen
                         </h4>
                         <div className="space-y-2">
-                          <p className="text-sm flex items-center text-gray-500 dark:text-gray-400">
+                          <p className="text-sm flex items-center text-gray-500 dark:text-gray-400 break-words">
                             <Mail className="h-4 w-4 mr-2" />
                             {employee.eMail}
                           </p>
-                          <p className="text-sm flex items-center text-gray-500 dark:text-gray-400">
+                          <p className="text-sm flex items-center text-gray-500 dark:text-gray-400 break-words">
                             <Users className="h-4 w-4 mr-2" />
                             Personalnummer: {employee.staffNumber}
                           </p>

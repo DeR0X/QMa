@@ -31,7 +31,6 @@ export default function Trainings() {
     const matchesSearch = training.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       training.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesMandatory = showMandatoryOnly ? training.isMandatory : true;
-    
     return matchesSearch && matchesMandatory;
   });
 
@@ -39,16 +38,12 @@ export default function Trainings() {
     const existingBooking = userBookings.find(
       b => b.trainingId === training.id && ['ausstehend', 'genehmigt'].includes(b.status)
     );
-
     if (existingBooking) {
       toast.error('Sie haben bereits eine Buchung für diese Schulung');
       return;
     }
-
-    // In a real app, this would make an API call
+    // In einer echten App würde hier ein API-Call erfolgen
     toast.success('Schulungssitzung erfolgreich gebucht! Warten auf Genehmigung.');
-
-    // Notify supervisor/HR about the booking
     const supervisor = employees.find(e => e.id === employee.supervisorID);
     if (supervisor) {
       dispatch(addNotification({
@@ -61,15 +56,12 @@ export default function Trainings() {
   };
 
   const handleAddTraining = (newTraining: Omit<Training, 'id'> & { targetAudience?: string[] }) => {
-    // In a real app, this would make an API call
+    // In einer echten App würde hier ein API-Call erfolgen
     toast.success('Schulung erfolgreich erstellt');
-
-    // Send notifications to relevant employees
     const affectedEmployees = employees.filter(emp => 
       newTraining.targetAudience?.includes(emp.departmentID) ||
       newTraining.isMandatory
     );
-
     affectedEmployees.forEach(employee => {
       dispatch(addNotification({
         userId: employee.id,
@@ -78,30 +70,25 @@ export default function Trainings() {
         message: `Eine neue Schulung "${newTraining.title}" ist für Sie verfügbar. Schauen Sie sich die Details an und buchen Sie bei Interesse einen Termin.`,
       }));
     });
-
     setShowAddModal(false);
   };
 
   const getBookingStatus = (training: Training) => {
     const booking = userBookings.find(b => b.trainingId === training.id);
     if (!booking) return null;
-
     const statusColors = {
       ausstehend: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200',
       genehmigt: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200',
       abgelehnt: 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200',
       abgeschlossen: 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200',
     };
-
     const statusIcons = {
       ausstehend: AlertCircle,
       genehmigt: CheckCircle,
       abgelehnt: XCircle,
       abgeschlossen: CheckCircle,
     };
-
     const StatusIcon = statusIcons[booking.status];
-
     return (
       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[booking.status]}`}>
         <StatusIcon className="w-4 h-4 mr-1" />
@@ -110,7 +97,7 @@ export default function Trainings() {
     );
   };
 
-  // Mock training sessions
+  // Mock-Funktion für Schulungstermine
   const getTrainingSessions = (training: Training) => {
     const sessions = [
       {
@@ -135,13 +122,13 @@ export default function Trainings() {
         trainer: 'Thomas Weber'
       }
     ];
-
     return sessions;
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 p-4 sm:p-6">
+      {/* Header – mobile-first: standardmäßig gestapelt, ab sm: in einer Zeile */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
             Verfügbare Schulungen
@@ -150,11 +137,11 @@ export default function Trainings() {
             Durchsuchen und buchen Sie Schulungen für Ihre berufliche Entwicklung
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           {canCreateTraining && (
             <button
               onClick={() => setShowAddModal(true)}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
+              className="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
             >
               <Plus className="h-5 w-5 mr-2" />
               Neue Schulung
@@ -164,20 +151,19 @@ export default function Trainings() {
         </div>
       </div>
 
+      {/* Such- und Filterbereich */}
       <div className="bg-white dark:bg-[#121212] shadow rounded-lg">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Schulungen durchsuchen..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-                />
-              </div>
+        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex flex-col gap-4 sm:flex-row">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Schulungen durchsuchen..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+              />
             </div>
             <div className="flex items-center space-x-4">
               <label className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
@@ -193,23 +179,24 @@ export default function Trainings() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 p-6">
+        {/* Trainingsliste */}
+        <div className="grid grid-cols-1 gap-6 p-4 sm:p-6">
           {filteredTrainings.map((training) => (
             <div
               key={training.id}
               className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow"
             >
-              <div className="p-6">
-                <div className="flex items-start justify-between">
+              <div className="p-4 sm:p-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white break-words">
                       {training.title}
                     </h3>
-                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 break-words">
                       {training.description}
                     </p>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                     {training.isMandatory && (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
                         Pflichtschulung
@@ -219,10 +206,10 @@ export default function Trainings() {
                   </div>
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-4 text-sm text-gray-500 dark:text-gray-400">
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-500 dark:text-gray-400">
                   <div className="flex items-center">
                     <Clock className="h-5 w-5 mr-2" />
-                    Dauer: {training.duration}
+                    <span>Dauer: {training.duration}</span>
                   </div>
                 </div>
 
@@ -234,14 +221,14 @@ export default function Trainings() {
                     {getTrainingSessions(training).map((session) => (
                       <div
                         key={session.id}
-                        className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg"
+                        className="flex flex-col sm:flex-row items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg space-y-4 sm:space-y-0"
                       >
-                        <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-4 w-full">
                           <div>
                             <Calendar className="h-5 w-5 text-gray-400" />
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                          <div className="w-full">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white break-words">
                               {new Date(session.date).toLocaleDateString('de-DE', {
                                 weekday: 'long',
                                 year: 'numeric',
@@ -253,16 +240,16 @@ export default function Trainings() {
                             </p>
                             <div className="mt-1 flex items-center text-sm text-gray-500 dark:text-gray-400">
                               <MapPin className="h-4 w-4 mr-1" />
-                              {session.location}
+                              <span className="break-words">{session.location}</span>
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-4">
-                          <div className="text-right">
-                            <p className="text-sm text-gray-900 dark:text-white">
+                        <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
+                          <div className="text-center sm:text-right w-full">
+                            <p className="text-sm text-gray-900 dark:text-white break-words">
                               {session.trainer}
                             </p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                            <p className="text-sm text-gray-500 dark:text-gray-400 break-words">
                               {session.availableSpots} Plätze verfügbar
                             </p>
                           </div>

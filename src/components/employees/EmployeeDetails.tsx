@@ -187,18 +187,18 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-        <div className="relative transform overflow-hidden rounded-lg bg-white dark:bg-[#121212] px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl sm:p-6">
-          <div className="absolute right-0 top-0 pr-4 pt-4">
-            <button
-              type="button"
-              className="rounded-md bg-white dark:bg-[#121212] text-gray-400 hover:text-gray-500 dark:text-white dark:hover:text-gray-300 focus:outline-none"
-              onClick={onClose}
-            >
-              <span className="sr-only">Close</span>
-              <X className="h-6 w-6" />
-            </button>
-          </div>
+  <div className="flex min-h-full items-center justify-center p-4 text-center">
+    <div className="relative transform overflow-hidden rounded-lg bg-white dark:bg-[#121212] px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl sm:p-6">
+      <div className="absolute right-0 top-0 pr-4 pt-4">
+        <button
+          type="button"
+          className="rounded-md bg-white dark:bg-[#121212] text-gray-400 hover:text-gray-500 dark:text-white dark:hover:text-gray-300 focus:outline-none"
+          onClick={onClose}
+        >
+          <span className="sr-only">Close</span>
+          <X className="h-6 w-6" />
+        </button>
+      </div>
 
           <div className="sm:flex sm:items-start">
             <div className="w-full">
@@ -215,8 +215,7 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                   </p>
                 </div>
               </div>
-
-              <div className="mt-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="overflow-x-auto">
                 <nav className="-mb-px flex space-x-8">
                   {tabs.map((tab) => (
                     <button
@@ -235,56 +234,67 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                   ))}
                 </nav>
               </div>
-
               <div className="mt-6">
-                {activeTab === 'info' && (
-                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                    {localEmployee.eMail && (
-                      <div className="flex items-center">
-                        <Mail className="h-5 w-5 text-gray-400" />
-                        <span className="ml-2 text-sm text-gray-900 dark:text-white">
-                          {localEmployee.eMail}
-                        </span>
-                      </div>
-                    )}
+              {activeTab === 'info' && (
+                <>
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                  {localEmployee.eMail && (
                     <div className="flex items-center">
-                      <Users className="h-5 w-5 text-gray-400" />
+                      <Mail className="h-5 w-5 text-gray-400" />
                       <span className="ml-2 text-sm text-gray-900 dark:text-white">
-                        Personal-Nr.: {localEmployee.staffNumber}
+                        {localEmployee.eMail}
                       </span>
                     </div>
-                    <div className="flex items-center">
-                      <Building2 className="h-5 w-5 text-gray-400" />
-                      <span className="ml-2 text-sm text-gray-900 dark:text-white">
-                        Abteilung: {getDepartmentName(localEmployee.departmentID)}
-                      </span>
-                    </div>
-                    <div className="flex items-center">
-                      <Award className="h-5 w-5 text-gray-400" />
-                      <span className="ml-2 text-sm text-gray-900 dark:text-white">
-                        Position: {getJobTitle(localEmployee.jobTitleID)}
-                      </span>
-                    </div>
-                    {localEmployee.additionalPositions?.map(posId => (
-                      <div key={posId} className="flex items-center justify-between col-span-2">
-                        <div className="flex items-center">
-                          <Award className="h-5 w-5 text-gray-400" />
-                          <span className="ml-2 text-sm text-gray-900 dark:text-white">
-                            Zusätzliche Position: {getJobTitle(posId)}
-                          </span>
+                  )}
+                  <div className="flex items-center">
+                    <Users className="h-5 w-5 text-gray-400" />
+                    <span className="ml-2 text-sm text-gray-900 dark:text-white">
+                      Personal-Nr.: {localEmployee.staffNumber}
+                    </span>
+                  </div>
+                  <div className="flex items-center">
+                    <Building2 className="h-5 w-5 text-gray-400" />
+                    <span className="ml-2 text-sm text-gray-900 dark:text-white">
+                      Abteilung: {getDepartmentName(localEmployee.departmentID)}
+                    </span>
+                  </div>
+                  <div className="flex items-center">
+                    <Award className="h-5 w-5 text-gray-400" />
+                    <span className="ml-2 text-sm text-gray-900 dark:text-white">
+                      Position: {getJobTitle(localEmployee.jobTitleID)}
+                    </span>
+                  </div>
+                </div>
+                {localEmployee.additionalPositions && localEmployee.additionalPositions.length > 0 && (
+                  <div className="mt-6">
+                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                      Zusätzliche Positionen
+                    </h4>
+                    <div className="space-y-4">
+                      {localEmployee.additionalPositions.map((posId) => (
+                        <div key={posId} className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <Award className="h-5 w-5 text-gray-400" />
+                            <span className="ml-2 text-sm text-gray-900 dark:text-white">
+                              {getJobTitle(posId)}
+                            </span>
+                          </div>
+                          {isHRAdmin && (
+                            <button
+                              onClick={() => handleRemoveAdditionalPosition(posId)}
+                              className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                            >
+                              <X className="h-5 w-5" />
+                            </button>
+                          )}
                         </div>
-                        {isHRAdmin && (
-                          <button
-                            onClick={() => handleRemoveAdditionalPosition(posId)}
-                            className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                          >
-                            <X className="h-5 w-5" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 )}
+                </>
+                )}
+
 
                 {activeTab === 'qualifications' && (
                   <div className="space-y-6">
@@ -491,63 +501,68 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
 
       {/* Position Modal */}
       {showPositionModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-md w-full m-4">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Position hinzufügen
-              </h2>
-              <button
-                onClick={() => setShowPositionModal(false)}
-                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {availableJobTitles.map((jobTitle) => (
-                <div
-                  key={jobTitle.id}
-                  className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
-                >
-                  <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-                    {jobTitle.jobTitle}
-                  </h3>
-                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    {jobTitle.description}
-                  </p>
-                  <div className="mt-4 flex justify-between items-center">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Erforderliche Qualifikationen: {jobTitle.qualificationIDs.length}
-                    </p>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleUpdatePosition(jobTitle.id)}
-                        className="px-3 py-1 text-xs font-medium text-white bg-primary rounded-md hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a]"
-                      >
-                        Als Hauptposition
-                      </button>
-                      <button
-                        onClick={() => handleUpdatePosition(jobTitle.id, true)}
-                        className="px-3 py-1 text-xs font-medium text-primary border border-primary rounded-md hover:bg-primary/10 dark:hover:bg-primary/5"
-                      >
-                        Als Zusatzposition
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {availableJobTitles.length === 0 && (
-                <p className="text-center text-gray-500 dark:text-gray-400 py-4">
-                  Keine weiteren Positionen verfügbar
-                </p>
-              )}
-            </div>
+  <div className="fixed inset-0 z-[60] bg-black bg-opacity-50 flex items-end justify-center md:items-center">
+    <div className="w-full md:max-w-md mx-4 transform transition-transform duration-300 ease-in-out">
+      <div className="bg-white dark:bg-[#121212] rounded-t-xl md:rounded-xl p-4 max-h-[85vh] overflow-y-auto">
+        <div className="pb-4 mb-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              Position hinzufügen
+            </h2>
+            <button
+              onClick={() => setShowPositionModal(false)}
+              className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            >
+              <X className="h-6 w-6" />
+            </button>
           </div>
         </div>
-      )}
+
+        <div className="space-y-4">
+          {availableJobTitles.map((jobTitle) => (
+            <div
+              key={jobTitle.id}
+              className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
+            >
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                {jobTitle.jobTitle}
+              </h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {jobTitle.description}
+              </p>
+              <div className="mt-4 space-y-2">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Erforderliche Qualifikationen: {jobTitle.qualificationIDs.length}
+                </p>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => handleUpdatePosition(jobTitle.id)}
+                    className="w-full px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a]"
+                  >
+                    Als Hauptposition
+                  </button>
+                  <button
+                    onClick={() => handleUpdatePosition(jobTitle.id, true)}
+                    className="w-full px-4 py-2 text-sm font-medium text-primary border border-primary rounded-md hover:bg-primary/10 dark:hover:bg-primary/5"
+                  >
+                    Als Zusatzposition
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {availableJobTitles.length === 0 && (
+            <p className="text-center text-gray-500 dark:text-gray-400 py-4">
+              Keine weiteren Positionen verfügbar
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
     </div>
   );
 }

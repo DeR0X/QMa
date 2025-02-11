@@ -203,7 +203,7 @@ export default function Employees() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 sm:p-6">
       <div className="bg-white dark:bg-[#121212] shadow rounded-lg">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex flex-col sm:flex-row gap-4">
