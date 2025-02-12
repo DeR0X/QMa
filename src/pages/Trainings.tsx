@@ -214,57 +214,105 @@ export default function Trainings() {
                 </div>
 
                 <div className="mt-6">
-                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
-                    Verfügbare Termine
-                  </h4>
-                  <div className="space-y-4">
-                    {getTrainingSessions(training).map((session) => (
-                      <div
-                        key={session.id}
-                        className="flex flex-col sm:flex-row items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg space-y-4 sm:space-y-0"
-                      >
-                        <div className="flex items-center space-x-4 w-full">
-                          <div>
-                            <Calendar className="h-5 w-5 text-gray-400" />
+                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
+                  Verfügbare Termine
+                </h4>
+                {/* Desktop-Ansicht: */}
+                <div className="hidden md:grid md:grid-cols-2 md:gap-6">
+                  {getTrainingSessions(training).map((session) => (
+                    <div
+                      key={session.id}
+                      className="p-4 bg-gray-50 dark:bg-[#181818] rounded-lg flex items-center justify-between"
+                    >
+                      <div className="flex items-center space-x-4">
+                        <Calendar className="h-5 w-5 text-gray-400" />
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white break-words">
+                            {new Date(session.date).toLocaleDateString('de-DE', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                          <div className="mt-1 flex items-center text-sm text-gray-500 dark:text-gray-400">
+                            <MapPin className="h-4 w-4 mr-1" />
+                            <span className="break-words">{session.location}</span>
                           </div>
-                          <div className="w-full">
-                            <p className="text-sm font-medium text-gray-900 dark:text-white break-words">
-                              {new Date(session.date).toLocaleDateString('de-DE', {
-                                weekday: 'long',
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </p>
-                            <div className="mt-1 flex items-center text-sm text-gray-500 dark:text-gray-400">
-                              <MapPin className="h-4 w-4 mr-1" />
-                              <span className="break-words">{session.location}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
-                          <div className="text-center sm:text-right w-full">
-                            <p className="text-sm text-gray-900 dark:text-white break-words">
-                              {session.trainer}
-                            </p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 break-words">
-                              {session.availableSpots} Plätze verfügbar
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => handleBookSession(training, session.id)}
-                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
-                            disabled={!session.availableSpots}
-                          >
-                            Buchen
-                          </button>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                      <div className="flex items-center space-x-4">
+                        <div className="text-right">
+                          <p className="text-sm text-gray-900 dark:text-white break-words">
+                            {session.trainer}
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 break-words">
+                            {session.availableSpots} Plätze verfügbar
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleBookSession(training, session.id)}
+                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
+                          disabled={!session.availableSpots}
+                        >
+                          Buchen
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
+                {/* Mobile-Ansicht: */}
+                <div className="md:hidden space-y-4">
+                  {getTrainingSessions(training).map((session) => (
+                    <div
+                      key={session.id}
+                      className="flex flex-col sm:flex-row items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg space-y-4 sm:space-y-0"
+                    >
+                      <div className="flex items-center space-x-4 w-full">
+                        <div>
+                          <Calendar className="h-5 w-5 text-gray-400" />
+                        </div>
+                        <div className="w-full">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white break-words">
+                            {new Date(session.date).toLocaleDateString('de-DE', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                          <div className="mt-1 flex items-center text-sm text-gray-500 dark:text-gray-400">
+                            <MapPin className="h-4 w-4 mr-1" />
+                            <span className="break-words">{session.location}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
+                        <div className="text-center sm:text-right w-full">
+                          <p className="text-sm text-gray-900 dark:text-white break-words">
+                            {session.trainer}
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 break-words">
+                            {session.availableSpots} Plätze verfügbar
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleBookSession(training, session.id)}
+                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
+                          disabled={!session.availableSpots}
+                        >
+                          Buchen
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               </div>
             </div>
           ))}

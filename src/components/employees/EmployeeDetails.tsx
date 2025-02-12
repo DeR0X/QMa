@@ -216,7 +216,7 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
                 </div>
               </div>
               <div className="overflow-x-auto">
-                <nav className="-mb-px flex space-x-8">
+                <nav className="flex space-x-8">
                   {tabs.map((tab) => (
                     <button
                       key={tab.id}
@@ -500,10 +500,15 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
       </div>
 
       {/* Position Modal */}
-      {showPositionModal && (
+{showPositionModal && (
   <div className="fixed inset-0 z-[60] bg-black bg-opacity-50 flex items-end justify-center md:items-center">
     <div className="w-full md:max-w-md mx-4 transform transition-transform duration-300 ease-in-out">
-      <div className="bg-white dark:bg-[#121212] rounded-t-xl md:rounded-xl p-4 max-h-[85vh] overflow-y-auto">
+      <div className="bg-white dark:bg-[#121212] rounded-t-xl md:rounded-xl p-4 max-h-[85vh] overflow-y-auto 
+        [&::-webkit-scrollbar]:w-2
+        [&::-webkit-scrollbar-track]:bg-gray-100
+        [&::-webkit-scrollbar-thumb]:bg-gray-300
+        dark:[&::-webkit-scrollbar-track]:bg-neutral-700
+        dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
         <div className="pb-4 mb-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
@@ -562,6 +567,7 @@ export default function EmployeeDetails({ employee, onClose, onUpdate, approvals
     </div>
   </div>
 )}
+
 
     </div>
   );
