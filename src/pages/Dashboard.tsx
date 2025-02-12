@@ -1,512 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { 
-  GraduationCap, Calendar, AlertTriangle, 
-  BookOpen, Award, X, CheckCircle, 
-  CalendarCheck, PieChart, Users, Clock,
-  Building2, ChevronLeft, ChevronRight
-} from 'lucide-react';
+import { GraduationCap, Calendar, Award, Building2 } from 'lucide-react';
 import { RootState } from '../store';
-import { trainings, bookings, qualifications, employees, jobTitles, departments } from '../data/mockData';
+import { trainings, bookings, qualifications, employees, jobTitles } from '../data/mockData';
 import { formatDate, calculateExpirationDate, isExpiringSoon } from '../lib/utils';
 import { hasHRPermissions } from '../store/slices/authSlice';
-import type { Qualification } from '../types';
 import { sendQualificationExpiryNotification } from '../lib/notifications';
-
-const ITEMS_PER_PAGE = 10;
-
-function StatisticsModal({ 
-  isOpen, 
-  onClose, 
-  title, 
-  employees, 
-  type 
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  title: string; 
-  employees: Array<any>; 
-  type: 'all' | 'completed' | 'pending' | 'expiring';
-}) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const totalItems = employees.length;
-  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-  
-  const paginatedEmployees = employees.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
-
-  if (!isOpen) return null;
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-            <CheckCircle className="w-4 h-4 mr-1" />
-            Abgeschlossen
-          </span>
-        );
-      case 'pending':
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-            <Clock className="w-4 h-4 mr-1" />
-            Ausstehend
-          </span>
-        );
-      case 'expiring':
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-            <AlertTriangle className="w-4 h-4 mr-1" />
-            Ablaufend
-          </span>
-        );
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-4xl w-full m-4 max-h-[90vh] overflow-y-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-              {title}
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-            >
-              <X className="h-6 w-6" />
-            </button>
-          </div>
-
-          {paginatedEmployees.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500 dark:text-gray-400">
-                Keine Mitarbeiter gefunden
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-[#181818]">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Mitarbeiter
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Abteilung
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Position
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-[#141616]">
-                    {paginatedEmployees.map((employee) => (
-                      <tr key={employee.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
-                              <span className="text-sm font-medium">
-                                {employee.fullName.split(' ').map((n: string) => n[0]).join('')}
-                              </span>
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                {employee.fullName}
-                              </div>
-                              <div className="text-sm text-gray-500 dark:text-gray-400">
-                                {employee.staffNumber}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900 dark:text-white">
-                            {departments.find(d => d.id === employee.departmentID)?.department}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900 dark:text-white">
-                            {jobTitles.find(jt => jt.id === employee.jobTitleID)?.jobTitle}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          {type === 'expiring' && employee.expiringQualifications?.map((qual: any) => (
-                            <div key={qual.id} className="text-sm text-gray-500 dark:text-gray-400">
-                              {qual.name} - Läuft ab am {formatDate(qual.expirationDate)}
-                            </div>
-                          ))}
-                          {type === 'completed' && (
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
-                              {employee.completedTrainings} abgeschlossene Schulungen
-                            </div>
-                          )}
-                          {type === 'pending' && (
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
-                              {employee.pendingTrainings} ausstehende Schulungen
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {getStatusBadge(type)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination */}
-              <div className="mt-6 flex items-center justify-between">
-                <div className="flex-1 flex justify-between sm:hidden">
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                    disabled={currentPage === 1}
-                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Vorherige
-                  </button>
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                    disabled={currentPage === totalPages}
-                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Nächste
-                  </button>
-                </div>
-                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm text-gray-700 dark:text-gray-300">
-                      Zeige{' '}
-                      <span className="font-medium">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span>
-                      {' '}-{' '}
-                      <span className="font-medium">
-                        {Math.min(currentPage * ITEMS_PER_PAGE, totalItems)}
-                      </span>
-                      {' '}von{' '}
-                      <span className="font-medium">{totalItems}</span>
-                      {' '}Ergebnissen
-                    </p>
-                  </div>
-                  <div>
-                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                      <button
-                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                        disabled={currentPage === 1}
-                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <ChevronLeft className="h-5 w-5" />
-                      </button>
-                      {Array.from({ length: totalPages }, (_, i) => i + 1)
-                        .filter(page => 
-                          page === 1 || 
-                          page === totalPages || 
-                          (page >= currentPage - 1 && page <= currentPage + 1)
-                        )
-                        .map((page, index, array) => {
-                          if (index > 0 && array[index - 1] !== page - 1) {
-                            return [
-                              <span key={`ellipsis-${page}`} className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-700 dark:text-gray-300">
-                                ...
-                              </span>,
-                              <button
-                                key={page}
-                                onClick={() => setCurrentPage(page)}
-                                className={`relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium ${
-                                  currentPage === page
-                                    ? 'z-10 text-gray-700 dark:text-gray-300'
-                                    : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1a1a1a]'
-                                }`}
-                              >
-                                {page}
-                              </button>
-                            ];
-                          }
-                          return (
-                            <button
-                              key={page}
-                              onClick={() => setCurrentPage(page)}
-                              className={`relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium ${
-                                currentPage === page
-                                  ? 'z-10 text-gray-700 dark:text-gray-300'
-                                  : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1a1a1a]'
-                              }`}
-                            >
-                              {page}
-                            </button>
-                          );
-                        })}
-                      <button
-                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                        disabled={currentPage === totalPages}
-                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <ChevronRight className="h-5 w-5" />
-                      </button>
-                    </nav>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TrainingStatistics({ departmentFilter = 'all' }) {
-  const [selectedStat, setSelectedStat] = useState<'all' | 'completed' | 'pending' | 'expiring' | null>(null);
-  const [showDetails, setShowDetails] = useState(false);
-  const [expandedDepartments, setExpandedDepartments] = useState<string[]>([]);
-
-  const allUsers = employees.filter(u => 
-    departmentFilter === 'all' || u.departmentID === departmentFilter
-  );
-
-  const stats = {
-    totalEmployees: allUsers.length,
-    completedTrainings: 0,
-    pendingTrainings: 0,
-    expiringQualifications: 0,
-  };
-
-  // Process employee data
-  const employeesWithStats = allUsers.map(employee => {
-    const jobTitle = jobTitles.find(jt => jt.id === employee.jobTitleID);
-    const requiredQuals = jobTitle ? jobTitle.qualificationIDs : [];
-    const employeeQuals = qualifications.filter(qual => requiredQuals.includes(qual.id));
-
-    // Calculate qualification status
-    const qualStatus = employeeQuals.map(qual => {
-      const lastTraining = bookings
-        .filter(b => b.userId === employee.id && b.status === 'abgeschlossen')
-        .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())[0];
-
-      if (!lastTraining?.completedAt) return { ...qual, status: 'missing' };
-
-      const expirationDate = calculateExpirationDate(lastTraining.completedAt, qual.validityInMonth);
-      const today = new Date();
-      const twoMonthsFromNow = new Date();
-      twoMonthsFromNow.setMonth(today.getMonth() + 2);
-
-      return {
-        ...qual,
-        status: expirationDate < today || expirationDate <= twoMonthsFromNow ? 'expired' : 'active',
-        expirationDate
-      };
-    });
-
-    const completedTrainings = bookings.filter(
-      b => b.userId === employee.id && b.status === 'abgeschlossen'
-    ).length;
-    const pendingTrainings = bookings.filter(
-      b => b.userId === employee.id && b.status === 'ausstehend'
-    ).length;
-    const expiringQuals = qualStatus.filter(q => q.status === 'expired');
-
-    stats.completedTrainings += completedTrainings;
-    stats.pendingTrainings += pendingTrainings;
-    stats.expiringQualifications += expiringQuals.length;
-
-    return {
-      ...employee,
-      completedTrainings,
-      pendingTrainings,
-      expiringQualifications: expiringQuals,
-      qualifications: qualStatus,
-    };
-  });
-
-  // Filter employees based on selected stat
-  const getFilteredEmployees = () => {
-    switch (selectedStat) {
-      case 'all':
-        return employeesWithStats;
-      case 'completed':
-        return employeesWithStats.filter(e => e.completedTrainings > 0);
-      case 'pending':
-        return employeesWithStats.filter(e => e.pendingTrainings > 0);
-      case 'expiring':
-        return employeesWithStats.filter(e => e.expiringQualifications.length > 0);
-      default:
-        return [];
-    }
-  };
-
-  const statCards = [
-    {
-      title: 'Mitarbeiter',
-      value: stats.totalEmployees,
-      icon: Users,
-      type: 'all' as const,
-      color: 'text-gray-400',
-    },
-    {
-      title: 'Abgeschlossen',
-      value: stats.completedTrainings,
-      icon: CheckCircle,
-      type: 'completed' as const,
-      color: 'text-green-500',
-    },
-    {
-      title: 'Ausstehend',
-      value: stats.pendingTrainings,
-      icon: Clock,
-      type: 'pending' as const,
-      color: 'text-yellow-500',
-    },
-    {
-      title: 'Ablaufend',
-      value: stats.expiringQualifications,
-      icon: AlertTriangle,
-      type: 'expiring' as const,
-      color: 'text-red-500',
-    },
-  ];
-
-  return (
-    
-    <div className="bg-white dark:bg-[#181818] rounded-lg shadow p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
-          <PieChart className="h-5 w-5 mr-2" />
-          Schulungsstatistik
-        </h3>
-        <button
-          onClick={() => setShowDetails(!showDetails)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
-        >
-          {showDetails ? 'Übersicht anzeigen' : 'Details anzeigen'}
-        </button>
-      </div>
-
-      {!showDetails ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {statCards.map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <div
-                key={stat.title}
-                onClick={() => setSelectedStat(stat.type)}
-                className="bg-gray-50 dark:bg-[#121212] p-4 rounded-lg cursor-pointer hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-center">
-                  <Icon className={`h-5 w-5 mr-2 ${stat.color}`} />
-                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                    {stat.title}
-                  </span>
-                </div>
-                <p className={`mt-2 text-2xl font-semibold ${stat.color}`}>
-                  {stat.value}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {departments.map(dept => (
-            <div key={dept.id} className="border dark:border-gray-700 rounded-lg overflow-hidden">
-              <div 
-                className="bg-gray-50 dark:bg-[#121212] p-4 flex justify-between items-center cursor-pointer"
-                onClick={() => setExpandedDepartments(prev => 
-                  prev.includes(dept.id) 
-                    ? prev.filter(id => id !== dept.id)
-                    : [...prev, dept.id]
-                )}
-              >
-                <div className="flex items-center">
-                  <Building2 className="h-5 w-5 text-gray-400 mr-2" />
-                  <h4 className="font-medium text-gray-900 dark:text-white">
-                    {dept.department}
-                  </h4>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {employeesWithStats.filter(e => e.departmentID === dept.id).length} Mitarbeiter
-                  </span>
-                </div>
-              </div>
-              {expandedDepartments.includes(dept.id) && (
-                <div className="p-4">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead>
-                      <tr>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
-                          Mitarbeiter
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
-                          Position
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
-                          Abgeschlossen
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
-                          Ausstehend
-                        </th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
-                          Ablaufend
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {employeesWithStats
-                        .filter(e => e.departmentID === dept.id)
-                        .map(employee => (
-                          <tr key={employee.id}>
-                            <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">
-                              {employee.fullName}
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
-                              {jobTitles.find(jt => jt.id === employee.jobTitleID)?.jobTitle}
-                            </td>
-                            <td className="px-4 py-2">
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                                {employee.completedTrainings}
-                              </span>
-                            </td>
-                            <td className="px-4 py-2">
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                                {employee.pendingTrainings}
-                              </span>
-                            </td>
-                            <td className="px-4 py-2">
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                                {employee.expiringQualifications.length}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Statistics Modal */}
-      <StatisticsModal
-        isOpen={selectedStat !== null}
-        onClose={() => setSelectedStat(null)}
-        title={selectedStat === 'all' ? 'Alle Mitarbeiter' :
-              selectedStat === 'completed' ? 'Abgeschlossene Schulungen' :
-              selectedStat === 'pending' ? 'Ausstehende Schulungen' :
-              'Ablaufende Qualifikationen'}
-        employees={getFilteredEmployees()}
-        type={selectedStat || 'all'}
-      />
-    </div>
-  );
-}
+import TrainingStatistics from '../components/dashboard/TrainingStatistics';
+import QualificationDetails from '../components/dashboard/QualificationDetails';
+import type { Qualification } from '../types';
 
 export default function Dashboard() {
   const { employee } = useSelector((state: RootState) => state.auth);
@@ -515,11 +17,9 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (employee) {
-      // Get qualifications based on job title
       const jobTitle = jobTitles.find(jt => jt.id === employee.jobTitleID);
       const userQuals = qualifications.filter(qual => jobTitle?.qualificationIDs.includes(qual.id));
       
-      // Check for expiring qualifications and send notifications
       userQuals.forEach(qual => {
         const lastTraining = bookings
           .filter(b => b.userId === employee.id && b.status === 'abgeschlossen')
@@ -542,41 +42,26 @@ export default function Dashboard() {
   const jobTitle = jobTitles.find(jt => jt.id === employee.jobTitleID);
   const userQualifications = qualifications.filter(qual => jobTitle?.qualificationIDs.includes(qual.id));
 
-  // Calculate expiring qualifications (2 months warning)
-  const expiringQualifications = userQualifications.filter(qual => {
-    const lastTraining = userBookings
-      .filter(b => b.status === 'abgeschlossen' && trainings.find(t => t.id === b.trainingId)?.id)
-      .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())[0];
-
-    if (!lastTraining?.completedAt) return false;
-
-    const expirationDate = calculateExpirationDate(lastTraining.completedAt, qual.validityInMonth);
-    return isExpiringSoon(expirationDate);
-  });
-
-  const pendingBookings = userBookings.filter(b => b.status === 'ausstehend');
-
   const stats = [
     { 
       name: 'Abgeschlossen Schulungen', 
       value: userBookings.filter(b => b.status === 'abgeschlossen').length,
-      icon: CheckCircle 
+      icon: Award 
     },
     { 
       name: 'Genehmigte Schulungen', 
       value: userBookings.filter(b => b.status === 'genehmigt').length,
-      icon: CalendarCheck 
+      icon: Calendar 
     },
     { 
       name: 'Verfügbare Schulungen', 
       value: trainings.length - userBookings.length,
-      icon: BookOpen 
+      icon: GraduationCap 
     },
   ];
 
   const getQualificationStatus = (qualId: string) => {
     const employeeQual = userQualifications.find((qual) => qual.id === qualId);
-
     if (!employeeQual) return 'inactive';
 
     const lastTraining = userBookings
@@ -622,10 +107,11 @@ export default function Dashboard() {
   return (
     <div className="space-y-6 p-4 sm:p-6">
       <div>
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-            {employee.fullName}
-          </h1>
-        </div>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+          {employee.fullName}
+        </h1>
+      </div>
+
       {isHR && <TrainingStatistics />}
 
       <div className="flex items-center justify-between">
@@ -668,9 +154,9 @@ export default function Dashboard() {
               Bevorstehende Schulungen
             </h2>
             <div className="mt-6 flow-root">
-                <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
-                  Keine bevorstehenden Schulungen geplant
-                </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                Keine bevorstehenden Schulungen geplant
+              </p>
             </div>
           </div>
         </div>
@@ -737,37 +223,10 @@ export default function Dashboard() {
       </div>
 
       {selectedQual && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-md w-full m-4 relative">
-            <button
-              onClick={() => setSelectedQual(null)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-              {selectedQual.name}
-            </h2>
-            
-            <p className="text-gray-600 dark:text-gray-300">
-              {selectedQual.description}
-            </p>
-            
-            <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-              <p>Gültigkeitsdauer: {selectedQual.validityInMonth} Monate</p>
-              <p className="mt-2">Erforderliche Schulungen:</p>
-              <ul className="list-disc list-inside mt-1">
-                {selectedQual.requiredTrainings.map(trainingId => {
-                  const training = trainings.find(t => t.id === trainingId);
-                  return training && (
-                    <li key={trainingId}>{training.title}</li>
-                  );
-                })}
-              </ul>
-            </div>
-          </div>
-        </div>
+        <QualificationDetails
+          qualification={selectedQual}
+          onClose={() => setSelectedQual(null)}
+        />
       )}
     </div>
   );
