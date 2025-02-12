@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Search, Filter, Calendar, Clock, MapPin, CheckCircle, XCircle, AlertCircle, GraduationCap, Plus } from 'lucide-react';
+import { 
+  Search, Filter, Calendar, Clock, MapPin, CheckCircle, XCircle, 
+  AlertCircle, GraduationCap, Plus, Award, Info, X
+} from 'lucide-react';
 import { RootState, AppDispatch } from '../store';
-import { employees, trainings, bookings } from '../data/mockData';
+import { employees, trainings, bookings, qualifications } from '../data/mockData';
 import { Training } from '../types';
 import { formatDate, formatDuration } from '../lib/utils';
 import { toast } from 'sonner';
@@ -18,6 +21,7 @@ export default function Trainings() {
   const [showMandatoryOnly, setShowMandatoryOnly] = useState(false);
   const [showUpcomingOnly, setShowUpcomingOnly] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedQualification, setSelectedQualification] = useState<string | null>(null);
 
   if (!employee) return null;
 
@@ -42,8 +46,8 @@ export default function Trainings() {
       toast.error('Sie haben bereits eine Buchung für diese Schulung');
       return;
     }
-    // In einer echten App würde hier ein API-Call erfolgen
-    toast.success('Schulungssitzung erfolgreich gebucht! Warten auf Genehmigung.');
+
+    // Notify the supervisor
     const supervisor = employees.find(e => e.id === employee.supervisorID);
     if (supervisor) {
       dispatch(addNotification({
@@ -53,23 +57,61 @@ export default function Trainings() {
         message: `${employee.fullName} hat sich für die Schulung "${training.title}" angemeldet und wartet auf Genehmigung.`,
       }));
     }
+
+    // Notify HR
+    const hrEmployees = employees.filter(e => e.role === 'hr');
+    hrEmployees.forEach(hrEmployee => {
+      dispatch(addNotification({
+        userId: hrEmployee.id,
+        type: 'info',
+        title: 'Neue Schulungsbuchung',
+        message: `${employee.fullName} hat sich für die Schulung "${training.title}" angemeldet. Supervisor: ${supervisor?.fullName || 'Nicht zugewiesen'}`,
+      }));
+    });
+
+    // Notify the employee
+    dispatch(addNotification({
+      userId: employee.id,
+      type: 'success',
+      title: 'Schulung gebucht',
+      message: `Ihre Buchung für "${training.title}" wurde erfolgreich eingereicht und wartet auf Genehmigung.`,
+    }));
+
+    toast.success('Schulungssitzung erfolgreich gebucht! Warten auf Genehmigung.');
   };
 
   const handleAddTraining = (newTraining: Omit<Training, 'id'> & { targetAudience?: string[] }) => {
-    // In einer echten App würde hier ein API-Call erfolgen
-    toast.success('Schulung erfolgreich erstellt');
+    // Notify affected employees
     const affectedEmployees = employees.filter(emp => 
       newTraining.targetAudience?.includes(emp.departmentID) ||
       newTraining.isMandatory
     );
+
     affectedEmployees.forEach(employee => {
       dispatch(addNotification({
         userId: employee.id,
         type: 'info',
         title: 'Neue Schulung verfügbar',
-        message: `Eine neue Schulung "${newTraining.title}" ist für Sie verfügbar. Schauen Sie sich die Details an und buchen Sie bei Interesse einen Termin.`,
+        message: `Eine neue Schulung "${newTraining.title}" ist für Sie verfügbar. ${
+          newTraining.isMandatory ? 'Dies ist eine Pflichtschulung.' : 'Schauen Sie sich die Details an und buchen Sie bei Interesse einen Termin.'
+        }`,
       }));
     });
+
+    // Notify HR about new training creation
+    if (!isHR) {
+      const hrEmployees = employees.filter(e => e.role === 'hr');
+      hrEmployees.forEach(hrEmployee => {
+        dispatch(addNotification({
+          userId: hrEmployee.id,
+          type: 'info',
+          title: 'Neue Schulung erstellt',
+          message: `${employee.fullName} hat eine neue Schulung "${newTraining.title}" erstellt.`,
+        }));
+      });
+    }
+
+    toast.success('Schulung erfolgreich erstellt');
     setShowAddModal(false);
   };
 
@@ -181,141 +223,167 @@ export default function Trainings() {
 
         {/* Trainingsliste */}
         <div className="grid grid-cols-1 gap-6 p-4 sm:p-6">
-          {filteredTrainings.map((training) => (
-            <div
-              key={training.id}
-              className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow"
-            >
-              <div className="p-4 sm:p-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white break-words">
-                      {training.title}
-                    </h3>
-                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 break-words">
-                      {training.description}
-                    </p>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                    {training.isMandatory && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
-                        Pflichtschulung
-                      </span>
-                    )}
-                    {getBookingStatus(training)}
-                  </div>
-                </div>
-
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-500 dark:text-gray-400">
-                  <div className="flex items-center">
-                    <Clock className="h-5 w-5 mr-2" />
-                    <span>Dauer: {training.duration}</span>
-                  </div>
-                </div>
-
-                <div className="mt-6">
-                <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
-                  Verfügbare Termine
-                </h4>
-                {/* Desktop-Ansicht: */}
-                <div className="hidden md:grid md:grid-cols-2 md:gap-6">
-                  {getTrainingSessions(training).map((session) => (
-                    <div
-                      key={session.id}
-                      className="p-4 bg-gray-50 dark:bg-[#181818] rounded-lg flex items-center justify-between"
-                    >
-                      <div className="flex items-center space-x-4">
-                        <Calendar className="h-5 w-5 text-gray-400" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white break-words">
-                            {new Date(session.date).toLocaleDateString('de-DE', {
-                              weekday: 'long',
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </p>
-                          <div className="mt-1 flex items-center text-sm text-gray-500 dark:text-gray-400">
-                            <MapPin className="h-4 w-4 mr-1" />
-                            <span className="break-words">{session.location}</span>
-                          </div>
+          {filteredTrainings.map((training) => {
+            const relatedQualifications = qualifications.filter(qual => 
+              qual.requiredTrainings.includes(training.id)
+            );
+            
+            return (
+              <div
+                key={training.id}
+                className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div className="p-4 sm:p-6">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white break-words">
+                        {training.title}
+                      </h3>
+                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 break-words">
+                        {training.description}
+                      </p>
+                      
+                      {/* Qualifikationen */}
+                      <div className="mt-4">
+                        <h4 className="text-sm font-medium text-gray-900 dark:text-white flex items-center">
+                          <Award className="h-4 w-4 mr-2" />
+                          Erreichbare Qualifikationen:
+                        </h4>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {relatedQualifications.map(qual => (
+                            <button
+                              key={qual.id}
+                              onClick={() => setSelectedQualification(qual.id)}
+                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+                            >
+                              <Award className="h-3 w-3 mr-1" />
+                              {qual.name}
+                              <Info className="h-3 w-3 ml-1" />
+                            </button>
+                          ))}
                         </div>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <div className="text-right">
-                          <p className="text-sm text-gray-900 dark:text-white break-words">
-                            {session.trainer}
-                          </p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400 break-words">
-                            {session.availableSpots} Plätze verfügbar
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => handleBookSession(training, session.id)}
-                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
-                          disabled={!session.availableSpots}
-                        >
-                          Buchen
-                        </button>
                       </div>
                     </div>
-                  ))}
-                </div>
-                {/* Mobile-Ansicht: */}
-                <div className="md:hidden space-y-4">
-                  {getTrainingSessions(training).map((session) => (
-                    <div
-                      key={session.id}
-                      className="flex flex-col sm:flex-row items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg space-y-4 sm:space-y-0"
-                    >
-                      <div className="flex items-center space-x-4 w-full">
-                        <div>
-                          <Calendar className="h-5 w-5 text-gray-400" />
-                        </div>
-                        <div className="w-full">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white break-words">
-                            {new Date(session.date).toLocaleDateString('de-DE', {
-                              weekday: 'long',
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </p>
-                          <div className="mt-1 flex items-center text-sm text-gray-500 dark:text-gray-400">
-                            <MapPin className="h-4 w-4 mr-1" />
-                            <span className="break-words">{session.location}</span>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                      {training.isMandatory && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
+                          Pflichtschulung
+                        </span>
+                      )}
+                      {getBookingStatus(training)}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center">
+                      <Clock className="h-5 w-5 mr-2" />
+                      <span>Dauer: {training.duration}</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-6">
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
+                      Verfügbare Termine
+                    </h4>
+                    {/* Desktop-Ansicht: */}
+                    <div className="hidden md:grid md:grid-cols-2 md:gap-6">
+                      {getTrainingSessions(training).map((session) => (
+                        <div
+                          key={session.id}
+                          className="p-4 bg-gray-50 dark:bg-[#181818] rounded-lg flex items-center justify-between"
+                        >
+                          <div className="flex items-center space-x-4">
+                            <Calendar className="h-5 w-5 text-gray-400" />
+                            <div>
+                              <p className="text-sm font-medium text-gray-900 dark:text-white break-words">
+                                {new Date(session.date).toLocaleDateString('de-DE', {
+                                  weekday: 'long',
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </p>
+                              <div className="mt-1 flex items-center text-sm text-gray-500 dark:text-gray-400">
+                                <MapPin className="h-4 w-4 mr-1" />
+                                <span className="break-words">{session.location}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-4">
+                            <div className="text-right">
+                              <p className="text-sm text-gray-900 dark:text-white break-words">
+                                {session.trainer}
+                              </p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400 break-words">
+                                {session.availableSpots} Plätze verfügbar
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => handleBookSession(training, session.id)}
+                              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
+                              disabled={!session.availableSpots}
+                            >
+                              Buchen
+                            </button>
                           </div>
                         </div>
-                      </div>
-                      <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
-                        <div className="text-center sm:text-right w-full">
-                          <p className="text-sm text-gray-900 dark:text-white break-words">
-                            {session.trainer}
-                          </p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400 break-words">
-                            {session.availableSpots} Plätze verfügbar
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => handleBookSession(training, session.id)}
-                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
-                          disabled={!session.availableSpots}
-                        >
-                          Buchen
-                        </button>
-                      </div>
+                      ))}
                     </div>
-                  ))}
+                    {/* Mobile-Ansicht: */}
+                    <div className="md:hidden space-y-4">
+                      {getTrainingSessions(training).map((session) => (
+                        <div
+                          key={session.id}
+                          className="flex flex-col sm:flex-row items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg space-y-4 sm:space-y-0"
+                        >
+                          <div className="flex items-center space-x-4 w-full">
+                            <div>
+                              <Calendar className="h-5 w-5 text-gray-400" />
+                            </div>
+                            <div className="w-full">
+                              <p className="text-sm font-medium text-gray-900 dark:text-white break-words">
+                                {new Date(session.date).toLocaleDateString('de-DE', {
+                                  weekday: 'long',
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </p>
+                              <div className="mt-1 flex items-center text-sm text-gray-500 dark:text-gray-400">
+                                <MapPin className="h-4 w-4 mr-1" />
+                                <span className="break-words">{session.location}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
+                            <div className="text-center sm:text-right w-full">
+                              <p className="text-sm text-gray-900 dark:text-white break-words">
+                                {session.trainer}
+                              </p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400 break-words">
+                                {session.availableSpots} Plätze verfügbar
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => handleBookSession(training, session.id)}
+                              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
+                              disabled={!session.availableSpots}
+                            >
+                              Buchen
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
-
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -325,6 +393,75 @@ export default function Trainings() {
           onAdd={handleAddTraining}
           userDepartment={isSupervisor ? employee.departmentID : undefined}
         />
+      )}
+
+      {/* Qualifikations-Details Modal */}
+      {selectedQualification && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-md w-full m-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                Qualifikationsdetails
+              </h3>
+              <button
+                onClick={() => setSelectedQualification(null)}
+                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            {(() => {
+              const qualification = qualifications.find(q => q.id === selectedQualification);
+              if (!qualification) return null;
+              
+              return (
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                      {qualification.name}
+                    </h4>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                      {qualification.description}
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <h5 className="text-sm font-medium text-gray-900 dark:text-white">
+                      Details:
+                    </h5>
+                    <ul className="mt-2 space-y-2 text-sm text-gray-500 dark:text-gray-400">
+                      <li className="flex items-center">
+                        <Clock className="h-4 w-4 mr-2" />
+                        Gültigkeitsdauer: {qualification.validityInMonth} Monate
+                      </li>
+                      <li className="flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-2" />
+                        {qualification.isMandatory ? 'Pflichtqualifikation' : 'Optionale Qualifikation'}
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h5 className="text-sm font-medium text-gray-900 dark:text-white">
+                      Erforderliche Schulungen:
+                    </h5>
+                    <ul className="mt-2 space-y-2">
+                      {qualification.requiredTrainings.map(trainingId => {
+                        const training = trainings.find(t => t.id === trainingId);
+                        return training && (
+                          <li key={trainingId} className="text-sm text-gray-500 dark:text-gray-400">
+                            • {training.title}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
       )}
     </div>
   );
