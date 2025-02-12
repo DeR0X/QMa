@@ -59,7 +59,7 @@ function StatisticsModal({
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
             <AlertTriangle className="w-4 h-4 mr-1" />
-            Ablaufend
+            Ablaufend qwd
           </span>
         );
       default:
@@ -570,6 +570,52 @@ export default function Dashboard() {
       icon: BookOpen 
     },
   ];
+
+  const getQualificationStatus = (qualId: string) => {
+    const employeeQual = userQualifications.find((qual) => qual.id === qualId);
+
+    if (!employeeQual) return 'inactive';
+
+    const lastTraining = userBookings
+      .filter(b => b.status === 'abgeschlossen')
+      .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())[0];
+
+    const expiryDate = lastTraining && lastTraining.completedAt
+      ? calculateExpirationDate(lastTraining.completedAt, employeeQual.validityInMonth)
+      : new Date();
+    const today = new Date();
+    const twoMonthsFromNow = new Date(today.getFullYear(), today.getMonth() + 2, today.getDate());
+
+    if (expiryDate < today) return 'expired';
+    if (expiryDate <= twoMonthsFromNow) return 'expiring';
+    return 'active';
+  };
+
+  const getStatusStyles = (status: string) => {
+    switch (status) {
+      case 'active':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'expiring':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      case 'expired':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'active':
+        return 'Aktiv';
+      case 'expiring':
+        return 'Läuft bald ab';
+      case 'expired':
+        return 'Abgelaufen';
+      default:
+        return 'Inaktiv';
+    }
+  };
 
   return (
     <div className="space-y-6 p-4 sm:p-6">

@@ -392,85 +392,115 @@ export const trainings: Training[] = [
 ];
 
 export const bookings: TrainingBooking[] = [
+  // Abgeschlossene Schulungen
   {
     id: '1',
-    userId: '1',
+    userId: 'E001',
     trainingId: '1',
     sessionId: '1',
-    status: 'ausstehend',
-    createdAt: '2024-03-15T10:00:00',
+    status: 'abgeschlossen',
+    completedAt: '2024-02-15',
+    approvedBy: 'E003',
+    createdAt: '2024-01-15',
   },
   {
     id: '2',
-    userId: '1',
+    userId: 'E002',
     trainingId: '2',
     sessionId: '2',
-    status: 'genehmigt',
-    approvedBy: '5',
-    createdAt: '2024-03-10T14:30:00',
+    status: 'abgeschlossen',
+    completedAt: '2024-02-20',
+    approvedBy: 'E003',
+    createdAt: '2024-01-20',
   },
+  
+  // Ausstehende Schulungen (noch nicht genehmigt)
   {
     id: '3',
-    userId: '2',
-    trainingId: '1',
-    sessionId: '1',
-    status: 'abgelehnt',
-    approvedBy: '5',
-    createdAt: '2024-03-05T09:15:00',
+    userId: 'E001',
+    trainingId: '3',
+    sessionId: '3',
+    status: 'ausstehend',
+    createdAt: '2024-03-01',
   },
   {
     id: '4',
-    userId: '3',
-    trainingId: '3',
-    sessionId: '3',
-    status: 'abgeschlossen',
-    completedAt: '2024-03-01T16:45:00',
-    approvedBy: '5',
-    createdAt: '2024-02-15T11:30:00',
+    userId: 'E002',
+    trainingId: '4',
+    sessionId: '4',
+    status: 'ausstehend',
+    createdAt: '2024-03-05',
   },
+  
+  // Genehmigte, aber noch nicht abgeschlossene Schulungen
   {
     id: '5',
-    userId: '4',
-    trainingId: '2',
-    sessionId: '2',
-    status: 'ausstehend',
-    createdAt: '2024-03-14T13:20:00',
+    userId: 'E006',
+    trainingId: '5',
+    sessionId: '5',
+    status: 'genehmigt',
+    approvedBy: 'E005',
+    createdAt: '2024-03-10',
   },
+  
+  // Ablaufende Schulungen (basierend auf Qualifikationen)
   {
     id: '6',
-    userId: '5',
-    trainingId: '1',
-    sessionId: '1',
-    status: 'genehmigt',
-    approvedBy: '1',
-    createdAt: '2024-03-12T15:45:00',
+    userId: 'E007',
+    trainingId: '2',
+    sessionId: '6',
+    status: 'abgeschlossen',
+    completedAt: '2023-04-15', // Vor fast einem Jahr abgeschlossen
+    approvedBy: 'E008',
+    createdAt: '2023-04-01',
+  },
+  {
+    id: '7',
+    userId: 'E009',
+    trainingId: '3',
+    sessionId: '7',
+    status: 'abgeschlossen',
+    completedAt: '2023-05-01', // Vor fast einem Jahr abgeschlossen
+    approvedBy: 'E010',
+    createdAt: '2023-04-15',
   }
 ];
 
 export const employeeQualifications: EmployeeQualification[] = [
+  // Aktive Qualifikationen
   {
     id: '1',
-    employeeID: '1',
+    employeeID: 'E001',
     qualificationID: '1',
-    qualifiedFrom: '2024-01-01',
-    toQualifyUntil: '2024-12-31',
-    isQualifiedUntil: '2024-12-31'
+    qualifiedFrom: '2024-02-15',
+    toQualifyUntil: '2026-02-15', // 24 Monate Gültigkeit
+    isQualifiedUntil: '2026-02-15'
   },
   {
     id: '2',
-    employeeID: '2',
-    qualificationID: '3',
-    qualifiedFrom: '2024-01-01',
-    toQualifyUntil: '2024-12-31',
-    isQualifiedUntil: '2024-12-31'
+    employeeID: 'E002',
+    qualificationID: '2',
+    qualifiedFrom: '2024-02-20',
+    toQualifyUntil: '2027-02-20', // 36 Monate Gültigkeit
+    isQualifiedUntil: '2027-02-20'
   },
+  
+  // Bald ablaufende Qualifikationen
   {
     id: '3',
-    employeeID: '3',
-    qualificationID: '2',
-    qualifiedFrom: '2024-01-01',
-    toQualifyUntil: '2025-12-31',
-    isQualifiedUntil: '2025-12-31'
+    employeeID: 'E007',
+    qualificationID: '3',
+    qualifiedFrom: '2023-04-15',
+    toQualifyUntil: '2024-04-15', // 12 Monate Gültigkeit, läuft bald ab
+    isQualifiedUntil: '2024-04-15'
+  },
+  {
+    id: '4',
+    employeeID: 'E009',
+    qualificationID: '4',
+    qualifiedFrom: '2023-05-01',
+    toQualifyUntil: '2024-05-01', // 12 Monate Gültigkeit, läuft bald ab
+    isQualifiedUntil: '2024-05-01'
   }
 ];
 
