@@ -59,7 +59,7 @@ function StatisticsModal({
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
             <AlertTriangle className="w-4 h-4 mr-1" />
-            Ablaufend qwd
+            Ablaufend
           </span>
         );
       default:
@@ -292,10 +292,13 @@ function TrainingStatistics({ departmentFilter = 'all' }) {
       if (!lastTraining?.completedAt) return { ...qual, status: 'missing' };
 
       const expirationDate = calculateExpirationDate(lastTraining.completedAt, qual.validityInMonth);
+      const today = new Date();
+      const twoMonthsFromNow = new Date();
+      twoMonthsFromNow.setMonth(today.getMonth() + 2);
+
       return {
         ...qual,
-        status: expirationDate < new Date() ? 'expired' :
-                isExpiringSoon(expirationDate) ? 'expiring' : 'active',
+        status: expirationDate < today || expirationDate <= twoMonthsFromNow ? 'expired' : 'active',
         expirationDate
       };
     });
@@ -306,7 +309,7 @@ function TrainingStatistics({ departmentFilter = 'all' }) {
     const pendingTrainings = bookings.filter(
       b => b.userId === employee.id && b.status === 'ausstehend'
     ).length;
-    const expiringQuals = qualStatus.filter(q => q.status === 'expiring' || q.status === 'expired');
+    const expiringQuals = qualStatus.filter(q => q.status === 'expired');
 
     stats.completedTrainings += completedTrainings;
     stats.pendingTrainings += pendingTrainings;
@@ -586,8 +589,7 @@ export default function Dashboard() {
     const today = new Date();
     const twoMonthsFromNow = new Date(today.getFullYear(), today.getMonth() + 2, today.getDate());
 
-    if (expiryDate < today) return 'expired';
-    if (expiryDate <= twoMonthsFromNow) return 'expiring';
+    if (expiryDate <= twoMonthsFromNow) return 'expired';
     return 'active';
   };
 
@@ -714,12 +716,10 @@ export default function Dashboard() {
                     <div className="ml-4">
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          expirationDate && expirationDate > new Date()
-                            ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
-                            : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+                          getStatusStyles(getQualificationStatus(qual.id))
                         }`}
                       >
-                        {expirationDate && expirationDate > new Date() ? 'Aktiv' : 'Abgelaufen'}
+                        {getStatusText(getQualificationStatus(qual.id))}
                       </span>
                     </div>
                   </div>
