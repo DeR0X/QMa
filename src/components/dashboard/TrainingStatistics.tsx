@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { PieChart, Building2, Users, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
-import { employees, departments, jobTitles } from '../../data/mockData';
+import { employees, departments, jobTitles, bookings } from '../../data/mockData';
 import StatisticsModal from './StatisticsModal';
+import EmployeeDetails from '../employees/EmployeeDetails';
 
 interface Props {
   departmentFilter?: string;
@@ -11,13 +12,14 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
   const [selectedStat, setSelectedStat] = useState<'all' | 'completed' | 'pending' | 'expiring' | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [expandedDepartments, setExpandedDepartments] = useState<string[]>([]);
+  const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
 
-  // Filtere Mitarbeiter anhand des Department-Filters
+  // Filter employees based on department filter
   const allUsers = employees.filter(u => 
     departmentFilter === 'all' || u.departmentID === departmentFilter
   );
 
-  // Statistik zusammenfassen (Mock-Daten)
+  // Calculate statistics
   const stats = {
     totalEmployees: allUsers.length,
     completedTrainings: 0,
@@ -26,9 +28,15 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
   };
 
   const employeesWithStats = allUsers.map(employee => {
-    const completedTrainings = 5; // Mock-Daten
-    const pendingTrainings = 2; // Mock-Daten
-    const expiringQuals: any[] = []; // Mock-Daten
+    const completedTrainings = bookings.filter(
+      b => b.userId === employee.id && b.status === 'abgeschlossen'
+    ).length;
+    
+    const pendingTrainings = bookings.filter(
+      b => b.userId === employee.id && b.status === 'ausstehend'
+    ).length;
+
+    const expiringQuals: any[] = []; // This would be calculated based on qualification expiry dates
 
     stats.completedTrainings += completedTrainings;
     stats.pendingTrainings += pendingTrainings;
@@ -58,29 +66,29 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
   };
 
   const statCards = [
-    {
-      title: 'Mitarbeiter',
+    { 
+      name: 'Mitarbeiter', 
       value: stats.totalEmployees,
       icon: Users,
       type: 'all' as const,
       color: 'text-gray-400',
     },
-    {
-      title: 'Abgeschlossen',
+    { 
+      name: 'Abgeschlossen', 
       value: stats.completedTrainings,
       icon: CheckCircle,
       type: 'completed' as const,
       color: 'text-green-500',
     },
-    {
-      title: 'Ausstehend',
+    { 
+      name: 'Ausstehend', 
       value: stats.pendingTrainings,
       icon: Clock,
       type: 'pending' as const,
       color: 'text-yellow-500',
     },
-    {
-      title: 'Ablaufend',
+    { 
+      name: 'Ablaufend', 
       value: stats.expiringQualifications,
       icon: AlertTriangle,
       type: 'expiring' as const,
@@ -90,7 +98,7 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
 
   return (
     <div className="bg-white dark:bg-[#181818] rounded-lg shadow p-6">
-      {/* Header – Mobile-first: Basislayout ist gestapelt, ab sm in einer Zeile */}
+      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
         <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
           <PieChart className="h-5 w-5 mr-2" />
@@ -104,21 +112,21 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
         </button>
       </div>
 
-      {/* Stat-Cards: Mobile-Basis: 2 Spalten, ab sm 4 Spalten */}
+      {/* Stat Cards */}
       {!showDetails ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {statCards.map((stat) => {
             const Icon = stat.icon;
             return (
               <div
-                key={stat.title}
+                key={stat.name}
                 onClick={() => setSelectedStat(stat.type)}
                 className="bg-gray-50 dark:bg-[#121212] p-4 rounded-lg cursor-pointer hover:shadow-md transition-shadow"
               >
                 <div className="flex items-center">
                   <Icon className={`h-5 w-5 mr-2 ${stat.color}`} />
                   <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                    {stat.title}
+                    {stat.name}
                   </span>
                 </div>
                 <p className={`mt-2 text-2xl font-semibold ${stat.color}`}>
@@ -129,7 +137,7 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
           })}
         </div>
       ) : (
-        // Detailansicht: Mobile-first, mit Tabellen-Layout, das in einen overflow-x-auto Container gewrappt ist
+        // Detailed view
         <div className="space-y-6">
           {departments.map(dept => (
             <div key={dept.id} className="border dark:border-gray-700 rounded-lg overflow-hidden">
@@ -168,7 +176,11 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
                         {employeesWithStats
                           .filter(e => e.departmentID === dept.id)
                           .map(employee => (
-                            <tr key={employee.id}>
+                            <tr 
+                              key={employee.id}
+                              onClick={() => setSelectedEmployee(employee)}
+                              className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                            >
                               <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{employee.fullName}</td>
                               <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
                                 {jobTitles.find(jt => jt.id === employee.jobTitleID)?.jobTitle}
@@ -215,6 +227,18 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
         employees={getFilteredEmployees()}
         type={selectedStat || 'all'}
       />
+
+      {selectedEmployee && (
+        <EmployeeDetails
+          employee={selectedEmployee}
+          onClose={() => setSelectedEmployee(null)}
+          onUpdate={() => {}}
+          approvals={[]}
+          trainings={[]}
+          handleApproveTraining={() => {}}
+          handleRejectTraining={() => {}}
+        />
+      )}
     </div>
   );
 }
