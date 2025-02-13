@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Search, Plus, Download, Upload, Filter, Lock, Unlock, ChevronDown, ChevronRight, X, ChevronLeft } from 'lucide-react';
-import { Employee } from '../types';
+import { Download, Upload } from 'lucide-react';
+import type { Employee } from '../types';
 import EmployeeDetails from '../components/employees/EmployeeDetails';
 import AddUserModal from '../components/employees/AddUserModal';
+import EmployeeList from '../components/employees/EmployeeList';
+import EmployeeFilters from '../components/employees/EmployeeFilters';
+import Pagination from '../components/employees/Pagination';
 import { RootState, AppDispatch } from '../store';
 import { toast } from 'sonner';
-import { employees, departments, jobTitles } from '../data/mockData';
+import { employees } from '../data/mockData';
 import { toggleUserActive } from '../store/slices/authSlice';
 import { hasHRPermissions } from '../store/slices/authSlice';
 
@@ -20,40 +23,11 @@ export default function Employees() {
   const [employeesList, setEmployeesList] = useState<Employee[]>(employees);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [expandedSupervisors, setExpandedSupervisors] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const { employee: currentEmployee } = useSelector((state: RootState) => state.auth);
   const isHRAdmin = hasHRPermissions(currentEmployee);
-
-  const filterOptions: { value: FilterType; label: string }[] = [
-    { value: 'all', label: 'Alle' },
-    { value: 'employees', label: 'Nur Mitarbeiter' },
-    { value: 'supervisors', label: 'Nur Vorgesetzte' },
-    { value: 'active', label: 'Aktive' },
-    { value: 'inactive', label: 'Gesperrte' },
-  ];
-
-  // Get supervisors and their direct reports
-  const getSupervisorsWithEmployees = () => {
-    if (!currentEmployee) return [];
-    
-    const supervisors = employeesList.filter(emp => emp.role === 'supervisor');
-    return supervisors.map(supervisor => ({
-      ...supervisor,
-      directReports: employeesList.filter(emp => emp.supervisorID === supervisor.id)
-    }));
-  };
-
-  const toggleSupervisor = (e: React.MouseEvent, supervisorId: string) => {
-    e.stopPropagation();
-    setExpandedSupervisors(prev => 
-      prev.includes(supervisorId)
-        ? prev.filter(id => id !== supervisorId)
-        : [...prev, supervisorId]
-    );
-  };
 
   const filterEmployees = (employeesToFilter: Employee[]) => {
     return employeesToFilter.filter(emp => {
@@ -75,12 +49,11 @@ export default function Employees() {
     });
   };
 
-  const supervisorsWithEmployees = getSupervisorsWithEmployees();
-  const filteredSupervisors = filterEmployees(supervisorsWithEmployees);
-  const totalItems = filteredSupervisors.length;
+  const filteredEmployees = filterEmployees(employeesList);
+  const totalItems = filteredEmployees.length;
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
   
-  const paginatedSupervisors = filteredSupervisors.slice(
+  const paginatedEmployees = filteredEmployees.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
@@ -115,83 +88,6 @@ export default function Employees() {
     }
   };
 
-  const getJobTitle = (jobTitleId: string) => {
-    const jobTitle = jobTitles.find(jt => jt.id === jobTitleId);
-    return jobTitle ? jobTitle.jobTitle : jobTitleId;
-  };
-
-  const renderEmployeeRow = (employee: Employee, isSubRow: boolean = false) => (
-    <tr
-      key={employee.id}
-      className={`hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${
-        isSubRow ? 'bg-gray-50 dark:bg-gray-900/50' : ''
-      }`}
-      onClick={() => setSelectedEmployee(employee)}
-    >
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex items-center">
-          {isSubRow && <div className="w-6" />}
-          <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
-            <span className="text-sm font-medium">
-              {employee.fullName.split(' ').map((n) => n[0]).join('')}
-            </span>
-          </div>
-          <div className="ml-4">
-            <div className="text-sm font-medium text-gray-900 dark:text-white">
-              {employee.fullName}
-            </div>
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              {employee.eMail}
-            </div>
-          </div>
-        </div>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-        {departments.find(d => d.id === employee.departmentID)?.department || employee.departmentID}
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-        {getJobTitle(employee.jobTitleID)}
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-          !employee.isActive
-            ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-            : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-        }`}>
-          {!employee.isActive ? 'Gesperrt' : 'Aktiv'}
-        </span>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-          employee.isTrainer
-            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-            : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-        }`}>
-          {employee.isTrainer ? 'Trainer' : 'Kein Trainer'}
-        </span>
-        {employee.isTrainer && employee.trainerFor && employee.trainerFor.length > 0 && (
-          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            {employee.trainerFor.length} Schulung(en)
-          </div>
-        )}
-      </td>
-      {(isHRAdmin || currentEmployee?.role === 'supervisor') && (
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-          <button
-            onClick={(e) => handleToggleActive(e, employee.id)}
-            className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
-          >
-            {!employee.isActive ? (
-              <Unlock className="h-5 w-5" />
-            ) : (
-              <Lock className="h-5 w-5" />
-            )}
-          </button>
-        </td>
-      )}
-    </tr>
-  );
-
   if (!isHRAdmin && currentEmployee?.role !== 'supervisor') {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
@@ -207,55 +103,21 @@ export default function Employees() {
       <div className="bg-white dark:bg-[#121212] shadow rounded-lg">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Suche nach Name, Email, Abteilung oder Position..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-                />
-              </div>
-            </div>
+            <EmployeeFilters
+              searchTerm={searchTerm}
+              onSearchChange={(value) => {
+                setSearchTerm(value);
+                setCurrentPage(1);
+              }}
+              activeFilter={activeFilter}
+              onFilterChange={(value) => {
+                setActiveFilter(value as FilterType);
+                setCurrentPage(1);
+              }}
+              showFilters={showFilters}
+              onToggleFilters={() => setShowFilters(!showFilters)}
+            />
             <div className="flex gap-2">
-              <div className="relative">
-                <button
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121212] hover:bg-gray-50 dark:hover:bg-gray-600"
-                >
-                  <Filter className="h-5 w-5 mr-2" />
-                  {filterOptions.find(f => f.value === activeFilter)?.label}
-                </button>
-                
-                {showFilters && (
-                  <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-10">
-                    <div className="py-1">
-                      {filterOptions.map((option) => (
-                        <button
-                          key={option.value}
-                          onClick={() => {
-                            setActiveFilter(option.value);
-                            setShowFilters(false);
-                            setCurrentPage(1);
-                          }}
-                          className={`block w-full text-left px-4 py-2 text-sm ${
-                            activeFilter === option.value
-                              ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
-                              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
               {isHRAdmin && (
                 <>
                   <button className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121212] hover:bg-gray-50 dark:hover:bg-gray-600">
@@ -273,208 +135,22 @@ export default function Employees() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-[#181818]">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Mitarbeiter
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Abteilung
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Position
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Trainer
-                </th>
-                {(isHRAdmin || currentEmployee?.role === 'supervisor') && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Aktionen
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-[#141616]">
-              {paginatedSupervisors.map(supervisor => (
-                <>
-                  <tr
-                    key={supervisor.id}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-                    onClick={() => setSelectedEmployee(supervisor)}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <button 
-                          className="mr-2"
-                          onClick={(e) => toggleSupervisor(e, supervisor.id)}
-                        >
-                          {expandedSupervisors.includes(supervisor.id) ? (
-                            <ChevronDown className="h-5 w-5 text-gray-400" />
-                          ) : (
-                            <ChevronRight className="h-5 w-5 text-gray-400" />
-                          )}
-                        </button>
-                        <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
-                          <span className="text-sm font-medium">
-                            {supervisor.fullName.split(' ').map((n) => n[0]).join('')}
-                          </span>
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {supervisor.fullName}
-                          </div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
-                            {supervisor.eMail}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {departments.find(d => d.id === supervisor.departmentID)?.department || supervisor.departmentID}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {getJobTitle(supervisor.jobTitleID)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        !supervisor.isActive
-                          ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                          : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                      }`}>
-                        {!supervisor.isActive ? 'Gesperrt' : 'Aktiv'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        supervisor.isTrainer
-                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                          : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-                      }`}>
-                        {supervisor.isTrainer ? 'Trainer' : 'Kein Trainer'}
-                      </span>
-                      {supervisor.isTrainer && supervisor.trainerFor && supervisor.trainerFor.length > 0 && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {supervisor.trainerFor.length} Schulung(en)
-                        </div>
-                      )}
-                    </td>
-                    {(isHRAdmin || currentEmployee?.role === 'supervisor') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <button
-                          onClick={(e) => handleToggleActive(e, supervisor.id)}
-                          className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
-                        >
-                          {!supervisor.isActive ? (
-                            <Unlock className="h-5 w-5" />
-                          ) : (
-                            <Lock className="h-5 w-5" />
-                          )}
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                  
-                </>
-              ))}
-            </tbody>
-          </table>
+          <EmployeeList
+            employees={paginatedEmployees}
+            onSelectEmployee={setSelectedEmployee}
+            onToggleActive={handleToggleActive}
+            isHRAdmin={isHRAdmin}
+            currentEmployee={currentEmployee}
+          />
         </div>
 
-        {/* Pagination */}
-        <div className="px-6 py-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-700">
-          <div className="flex-1 flex justify-between sm:hidden">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Vorherige
-            </button>
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Nächste
-            </button>
-          </div>
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                Zeige{' '}
-                <span className="font-medium">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span>
-                {' '}-{' '}
-                <span className="font-medium">
-                  {Math.min(currentPage * ITEMS_PER_PAGE, totalItems)}
-                </span>
-                {' '}von{' '}
-                <span className="font-medium">{totalItems}</span>
-                {' '}Ergebnissen
-              </p>
-            </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 dark:bg-[#181818] text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter(page => 
-                    page === 1 || 
-                    page === totalPages || 
-                    (page >= currentPage - 1 && page <= currentPage + 1)
-                  )
-                  .map((page, index, array) => {
-                    if (index > 0 && array[index - 1] !== page - 1) {
-                      return [
-                        <span key={`ellipsis-${page}`} className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white dark:bg-[#181818] text-sm font-medium text-gray-700 dark:text-gray-300">
-                          ...
-                        </span>,
-                        <button
-                          key={page}
-                          onClick={() => setCurrentPage(page)}
-                          className={`relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium ${
-                            currentPage === page
-                              ? 'z-10 text-gray-700 dark:text-gray-300'
-                              : 'bg-white dark:bg-[#181818] text-white dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1a1a1a]'
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      ];
-                    }
-                    return (
-                      <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        className={`relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium ${
-                          currentPage === page
-                            ? 'z-10 text-gray-700 dark:text-gray-300'
-                            : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1a1a1a]'
-                        }`}
-                      >
-                        {page}
-                      </button>
-                    );
-                  })}
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </button>
-              </nav>
-            </div>
-          </div>
-        </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          itemsPerPage={ITEMS_PER_PAGE}
+          onPageChange={setCurrentPage}
+        />
       </div>
 
       {selectedEmployee && (

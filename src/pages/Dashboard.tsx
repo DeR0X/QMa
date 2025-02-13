@@ -163,21 +163,21 @@ export default function Dashboard() {
         
         <div className="overflow-hidden rounded-lg bg-white dark:bg-[#181818] shadow">
           <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
+            {/* Für mobile Geräte: flex-col, ab sm: flex-row */}
+            <div className="flex flex-col sm:flex-row items-start justify-between mb-4">
               <h2 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
                 <Award className="h-5 w-5 mr-2" />
                 Ihre Qualifikationen
               </h2>
-              <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+              <div className="mt-2 sm:mt-0 flex items-center text-sm text-gray-500 dark:text-gray-400">
                 <Building2 className="h-4 w-4 mr-1" />
-                Position: {jobTitle?.jobTitle}
+                <span>Position: {jobTitle?.jobTitle}</span>
               </div>
             </div>
             <div className="mt-6 space-y-4">
               {userQualifications.map((qual) => {
                 const lastTraining = userBookings
-                  .filter(b => b.status === 'abgeschlossen' && trainings
-                    .find(t => t.id === b.trainingId)?.id)
+                  .filter(b => b.status === 'abgeschlossen' && trainings.find(t => t.id === b.trainingId)?.id)
                   .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())[0];
 
                 const expirationDate = lastTraining?.completedAt
@@ -185,7 +185,7 @@ export default function Dashboard() {
                   : null;
 
                 return (
-                  <div key={qual.id} className="flex items-center justify-between">
+                  <div key={qual.id} className="flex flex-col sm:flex-row items-center justify-between">
                     <div className="flex-1">
                       <h3 
                         className="text-sm font-medium text-gray-900 dark:text-white cursor-pointer hover:text-primary"
@@ -199,12 +199,8 @@ export default function Dashboard() {
                         </p>
                       )}
                     </div>
-                    <div className="ml-4">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          getStatusStyles(getQualificationStatus(qual.id))
-                        }`}
-                      >
+                    <div className="ml-0 sm:ml-4 mt-2 sm:mt-0">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles(getQualificationStatus(qual.id))}`}>
                         {getStatusText(getQualificationStatus(qual.id))}
                       </span>
                     </div>

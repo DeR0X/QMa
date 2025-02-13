@@ -1,6 +1,17 @@
 import { useState, useMemo } from 'react';
 import { useSelector } from 'react-redux';
-import { Search, FileText, Download, Calendar, CheckCircle, Upload, X, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  Search,
+  FileText,
+  Download,
+  Calendar,
+  CheckCircle,
+  Upload,
+  X,
+  Filter,
+  ChevronLeft,
+  ChevronRight
+} from 'lucide-react';
 import { RootState } from '../store';
 import { employees, trainings, bookings } from '../data/mockData';
 import { formatDate } from '../lib/utils';
@@ -13,12 +24,18 @@ const ITEMS_PER_PAGE = 10;
 
 // Generate years array from 2020 to current year
 const currentYear = new Date().getFullYear();
-const years = Array.from({ length: currentYear - 2019 }, (_, i) => (currentYear - i).toString());
+const years = Array.from({ length: currentYear - 2019 }, (_, i) =>
+  (currentYear - i).toString()
+);
 
 export default function TrainingHistory() {
-  const { employee: currentEmployee } = useSelector((state: RootState) => state.auth);
+  const { employee: currentEmployee } = useSelector(
+    (state: RootState) => state.auth
+  );
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedEmployee, setSelectedEmployee] = useState<string | 'all'>(currentEmployee?.id || 'all');
+  const [selectedEmployee, setSelectedEmployee] = useState<string | 'all'>(
+    currentEmployee?.id || 'all'
+  );
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedTraining, setSelectedTraining] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -34,15 +51,19 @@ export default function TrainingHistory() {
   const completedTrainings = useMemo(() => {
     const filtered = bookings
       .filter(booking => {
-        const matchesUser = !isHR ? booking.userId === currentEmployee?.id :
-          (selectedEmployee === 'all' || booking.userId === selectedEmployee);
+        const matchesUser = !isHR
+          ? booking.userId === currentEmployee?.id
+          : selectedEmployee === 'all' || booking.userId === selectedEmployee;
         const matchesStatus = booking.status === 'abgeschlossen';
         const employee = employees.find(e => e.id === booking.userId);
-        const matchesDepartment = selectedDepartment === 'all' || 
+        const matchesDepartment =
+          selectedDepartment === 'all' ||
           employee?.departmentID === selectedDepartment;
-        const matchesYear = selectedYear === 'all' || 
-          (booking.completedAt && new Date(booking.completedAt).getFullYear().toString() === selectedYear);
-        
+        const matchesYear =
+          selectedYear === 'all' ||
+          (booking.completedAt &&
+            new Date(booking.completedAt).getFullYear().toString() === selectedYear);
+
         return matchesUser && matchesStatus && matchesDepartment && matchesYear;
       })
       .map(booking => {
@@ -54,13 +75,20 @@ export default function TrainingHistory() {
           employee,
         };
       })
-      .filter(item => 
+      .filter(item =>
         item.training?.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.employee?.fullName.toLowerCase().includes(searchTerm.toLowerCase())
       );
 
     return filtered;
-  }, [selectedEmployee, selectedDepartment, selectedYear, searchTerm, currentEmployee, isHR]);
+  }, [
+    selectedEmployee,
+    selectedDepartment,
+    selectedYear,
+    searchTerm,
+    currentEmployee,
+    isHR,
+  ]);
 
   const totalPages = Math.ceil(completedTrainings.length / ITEMS_PER_PAGE);
   const paginatedTrainings = completedTrainings.slice(
@@ -76,7 +104,8 @@ export default function TrainingHistory() {
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
             Schulungshistorie
@@ -88,9 +117,11 @@ export default function TrainingHistory() {
         <FileText className="h-8 w-8 text-primary" />
       </div>
 
+      {/* Filterbereich */}
       <div className="bg-white dark:bg-[#121212] shadow rounded-lg">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex flex-wrap gap-4 items-center">
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            {/* Suchfeld */}
             <div className="flex-1 min-w-[200px] max-w-[400px]">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -107,6 +138,7 @@ export default function TrainingHistory() {
               </div>
             </div>
 
+            {/* Filterauswahl: Nur für HR */}
             {isHR && (
               <>
                 <select
@@ -120,7 +152,9 @@ export default function TrainingHistory() {
                 >
                   <option value="all">Alle Abteilungen</option>
                   {departments.map((dept) => (
-                    <option key={dept} value={dept}>{dept}</option>
+                    <option key={dept} value={dept}>
+                      {dept}
+                    </option>
                   ))}
                 </select>
 
@@ -134,9 +168,15 @@ export default function TrainingHistory() {
                 >
                   <option value="all">Alle Mitarbeiter</option>
                   {employees
-                    .filter(emp => selectedDepartment === 'all' || emp.departmentID === selectedDepartment)
+                    .filter(
+                      emp =>
+                        selectedDepartment === 'all' ||
+                        emp.departmentID === selectedDepartment
+                    )
                     .map((emp) => (
-                      <option key={emp.id} value={emp.id}>{emp.fullName}</option>
+                      <option key={emp.id} value={emp.id}>
+                        {emp.fullName}
+                      </option>
                     ))}
                 </select>
               </>
@@ -152,12 +192,15 @@ export default function TrainingHistory() {
             >
               <option value="all">Alle Jahre</option>
               {years.map((year) => (
-                <option key={year} value={year}>{year}</option>
+                <option key={year} value={year}>
+                  {year}
+                </option>
               ))}
             </select>
           </div>
         </div>
 
+        {/* Trainingsliste */}
         <div className={completedTrainings.length === 0 ? '' : 'overflow-x-auto'}>
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-[#181818]">
@@ -184,7 +227,10 @@ export default function TrainingHistory() {
             <tbody className="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-[#141616]">
               {paginatedTrainings.length === 0 ? (
                 <tr>
-                  <td colSpan={isHR ? 5 : 4} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                  <td
+                    colSpan={isHR ? 5 : 4}
+                    className="px-6 py-4 text-center text-gray-500 dark:text-gray-400"
+                  >
                     Keine Einträge gefunden
                   </td>
                 </tr>
@@ -246,34 +292,38 @@ export default function TrainingHistory() {
         {/* Pagination */}
         {completedTrainings.length > 0 && (
           <div className="px-6 py-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-700">
+            {/* Mobile Pagination (einspaltig) */}
             <div className="flex-1 flex justify-between sm:hidden">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Zurück
               </button>
               <button
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
-                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="ml-3 inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Weiter
               </button>
             </div>
+            {/* Desktop Pagination */}
             <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-gray-700 dark:text-gray-300">
-                  Zeige{' '}
-                  <span className="font-medium">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span>
-                  {' '}-{' '}
+                  Zeige&nbsp;
+                  <span className="font-medium">
+                    {(currentPage - 1) * ITEMS_PER_PAGE + 1}
+                  </span>
+                  {' - '}
                   <span className="font-medium">
                     {Math.min(currentPage * ITEMS_PER_PAGE, completedTrainings.length)}
                   </span>
-                  {' '}von{' '}
+                  &nbsp;von&nbsp;
                   <span className="font-medium">{completedTrainings.length}</span>
-                  {' '}Ergebnissen
+                  &nbsp;Ergebnissen
                 </p>
               </div>
               <div>
@@ -281,26 +331,26 @@ export default function TrainingHistory() {
                   <button
                     onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                     disabled={currentPage === 1}
-                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <ChevronLeft className="h-5 w-5" />
                   </button>
                   {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter(page => 
-                      page === 1 || 
-                      page === totalPages || 
+                    .filter(page =>
+                      page === 1 ||
+                      page === totalPages ||
                       (page >= currentPage - 1 && page <= currentPage + 1)
                     )
                     .map((page, index, array) => {
                       if (index > 0 && array[index - 1] !== page - 1) {
                         return [
-                          <span key={`ellipsis-${page}`} className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-700 dark:text-gray-300">
+                          <span key={`ellipsis-${page}`} className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-700 dark:text-gray-300">
                             ...
                           </span>,
                           <button
                             key={page}
                             onClick={() => setCurrentPage(page)}
-                            className={`relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium ${
+                            className={`inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium ${
                               currentPage === page
                                 ? 'z-10 bg-primary text-white'
                                 : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1a1a1a]'
@@ -314,7 +364,7 @@ export default function TrainingHistory() {
                         <button
                           key={page}
                           onClick={() => setCurrentPage(page)}
-                          className={`relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium ${
+                          className={`inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium ${
                             currentPage === page
                               ? 'z-10 bg-primary text-white'
                               : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#1a1a1a]'
@@ -327,7 +377,7 @@ export default function TrainingHistory() {
                   <button
                     onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                     disabled={currentPage === totalPages}
-                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <ChevronRight className="h-5 w-5" />
                   </button>
