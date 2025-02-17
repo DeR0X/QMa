@@ -204,48 +204,63 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
   };
 
   const isStepComplete = (step: number) => {
-    switch (step) {
-      case 1:
-        return formData.name.trim() !== '' && formData.description.trim() !== '';
-      case 2:
-        return formData.validityPeriod > 0;
-      case 3:
-        return formData.isFreeQualification || 
-          (selectedDepartment !== '' && formData.positions.length > 0);
-      default:
-        return false;
+    if (step === 1) {
+      return true; // Schritt 1 ist immer erreichbar
     }
+  
+    for (let i = 1; i <= step; i++) {
+      switch (i) {
+        case 1:
+          if (formData.name.trim() === '' || formData.description.trim() === '') return false;
+          break;
+        case 2:
+          if (formData.validityPeriod <= 0) return false;
+          break;
+        case 3:
+          if (!formData.isFreeQualification && (selectedDepartment === '' || formData.positions.length === 0)) return false;
+          break;
+        default:
+          return false;
+      }
+    }
+  
+    return true;
   };
-
+  
   const canProceed = isStepComplete(activeStep);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Progress Steps */}
       <div className="relative">
-        <div className="absolute top-4 w-full h-0.5 bg-gray-200 dark:bg-gray-700" />
-        <div className="relative flex justify-between">
-          {[1, 2, 3].map((step) => (
-            <button
-              key={step}
-              type="button"
-              onClick={() => isStepComplete(step - 1) && setActiveStep(step)}
-              className={`w-9 h-9 rounded-full flex items-center justify-center relative bg-white dark:bg-[#121212] border-2 transition-colors ${
-                activeStep >= step
-                  ? 'border-primary text-primary'
-                  : 'border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'
-              }`}
-            >
-              <span className="text-sm font-medium">{step}</span>
-            </button>
-          ))}
-        </div>
-        <div className="flex justify-between mt-2">
-          <span className="text-xs text-gray-500 dark:text-gray-400">Grundinfo</span>
-          <span className="text-xs text-gray-500 dark:text-gray-400">Gültigkeit</span>
-          <span className="text-xs text-gray-500 dark:text-gray-400">Zuweisung</span>
-        </div>
+      <div className="absolute top-4 w-full h-0.5 bg-gray-200 dark:bg-gray-700" />
+      <div className="relative flex justify-between">
+        {[1, 2, 3].map((step) => (
+          <button
+            key={step}
+            type="button"
+            onClick={() => {
+              if (isStepComplete(step - 1)) {
+                setActiveStep(step);
+              }
+            }}
+            className={`w-9 h-9 rounded-full flex items-center justify-center relative bg-white dark:bg-[#121212] border-2 transition-colors ${
+              activeStep >= step
+                ? 'border-primary text-primary'
+                : 'border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'
+            }`}
+          >
+            <span className="text-sm font-medium">{step}</span>
+          </button>
+        ))}
       </div>
+      <div className="flex justify-between mt-2">
+        <span className="text-xs text-gray-500 dark:text-gray-400">Grundinfo</span>
+        <span className="text-xs text-gray-500 dark:text-gray-400">Gültigkeit</span>
+        <span className="text-xs text-gray-500 dark:text-gray-400">Zuweisung</span>
+      </div>
+    </div>
+
 
       {/* Step 1: Basic Information */}
       {activeStep === 1 && (
