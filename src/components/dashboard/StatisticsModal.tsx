@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, CheckCircle, Clock, AlertCircle, Users, Calendar, Building2, Award } from 'lucide-react';
 import { departments, jobTitles, trainings, bookings, qualifications, employeeQualifications } from '../../data/mockData';
 import { formatDate } from '../../lib/utils';
+import EmployeeDetails from '../employees/EmployeeDetails';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -54,33 +55,10 @@ export default function StatisticsModal({ isOpen, onClose, title, employees, typ
     }
   };
 
-  const getEmployeeTrainings = (employeeId: string) => {
-    return bookings
-      .filter(booking => booking.userId === employeeId)
-      .map(booking => {
-        const training = trainings.find(t => t.id === booking.trainingId);
-        return {
-          ...booking,
-          training,
-        };
-      });
-  };
-
-  const getEmployeeQualifications = (employeeId: string) => {
-    return employeeQualifications
-      .filter(eq => eq.employeeID === employeeId)
-      .map(eq => {
-        const qualification = qualifications.find(q => q.id === eq.qualificationID);
-        return {
-          ...eq,
-          qualification,
-        };
-      });
-  };
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-[#121212] rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col">
+      {/* Mobile-first: Standardmäßig klein, ab sm: breiter */}
+      <div className="bg-white dark:bg-[#121212] rounded-lg w-full max-w-md sm:max-w-6xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
@@ -96,219 +74,89 @@ export default function StatisticsModal({ isOpen, onClose, title, employees, typ
 
         {/* Content */}
         <div className="flex-1 overflow-hidden p-4 sm:p-6">
-          {selectedEmployee ? (
-            <div className="space-y-6">
-              {/* Employee Header */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="h-12 w-12 rounded-full bg-primary text-white flex items-center justify-center">
-                    <span className="text-lg font-medium">
-                      {selectedEmployee.fullName.split(' ').map((n: string) => n[0]).join('')}
-                    </span>
-                  </div>
-                  <div className="ml-4">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                      {selectedEmployee.fullName}
-                    </h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {departments.find(d => d.id === selectedEmployee.departmentID)?.department} • 
-                      {jobTitles.find(jt => jt.id === selectedEmployee.jobTitleID)?.jobTitle}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setSelectedEmployee(null)}
-                  className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              {/* Training Sections */}
-              <div className="space-y-6">
-                {/* Completed Trainings */}
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900 dark:text-white flex items-center mb-4">
-                    <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
-                    Abgeschlossene Schulungen
-                  </h4>
-                  <div className="space-y-3">
-                    {getEmployeeTrainings(selectedEmployee.id)
-                      .filter(booking => booking.status === 'abgeschlossen')
-                      .map(booking => (
-                        <div
-                          key={booking.id}
-                          className="bg-gray-50 dark:bg-[#181818] p-3 rounded-lg"
+          {paginatedEmployees.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Keine Mitarbeiter gefunden
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <div className="inline-block min-w-full align-middle">
+                <div className="overflow-hidden border border-gray-200 dark:border-gray-700 sm:rounded-lg">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-[#181818]">
+                      <tr>
+                        <th className="py-2 pl-4 pr-3 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">
+                          Mitarbeiter
+                        </th>
+                        <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
+                          Abteilung
+                        </th>
+                        <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
+                          Position
+                        </th>
+                        <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
+                          Details
+                        </th>
+                        <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
+                          Status
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-[#141616]">
+                      {paginatedEmployees.map((employee) => (
+                        <tr 
+                          key={employee.id} 
+                          className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                          onClick={() => setSelectedEmployee(employee)}
                         >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                {booking.training?.title}
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                Abgeschlossen am: {formatDate(booking.completedAt!)}
-                              </p>
+                          <td className="whitespace-nowrap py-2 pl-4 pr-3 sm:pl-6">
+                            <div className="flex items-center">
+                              <div className="h-8 w-8 flex-shrink-0 rounded-full bg-primary text-white flex items-center justify-center">
+                                <span className="text-xs sm:text-sm font-medium">
+                                  {employee.fullName.split(' ').map((n: string) => n[0]).join('')}
+                                </span>
+                              </div>
+                              <div className="ml-2">
+                                <div className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                                  {employee.fullName}
+                                </div>
+                                <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                                  {employee.staffNumber}
+                                </div>
+                              </div>
                             </div>
-                            {getStatusBadge('completed')}
-                          </div>
-                        </div>
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm text-gray-900 dark:text-white">
+                            {departments.find(d => d.id === employee.departmentID)?.department || '-'}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm text-gray-900 dark:text-white">
+                            {jobTitles.find(jt => jt.id === employee.jobTitleID)?.jobTitle || '-'}
+                          </td>
+                          <td className="px-3 py-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                            {type === 'expiring' && employee.expiringQualifications?.map((qual: any) => (
+                              <div key={qual.id}>
+                                {qual.name} – Läuft ab am {new Date(qual.expirationDate).toLocaleDateString()}
+                              </div>
+                            ))}
+                            {type === 'completed' && (
+                              <div>{employee.completedTrainings} abgeschlossene Schulungen</div>
+                            )}
+                            {type === 'pending' && (
+                              <div>{employee.pendingTrainings} ausstehende Schulungen</div>
+                            )}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
+                            {getStatusBadge(type)}
+                          </td>
+                        </tr>
                       ))}
-                  </div>
-                </div>
-
-                {/* Pending Trainings */}
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900 dark:text-white flex items-center mb-4">
-                    <Clock className="h-4 w-4 mr-2 text-yellow-500" />
-                    Ausstehende Schulungen
-                  </h4>
-                  <div className="space-y-3">
-                    {getEmployeeTrainings(selectedEmployee.id)
-                      .filter(booking => booking.status === 'ausstehend')
-                      .map(booking => (
-                        <div
-                          key={booking.id}
-                          className="bg-gray-50 dark:bg-[#181818] p-3 rounded-lg"
-                        >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                {booking.training?.title}
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                Beantragt am: {formatDate(booking.createdAt)}
-                              </p>
-                            </div>
-                            {getStatusBadge('pending')}
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-
-                {/* Expiring Qualifications */}
-                <div>
-                  <h4 className="text-sm font-medium text-gray-900 dark:text-white flex items-center mb-4">
-                    <AlertCircle className="h-4 w-4 mr-2 text-red-500" />
-                    Ablaufende Qualifikationen
-                  </h4>
-                  <div className="space-y-3">
-                    {getEmployeeQualifications(selectedEmployee.id)
-                      .filter(eq => {
-                        const expiryDate = new Date(eq.isQualifiedUntil || Date.now());
-                        const twoMonthsFromNow = new Date();
-                        twoMonthsFromNow.setMonth(twoMonthsFromNow.getMonth() + 2);
-                        return expiryDate <= twoMonthsFromNow;
-                      })
-                      .map(eq => (
-                        <div
-                          key={eq.id}
-                          className="bg-gray-50 dark:bg-[#181818] p-3 rounded-lg"
-                        >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                {eq.qualification?.name}
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                Läuft ab am: {formatDate(eq.isQualifiedUntil!)}
-                              </p>
-                            </div>
-                            {getStatusBadge('expiring')}
-                          </div>
-                        </div>
-                      ))}
-                  </div>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
-          ) : (
-            <>
-              {paginatedEmployees.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Keine Mitarbeiter gefunden
-                  </p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <div className="inline-block min-w-full align-middle">
-                    <div className="overflow-hidden border border-gray-200 dark:border-gray-700 sm:rounded-lg">
-                      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead className="bg-gray-50 dark:bg-[#181818]">
-                          <tr>
-                            <th className="py-2 pl-4 pr-3 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">
-                              Mitarbeiter
-                            </th>
-                            <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
-                              Abteilung
-                            </th>
-                            <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
-                              Position
-                            </th>
-                            <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
-                              Details
-                            </th>
-                            <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
-                              Status
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-[#141616]">
-                          {paginatedEmployees.map((employee) => (
-                            <tr 
-                              key={employee.id} 
-                              className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-                              onClick={() => setSelectedEmployee(employee)}
-                            >
-                              <td className="whitespace-nowrap py-2 pl-4 pr-3 sm:pl-6">
-                                <div className="flex items-center">
-                                  <div className="h-8 w-8 flex-shrink-0 rounded-full bg-primary text-white flex items-center justify-center">
-                                    <span className="text-xs sm:text-sm font-medium">
-                                      {employee.fullName.split(' ').map((n: string) => n[0]).join('')}
-                                    </span>
-                                  </div>
-                                  <div className="ml-2">
-                                    <div className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
-                                      {employee.fullName}
-                                    </div>
-                                    <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                                      {employee.staffNumber}
-                                    </div>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm text-gray-900 dark:text-white">
-                                {departments.find(d => d.id === employee.departmentID)?.department || '-'}
-                              </td>
-                              <td className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm text-gray-900 dark:text-white">
-                                {jobTitles.find(jt => jt.id === employee.jobTitleID)?.jobTitle || '-'}
-                              </td>
-                              <td className="px-3 py-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                                {type === 'expiring' && employee.expiringQualifications?.map((qual: any) => (
-                                  <div key={qual.id}>
-                                    {qual.name} – Läuft ab am {new Date(qual.expirationDate).toLocaleDateString()}
-                                  </div>
-                                ))}
-                                {type === 'completed' && (
-                                  <div>{employee.completedTrainings} abgeschlossene Schulungen</div>
-                                )}
-                                {type === 'pending' && (
-                                  <div>{employee.pendingTrainings} ausstehende Schulungen</div>
-                                )}
-                              </td>
-                              <td className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
-                                {getStatusBadge(type)}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </>
           )}
         </div>
 
@@ -344,6 +192,19 @@ export default function StatisticsModal({ isOpen, onClose, title, employees, typ
           </div>
         )}
       </div>
+
+      {/* Employee Details Modal */}
+      {selectedEmployee && (
+        <EmployeeDetails
+          employee={selectedEmployee}
+          onClose={() => setSelectedEmployee(null)}
+          onUpdate={() => {}}
+          approvals={[]}
+          trainings={[]}
+          handleApproveTraining={() => {}}
+          handleRejectTraining={() => {}}
+        />
+      )}
     </div>
   );
 }

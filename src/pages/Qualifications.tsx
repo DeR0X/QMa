@@ -191,6 +191,7 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
   });
 
   const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [activeStep, setActiveStep] = useState(1);
   const availablePositions =
     allDepartments.find(d => d.name === selectedDepartment)?.positions || [];
 
@@ -202,133 +203,239 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
     });
   };
 
+  const isStepComplete = (step: number) => {
+    switch (step) {
+      case 1:
+        return formData.name.trim() !== '' && formData.description.trim() !== '';
+      case 2:
+        return formData.validityPeriod > 0;
+      case 3:
+        return formData.isFreeQualification || 
+          (selectedDepartment !== '' && formData.positions.length > 0);
+      default:
+        return false;
+    }
+  };
+
+  const canProceed = isStepComplete(activeStep);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Name
-        </label>
-        <input
-          type="text"
-          required
-          className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-        />
+      {/* Progress Steps */}
+      <div className="relative">
+        <div className="absolute top-4 w-full h-0.5 bg-gray-200 dark:bg-gray-700" />
+        <div className="relative flex justify-between">
+          {[1, 2, 3].map((step) => (
+            <button
+              key={step}
+              type="button"
+              onClick={() => isStepComplete(step - 1) && setActiveStep(step)}
+              className={`w-9 h-9 rounded-full flex items-center justify-center relative bg-white dark:bg-[#121212] border-2 transition-colors ${
+                activeStep >= step
+                  ? 'border-primary text-primary'
+                  : 'border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'
+              }`}
+            >
+              <span className="text-sm font-medium">{step}</span>
+            </button>
+          ))}
+        </div>
+        <div className="flex justify-between mt-2">
+          <span className="text-xs text-gray-500 dark:text-gray-400">Grundinfo</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">Gültigkeit</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">Zuweisung</span>
+        </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Beschreibung
-        </label>
-        <textarea
-          required
-          rows={3}
-          className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-          value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Gültigkeitsdauer (Monate)
-        </label>
-        <input
-          type="number"
-          required
-          min="1"
-          className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-          value={formData.validityPeriod}
-          onChange={(e) =>
-            setFormData({ ...formData, validityPeriod: parseInt(e.target.value) })
-          }
-        />
-      </div>
-
-      <div>
-        <label className="flex items-center">
-          <input
-            type="checkbox"
-            className="rounded border-gray-300 text-primary focus:ring-primary"
-            checked={formData.isFreeQualification}
-            onChange={(e) =>
-              setFormData({ ...formData, isFreeQualification: e.target.checked })
-            }
-          />
-          <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-            Freie Qualifikation (für alle Mitarbeiter verfügbar)
-          </span>
-        </label>
-      </div>
-
-      {!formData.isFreeQualification && (
-        <>
+      {/* Step 1: Basic Information */}
+      {activeStep === 1 && (
+        <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Abteilung
+              Name der Qualifikation
             </label>
-            <select
+            <input
+              type="text"
+              required
               className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-              value={selectedDepartment}
-              onChange={(e) => {
-                setSelectedDepartment(e.target.value);
-                setFormData(prev => ({ ...prev, positions: [] }));
-              }}
-            >
-              <option value="">Abteilung auswählen</option>
-              {allDepartments.map((dept) => (
-                <option key={dept.name} value={dept.name}>
-                  {dept.name}
-                </option>
-              ))}
-            </select>
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="z.B. IT-Sicherheitszertifizierung"
+            />
           </div>
 
-          {selectedDepartment && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Positionen
-              </label>
-              <div className="mt-2 space-y-2">
-                {availablePositions.map((position) => (
-                  <label key={position} className="flex items-center">
-                    <input
-                      type="checkbox"
-                      className="rounded border-gray-300 text-primary focus:ring-primary"
-                      checked={formData.positions.includes(position)}
-                      onChange={(e) => {
-                        const newPositions = e.target.checked
-                          ? [...formData.positions, position]
-                          : formData.positions.filter(p => p !== position);
-                        setFormData({ ...formData, positions: newPositions });
-                      }}
-                    />
-                    <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                      {position}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Beschreibung
+            </label>
+            <textarea
+              required
+              rows={4}
+              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Detaillierte Beschreibung der Qualifikation und ihrer Anforderungen..."
+            />
+          </div>
+        </div>
       )}
 
-      <div className="flex justify-end space-x-3">
+      {/* Step 2: Validity Period */}
+      {activeStep === 2 && (
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Gültigkeitsdauer (Monate)
+            </label>
+            <div className="mt-2 relative">
+              <input
+                type="number"
+                required
+                min="1"
+                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
+                value={formData.validityPeriod}
+                onChange={(e) =>
+                  setFormData({ ...formData, validityPeriod: parseInt(e.target.value) })
+                }
+              />
+              <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                Die Qualifikation muss nach {formData.validityPeriod} Monaten erneuert werden.
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gray-50 dark:bg-[#181818] rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+            <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+              Empfohlene Gültigkeitsdauer
+            </h4>
+            <div className="space-y-2">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                • Sicherheitsschulungen: 12 Monate
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                • Technische Zertifizierungen: 24 Monate
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                • Grundlegende Qualifikationen: 36 Monate
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Assignment */}
+      {activeStep === 3 && (
+        <div className="space-y-6">
+          <div>
+            <label className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                className="rounded border-gray-300 text-primary focus:ring-primary"
+                checked={formData.isFreeQualification}
+                onChange={(e) =>
+                  setFormData({ ...formData, isFreeQualification: e.target.checked })
+                }
+              />
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                Freie Qualifikation (für alle Mitarbeiter verfügbar)
+              </span>
+            </label>
+          </div>
+
+          {!formData.isFreeQualification && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Abteilung
+                </label>
+                <select
+                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
+                  value={selectedDepartment}
+                  onChange={(e) => {
+                    setSelectedDepartment(e.target.value);
+                    setFormData(prev => ({ ...prev, positions: [] }));
+                  }}
+                >
+                  <option value="">Abteilung auswählen</option>
+                  {allDepartments.map((dept) => (
+                    <option key={dept.name} value={dept.name}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedDepartment && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Positionen
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {availablePositions.map((position) => (
+                      <div
+                        key={position}
+                        className={`p-4 rounded-lg border transition-colors cursor-pointer ${
+                          formData.positions.includes(position)
+                            ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-primary/50'
+                        }`}
+                        onClick={() => {
+                          const newPositions = formData.positions.includes(position)
+                            ? formData.positions.filter(p => p !== position)
+                            : [...formData.positions, position];
+                          setFormData({ ...formData, positions: newPositions });
+                        }}
+                      >
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-300 text-primary focus:ring-primary"
+                            checked={formData.positions.includes(position)}
+                            onChange={() => {}} // Handled by parent div click
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <span className="ml-3 text-sm text-gray-700 dark:text-gray-300">
+                            {position}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Navigation Buttons */}
+      <div className="flex justify-between pt-6">
         <button
           type="button"
-          onClick={onCancel}
+          onClick={() => activeStep > 1 ? setActiveStep(activeStep - 1) : onCancel()}
           className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
         >
-          Abbrechen
+          {activeStep > 1 ? 'Zurück' : 'Abbrechen'}
         </button>
-        <button
-          type="submit"
-          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
-        >
-          {initialData ? 'Aktualisieren' : 'Erstellen'}
-        </button>
+        
+        {activeStep < 3 ? (
+          <button
+            type="button"
+            onClick={() => canProceed && setActiveStep(activeStep + 1)}
+            disabled={!canProceed}
+            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Weiter
+          </button>
+        ) : (
+          <button
+            type="submit"
+            disabled={!canProceed}
+            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {initialData ? 'Aktualisieren' : 'Erstellen'}
+          </button>
+        )}
       </div>
     </form>
   );
