@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Plus, Award, Edit2, Globe, Search, AlertCircle, BookOpen, Timer, Users, Calendar, MapPin } from 'lucide-react';
+import { X, Plus, Award, Edit2, Building2, Globe, Search, AlertCircle, BookOpen, Timer, Users, Calendar, MapPin, Info } from 'lucide-react';
 import { itDepartments, manufacturingDepartments } from '../../data/departments';
 import { qualifications } from '../../data/mockData';
 import type { Training } from '../../types';
@@ -102,25 +102,24 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
       case 4: // Qualifications
         // Optional step, no validation required
         break;
+
+      case 5: // Summary
+        // No additional validation needed for summary
+        break;
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleNext = () => {
-    if (validateStep(activeStep)) {
-      setActiveStep(prev => prev + 1);
-    }
-  };
-
-  const handleBack = () => {
-    setActiveStep(prev => prev - 1);
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateStep(activeStep)) {
+      return;
+    }
+
+    if (activeStep < 5) {
+      setActiveStep(activeStep + 1);
       return;
     }
 
@@ -139,6 +138,7 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
     };
 
     onAdd(newTraining);
+    onClose();
   };
 
   const addSession = () => {
@@ -199,7 +199,7 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
           <div className="relative">
             <div className="absolute top-4 w-full h-0.5 bg-gray-200 dark:bg-gray-700" />
             <div className="relative flex justify-between">
-              {[1, 2, 3, 4].map((step) => (
+              {[1, 2, 3, 4, 5].map((step) => (
                 <button
                   key={step}
                   type="button"
@@ -219,6 +219,7 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
               <span className="text-xs text-gray-500 dark:text-gray-400">Zielgruppe</span>
               <span className="text-xs text-gray-500 dark:text-gray-400">Termine</span>
               <span className="text-xs text-gray-500 dark:text-gray-400">Qualifikationen</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">Übersicht</span>
             </div>
           </div>
 
@@ -555,20 +556,168 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
             </div>
           )}
 
-          {/* Navigation Buttons */}
-          <div className="flex justify-between pt-6">
+          {/* Step 5: Summary */}
+          {activeStep === 5 && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
+                  <Info className="h-5 w-5 mr-2" />
+                  Übersicht der Schulung
+                </h3>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  formData.isMandatory 
+                    ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                    : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                }`}>
+                  {formData.isMandatory ? 'Pflichtschulung' : 'Optionale Schulung'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Basic Information Card */}
+                <div className="bg-gray-50 dark:bg-[#181818] rounded-lg p-4">
+                  <div className="flex items-center mb-4">
+                    <BookOpen className="h-5 w-5 text-gray-400 mr-2" />
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                      Grundinformationen
+                    </h4>
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        {formData.title}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        {formData.description}
+                      </p>
+                    </div>
+                    <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                      <Timer className="h-4 w-4 mr-2" />
+                      Dauer: {formData.duration}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Target Group Card */}
+                <div className="bg-gray-50 dark:bg-[#181818] rounded-lg p-4">
+                  <div className="flex items-center mb-4">
+                    <Users className="h-5 w-5 text-gray-400 mr-2" />
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                      Zielgruppe
+                    </h4>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                      <Building2 className="h-4 w-4 mr-2" />
+                      Abteilung: {formData.department}
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-900 dark:text-white">
+                        {formData.isForEntireDepartment 
+                          ? 'Verfügbar für die gesamte Abteilung'
+                          : 'Ausgewählte Positionen:'
+                        }
+                      </p>
+                      {!formData.isForEntireDepartment && formData.targetPositions.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {formData.targetPositions.map(position => (
+                            <span
+                              key={position}
+                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
+                            >
+                              {position}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Training Sessions Card */}
+                <div className="bg-gray-50 dark:bg-[#181818] rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center">
+                      <Calendar className="h-5 w-5 text-gray-400 mr-2" />
+                      <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                        Termine
+                      </h4>
+                    </div>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      {formData.sessions.length} {formData.sessions.length === 1 ? 'Termin' : 'Termine'}
+                    </span>
+                  </div>
+                  <div className="space-y-4">
+                    {formData.sessions.map((session, index) => (
+                      <div
+                        key={session.id}
+                        className="p-3 bg-white dark:bg-[#121212] rounded-md border border-gray-200 dark:border-gray-700"
+                      >
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            Termin {index + 1}
+                          </p>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {session.availableSpots} Plätze
+                          </span>
+                        </div>
+                        <div className="mt-2 space-y-1">
+                          <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
+                            <Calendar className="h-4 w-4 mr-2" />
+                            {new Date(session.date).toLocaleString()}
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
+                            <MapPin className="h-4 w-4 mr-2" />
+                            {session.location}
+                          </p>
+                          {session.trainer && (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
+                              <Users className="h-4 w-4 mr-2" />
+                              {session.trainer}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 dark:bg-[#181818] rounded-lg p-4">
+                  <div className="flex items-center mb-4">
+                    <Users className="h-5 w-5 text-gray-400 mr-2" />
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                    Qualifikationen ({formData.qualificationIds.length})
+                    </h4>
+                  </div>
+                  <div className="space-y-1">
+                    {formData.qualificationIds.map(qualId => {
+                      const qual = qualifications.find(q => q.id === qualId);
+                      return qual ? (
+                        <p key={qualId} className="text-sm text-gray-900 dark:text-white">
+                          • {qual.name}
+                        </p>
+                      ) : null;
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+         {/* Navigation Buttons */}
+         <div className="flex justify-between pt-6">
             <button
               type="button"
-              onClick={() => activeStep > 1 ? handleBack() : onClose()}
+              onClick={() => activeStep > 1 ? setActiveStep(activeStep - 1) : onClose()}
               className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
             >
-              {activeStep > 1 ? 'Zurück' : 'Abbrechen'}
+              {activeStep > 1 ? "Zurück" : "Abbrechen"}
             </button>
-            
-            {activeStep < 4 ? (
+
+            {activeStep != 6 ? (
               <button
                 type="button"
-                onClick={handleNext}
+                onClick={() => validateStep(activeStep) && setActiveStep(activeStep + 1)}
                 className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
               >
                 Weiter
