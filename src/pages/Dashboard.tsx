@@ -10,10 +10,13 @@ import TrainingStatistics from '../components/dashboard/TrainingStatistics';
 import QualificationDetails from '../components/dashboard/QualificationDetails';
 import type { Qualification } from '../types';
 
+import { getAllEmployees, getEmployeeById, searchEmployees } from '../lib/queries/employees';
+
 export default function Dashboard() {
   const { employee } = useSelector((state: RootState) => state.auth);
   const isHR = hasHRPermissions(employee);
   const [selectedQual, setSelectedQual] = useState<Qualification | null>(null);
+
 
   useEffect(() => {
     if (employee) {
