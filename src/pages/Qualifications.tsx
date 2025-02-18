@@ -128,7 +128,7 @@ export default function Qualifications() {
                 <div>
                   <span className="font-medium">Erforderliche Schulungen:</span>
                   <ul className="mt-1 list-disc list-inside">
-                    {qualification.requiredTrainings.map((trainingId) => (
+                    {qualification.requiredQualifications.map((trainingId) => (
                       <li key={trainingId}>Training #{trainingId}</li>
                     ))}
                   </ul>
@@ -184,51 +184,75 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
     name: initialData?.name || '',
     description: initialData?.description || '',
     validityPeriod: initialData?.validityInMonth || 12,
-    requiredTrainings: initialData?.requiredTrainings || [],
+    requiredQualifications: initialData?.requiredQualifications || [],
     department: '',
     positions: [] as string[],
     isFreeQualification: false,
   });
 
   const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [selectedQualifications, setSelectedQualifications] = useState<string[]>(
+    initialData?.requiredQualifications || []
+  );
+  const [searchTerm, setSearchTerm] = useState('');
   const [activeStep, setActiveStep] = useState(1);
-  const availablePositions =
-    allDepartments.find(d => d.name === selectedDepartment)?.positions || [];
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit({
-      ...formData,
-      id: initialData?.id,
+    const filteredQualifications = qualifications.filter(qual => {
+      // Filtere die aktuelle Qualifikation aus (falls im Bearbeitungsmodus)
+      if (initialData && qual.id === initialData.id) return false;
+      
+      // Filtere bereits ausgewählte Qualifikationen aus den Voraussetzungen
+      if (selectedQualifications.includes(qual.id)) return false;
+      
+      return qual.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             qual.description.toLowerCase().includes(searchTerm.toLowerCase());
     });
+
+ const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    for (let step = 1; step <= 4; step++) {
+      if (!isStepComplete(step)) {
+        return;
+      }
+    }
+
+    const qualificationData = {
+      ...formData,
+      validityInMonth: formData.validityPeriod,
+      requiredQualifications: selectedQualifications,
+    };
+
+    onSubmit(qualificationData);
   };
 
   const isStepComplete = (step: number) => {
-    if (step === 1) {
-      console.log(step);
-      return true; // Schritt 1 ist immer erreichbar
+    const newErrors: Record<string, string> = {};
+
+    switch (step) {
+      case 1:
+        if (!formData.name.trim()) {
+          newErrors.name = 'Name ist erforderlich';
+        }
+        if (!formData.description.trim()) {
+          newErrors.description = 'Beschreibung ist erforderlich';
+        }
+        break;
+
+      case 2:
+        if (formData.validityPeriod <= 0) {
+          newErrors.validityPeriod = 'Gültigkeitsdauer muss größer als 0 sein';
+        }
+        break;
+
+      case 3:
+        if (!formData.isFreeQualification && formData.department && formData.positions.length === 0) {
+          newErrors.positions = 'Mindestens eine Position muss ausgewählt werden';
+        }
+        break;
     }
-  
-    for (let i = 1; i <= step; i++) {
-      switch (i) {
-        case 1:
-          if (formData.name.trim() === '' || formData.description.trim() === '') return false;
-          break;
-        case 2:
-          if (formData.validityPeriod <= 0) return false;
-          break;
-        case 3:
-          if (!formData.isFreeQualification && (selectedDepartment === '' || formData.positions.length === 0)) {
-            console.log("test");
-            return false;
-          }
-          break;
-        default:
-          return false;
-      }
-    }
-  
-    return true;
+
+    return Object.keys(newErrors).length === 0;
   };
   
   const canProceed = isStepComplete(activeStep);
@@ -346,84 +370,92 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
       {activeStep === 3 && (
         <div className="space-y-6">
           <div>
-            <label className="flex items-center space-x-3">
+            <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
+              Erforderliche Qualifikationen
+            </h4>
+            
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
-                type="checkbox"
-                className="rounded border-gray-300 text-primary focus:ring-primary"
-                checked={formData.isFreeQualification}
-                onChange={(e) =>
-                  setFormData({ ...formData, isFreeQualification: e.target.checked })
-                }
+                type="text"
+                placeholder="Qualifikationen suchen..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-primary focus:border-primary dark:bg-[#181818] dark:text-white"
               />
-              <span className="text-sm text-gray-700 dark:text-gray-300">
-                Freie Qualifikation (für alle Mitarbeiter verfügbar)
-              </span>
-            </label>
-          </div>
+            </div>
 
-          {!formData.isFreeQualification && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Abteilung
-                </label>
-                <select
-                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-                  value={selectedDepartment}
-                  onChange={(e) => {
-                    setSelectedDepartment(e.target.value);
-                    setFormData(prev => ({ ...prev, positions: [] }));
-                  }}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {filteredQualifications.map((qual) => (
+                <div
+                  key={qual.id}
+                  className={`p-4 rounded-lg border transition-colors ${
+                    selectedQualifications.includes(qual.id)
+                      ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                      : 'border-gray-200 dark:border-gray-700'
+                  }`}
                 >
-                  <option value="">Abteilung auswählen</option>
-                  {allDepartments.map((dept) => (
-                    <option key={dept.name} value={dept.name}>
-                      {dept.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedDepartment && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Positionen
+                  <label className="flex items-start space-x-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedQualifications.includes(qual.id)}
+                      onChange={() => {
+                        const newSelected = selectedQualifications.includes(qual.id)
+                          ? selectedQualifications.filter(id => id !== qual.id)
+                          : [...selectedQualifications, qual.id];
+                        setSelectedQualifications(newSelected);
+                        setFormData({ ...formData, requiredQualifications: newSelected });
+                      }}
+                      className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {qual.name}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {qual.description}
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                        Gültigkeitsdauer: {qual.validityInMonth} Monate
+                      </p>
+                    </div>
                   </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {availablePositions.map((position) => (
-                      <div
-                        key={position}
-                        className={`p-4 rounded-lg border transition-colors cursor-pointer ${
-                          formData.positions.includes(position)
-                            ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                            : 'border-gray-200 dark:border-gray-700 hover:border-primary/50'
-                        }`}
-                        onClick={() => {
-                          const newPositions = formData.positions.includes(position)
-                            ? formData.positions.filter(p => p !== position)
-                            : [...formData.positions, position];
-                          setFormData({ ...formData, positions: newPositions });
-                        }}
-                      >
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            className="rounded border-gray-300 text-primary focus:ring-primary"
-                            checked={formData.positions.includes(position)}
-                            onChange={() => {}} // Handled by parent div click
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                          <span className="ml-3 text-sm text-gray-700 dark:text-gray-300">
-                            {position}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
                 </div>
-              )}
-            </>
-          )}
+              ))}
+            </div>
+
+            {selectedQualifications.length > 0 && (
+              <div className="mt-4">
+                <h5 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                  Ausgewählte Qualifikationen:
+                </h5>
+                <div className="flex flex-wrap gap-2">
+                  {selectedQualifications.map(qualId => {
+                    const qual = qualifications.find(q => q.id === qualId);
+                    return qual && (
+                      <span
+                        key={qualId}
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary"
+                      >
+                        {qual.name}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newSelected = selectedQualifications.filter(id => id !== qualId);
+                            setSelectedQualifications(newSelected);
+                            setFormData({ ...formData, requiredQualifications: newSelected });
+                          }}
+                          className="ml-1 hover:text-primary/80"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

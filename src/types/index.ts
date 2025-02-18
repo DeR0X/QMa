@@ -37,7 +37,7 @@ export interface Qualification {
   id: string;
   name: string;
   description: string;
-  requiredTrainings: string[];
+  requiredQualifications: string[];
   validityInMonth: number;
   isMandatory: boolean;
 }

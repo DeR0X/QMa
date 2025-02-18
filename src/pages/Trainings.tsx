@@ -225,7 +225,7 @@ export default function Trainings() {
         <div className="grid grid-cols-1 gap-6 p-4 sm:p-6">
           {filteredTrainings.map((training) => {
             const relatedQualifications = qualifications.filter(qual => 
-              qual.requiredTrainings.includes(training.id)
+              qual.requiredQualifications.includes(training.id)
             );
             
             return (
@@ -447,7 +447,7 @@ export default function Trainings() {
                       Erforderliche Schulungen:
                     </h5>
                     <ul className="mt-2 space-y-2">
-                      {qualification.requiredTrainings.map(trainingId => {
+                      {qualification.requiredQualifications.map(trainingId => {
                         const training = trainings.find(t => t.id === trainingId);
                         return training && (
                           <li key={trainingId} className="text-sm text-gray-500 dark:text-gray-400">
