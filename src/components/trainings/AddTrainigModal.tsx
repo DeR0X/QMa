@@ -60,7 +60,7 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
     }));
   };
 
-  const validateStep = (step: number) => {
+  const isStepComplete = (step: number) => {
     const newErrors: Record<string, string> = {};
 
     switch (step) {
@@ -114,11 +114,11 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateStep(activeStep)) {
+    if (!isStepComplete(activeStep)) {
       return;
     }
 
-    if (activeStep < 5) {
+    if (activeStep <= 4) {
       setActiveStep(activeStep + 1);
       return;
     }
@@ -203,7 +203,7 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
                 <button
                   key={step}
                   type="button"
-                  onClick={() => validateStep(step - 1) && setActiveStep(step)}
+                  onClick={() => isStepComplete(step - 1) && setActiveStep(step)}
                   className={`w-9 h-9 rounded-full flex items-center justify-center relative bg-white dark:bg-[#121212] border-2 transition-colors ${
                     activeStep >= step
                       ? 'border-primary text-primary'
@@ -714,17 +714,20 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
               {activeStep > 1 ? "Zurück" : "Abbrechen"}
             </button>
 
-            {activeStep != 6 ? (
+            {activeStep < 5 && (
               <button
                 type="button"
-                onClick={() => validateStep(activeStep) && setActiveStep(activeStep + 1)}
+                onClick={() => isStepComplete(activeStep) && setActiveStep(activeStep + 1)}
                 className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
               >
                 Weiter
               </button>
-            ) : (
+            )}
+
+            {activeStep === 5 && (
               <button
-                type="submit"
+                type="button"
+                onClick={handleSubmit}
                 className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
               >
                 Schulung erstellen

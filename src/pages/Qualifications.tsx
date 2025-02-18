@@ -205,6 +205,7 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
 
   const isStepComplete = (step: number) => {
     if (step === 1) {
+      console.log(step);
       return true; // Schritt 1 ist immer erreichbar
     }
   
@@ -217,7 +218,10 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
           if (formData.validityPeriod <= 0) return false;
           break;
         case 3:
-          if (!formData.isFreeQualification && (selectedDepartment === '' || formData.positions.length === 0)) return false;
+          if (!formData.isFreeQualification && (selectedDepartment === '' || formData.positions.length === 0)) {
+            console.log("test");
+            return false;
+          }
           break;
         default:
           return false;
@@ -240,7 +244,7 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
             key={step}
             type="button"
             onClick={() => {
-              if (isStepComplete(step - 1)) {
+              if (isStepComplete(step)) {
                 setActiveStep(step);
               }
             }}
