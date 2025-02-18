@@ -7,14 +7,29 @@ interface AuthState {
   isAuthenticated: boolean;
   loading: boolean;
   error: string | null;
+  sessionExpiry: number | null;
 }
 
-const initialState: AuthState = {
-  employee: null,
-  isAuthenticated: false,
-  loading: false,
-  error: null,
+// Load initial state from localStorage
+const loadInitialState = (): AuthState => {
+  const savedAuth = localStorage.getItem('auth');
+  if (savedAuth) {
+    const parsed = JSON.parse(savedAuth);
+    // Check if session is still valid
+    if (parsed.sessionExpiry && parsed.sessionExpiry > Date.now()) {
+      return parsed;
+    }
+  }
+  return {
+    employee: null,
+    isAuthenticated: false,
+    loading: false,
+    error: null,
+    sessionExpiry: null,
+  };
 };
+
+const initialState: AuthState = loadInitialState();
 
 const authSlice = createSlice({
   name: 'auth',
@@ -29,6 +44,10 @@ const authSlice = createSlice({
       state.isAuthenticated = true;
       state.loading = false;
       state.error = null;
+      // Set session expiry to 30 minutes from now
+      state.sessionExpiry = Date.now() + 30 * 60 * 1000;
+      // Save to localStorage
+      localStorage.setItem('auth', JSON.stringify(state));
     },
     loginFailure: (state, action: PayloadAction<string>) => {
       state.loading = false;
@@ -39,16 +58,35 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
       state.loading = false;
       state.error = null;
+      state.sessionExpiry = null;
+      // Clear localStorage
+      localStorage.removeItem('auth');
     },
     updateUserActiveStatus: (state, action: PayloadAction<{ userId: string; isActive: boolean }>) => {
       if (state.employee?.id === action.payload.userId) {
         state.employee.isActive = action.payload.isActive;
+        if (state.isAuthenticated) {
+          localStorage.setItem('auth', JSON.stringify(state));
+        }
+      }
+    },
+    refreshSession: (state) => {
+      if (state.isAuthenticated) {
+        state.sessionExpiry = Date.now() + 30 * 60 * 1000;
+        localStorage.setItem('auth', JSON.stringify(state));
       }
     },
   },
 });
 
-export const { loginStart, loginSuccess, loginFailure, logout, updateUserActiveStatus } = authSlice.actions;
+export const { 
+  loginStart, 
+  loginSuccess, 
+  loginFailure, 
+  logout, 
+  updateUserActiveStatus,
+  refreshSession 
+} = authSlice.actions;
 
 export const hasHRPermissions = (employee: Employee | null) => {
   return employee?.role === 'hr';
