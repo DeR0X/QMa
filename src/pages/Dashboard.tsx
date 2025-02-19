@@ -9,43 +9,32 @@ import { sendQualificationExpiryNotification } from '../lib/notifications';
 import TrainingStatistics from '../components/dashboard/TrainingStatistics';
 import QualificationDetails from '../components/dashboard/QualificationDetails';
 import type { Qualification } from '../types';
-
-import { getAllEmployees, getEmployeeById, searchEmployees } from '../lib/queries/employees';
+import { executeQuery } from '../lib/db';
 
 export default function Dashboard() {
   const { employee } = useSelector((state: RootState) => state.auth);
   const isHR = hasHRPermissions(employee);
   const [selectedQual, setSelectedQual] = useState<Qualification | null>(null);
 
-
-
   useEffect(() => {
-    // Test employee queries
-    const testQueries = async () => {
+    const fetchEmployees = async () => {
       try {
-        // Get all employees
-        const allEmployees = await getAllEmployees();
-        console.log('All Employees:', allEmployees);
-
-        // Get specific employee by ID
-        if (employee) {
-          const employeeDetails = await getEmployeeById(parseInt(employee.id));
-          console.log('Current Employee Details:', employeeDetails);
-        }
-
-        // Search employees
-        const searchResults = await searchEmployees('Dennis');
-        console.log('Search Results for "John":', searchResults);
+        // Example query to fetch all employees
+        const query = `
+          SELECT *
+          FROM tblEmployees
+          WHERE IsActive = 1
+        `;
+        
+        const results = await executeQuery(query);
+        console.log('Database query results:', results);
       } catch (error) {
-        console.error('Error executing employee queries:', error);
+        console.error('Error fetching employees:', error);
       }
     };
 
-    testQueries();
-  }, [employee]);
-
-
-
+    fetchEmployees();
+  }, []);
 
   useEffect(() => {
     if (employee) {
@@ -195,7 +184,6 @@ export default function Dashboard() {
         
         <div className="overflow-hidden rounded-lg bg-white dark:bg-[#181818] shadow">
           <div className="p-6">
-            {/* Für mobile Geräte: flex-col, ab sm: flex-row */}
             <div className="flex flex-col sm:flex-row items-start justify-between mb-4">
               <h2 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
                 <Award className="h-5 w-5 mr-2" />
