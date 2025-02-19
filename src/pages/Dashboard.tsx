@@ -18,6 +18,35 @@ export default function Dashboard() {
   const [selectedQual, setSelectedQual] = useState<Qualification | null>(null);
 
 
+
+  useEffect(() => {
+    // Test employee queries
+    const testQueries = async () => {
+      try {
+        // Get all employees
+        const allEmployees = await getAllEmployees();
+        console.log('All Employees:', allEmployees);
+
+        // Get specific employee by ID
+        if (employee) {
+          const employeeDetails = await getEmployeeById(parseInt(employee.id));
+          console.log('Current Employee Details:', employeeDetails);
+        }
+
+        // Search employees
+        const searchResults = await searchEmployees('Dennis');
+        console.log('Search Results for "John":', searchResults);
+      } catch (error) {
+        console.error('Error executing employee queries:', error);
+      }
+    };
+
+    testQueries();
+  }, [employee]);
+
+
+
+
   useEffect(() => {
     if (employee) {
       const jobTitle = jobTitles.find(jt => jt.id === employee.jobTitleID);
