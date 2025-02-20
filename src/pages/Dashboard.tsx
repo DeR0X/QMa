@@ -9,32 +9,12 @@ import { sendQualificationExpiryNotification } from '../lib/notifications';
 import TrainingStatistics from '../components/dashboard/TrainingStatistics';
 import QualificationDetails from '../components/dashboard/QualificationDetails';
 import type { Qualification } from '../types';
-import { executeQuery } from '../lib/db';
+
 
 export default function Dashboard() {
   const { employee } = useSelector((state: RootState) => state.auth);
   const isHR = hasHRPermissions(employee);
   const [selectedQual, setSelectedQual] = useState<Qualification | null>(null);
-
-  useEffect(() => {
-    const fetchEmployees = async () => {
-      try {
-        // Example query to fetch all employees
-        const query = `
-          SELECT *
-          FROM tblEmployees
-          WHERE IsActive = 1
-        `;
-        
-        const results = await executeQuery(query);
-        console.log('Database query results:', results);
-      } catch (error) {
-        console.error('Error fetching employees:', error);
-      }
-    };
-
-    fetchEmployees();
-  }, []);
 
   useEffect(() => {
     if (employee) {
