@@ -46,7 +46,7 @@ export default function Employees() {
           activeFilter === 'supervisors' ? 'supervisor' : undefined,
     isActive: activeFilter === 'active' ? true :
               activeFilter === 'inactive' ? false : undefined,
-    department: currentEmployee?.role === 'supervisor' ? currentEmployee.departmentID : undefined,
+    department: currentEmployee?.role === 'supervisor' ? currentEmployee.DepartmentID?.toString() : undefined,
   };
 
   const { 
@@ -73,7 +73,7 @@ export default function Employees() {
     e.stopPropagation();
     try {
       debugLog('Toggling employee active status', employeeId);
-      const employee = employeesData?.data.find((emp: Employee) => emp.id.toString() === employeeId);
+      const employee = employeesData?.data.find((emp: Employee) => emp.ID.toString() === employeeId);
       if (employee) {
         const newActiveStatus = !employee.isActive;
         await handleUpdateEmployee(employeeId, { isActive: newActiveStatus });
@@ -211,7 +211,7 @@ export default function Employees() {
         <EmployeeDetails
           employee={selectedEmployee}
           onClose={() => setSelectedEmployee(null)}
-          onUpdate={(data) => handleUpdateEmployee(selectedEmployee.id.toString(), data)}
+          onUpdate={(data) => handleUpdateEmployee(selectedEmployee.ID.toString(), data)}
           approvals={[]}
           trainings={[]}
           handleApproveTraining={() => {}}

@@ -43,7 +43,7 @@ export default function EmployeeList({
   // Filter supervisors and their direct reports
   const supervisors = employees.filter(emp => emp.role === 'supervisor');
   const getDirectReports = (supervisorId: string) => 
-    allEmployees.filter(emp => emp.supervisorID === supervisorId);
+    allEmployees.filter(emp => emp.SupervisorID?.toString() === supervisorId);
 
   return (
     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -77,7 +77,7 @@ export default function EmployeeList({
       .map((employee) => {
         console.log('Employee:', employee);
         return (
-          <React.Fragment key={employee.id}>
+          <React.Fragment key={employee.ID}>
             <tr
               onClick={() => onSelectEmployee(employee)}
               className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
@@ -87,9 +87,9 @@ export default function EmployeeList({
                   {employee.role === 'supervisor' && (
                     <button 
                       className="mr-2"
-                      onClick={(e) => toggleSupervisor(e, employee.id)}
+                      onClick={(e) => toggleSupervisor(e, employee.ID.toString())}
                     >
-                      {expandedSupervisors.includes(employee.id) ? (
+                      {expandedSupervisors.includes(employee.ID.toString()) ? (
                         <ChevronDown className="h-5 w-5 text-gray-400" />
                       ) : (
                         <ChevronRight className="h-5 w-5 text-gray-400" />
@@ -98,14 +98,14 @@ export default function EmployeeList({
                   )}
                   <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
                     <span className="text-sm font-medium">
-                      {typeof employee.fullName === 'string'
-                        ? employee.fullName.split(' ').map((n) => n[0]).join('')
+                      {typeof employee.FullName === 'string'
+                        ? employee.FullName.split(' ').map((n) => n[0]).join('')
                         : ''}
                     </span>
                   </div>
                   <div className="ml-4">
                     <div className="text-sm font-medium text-gray-900 dark:text-white">
-                      {employee.fullName}
+                      {employee.FullName}
                     </div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">
                       {employee.eMail}
@@ -114,10 +114,10 @@ export default function EmployeeList({
                 </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {getDepartmentName(employee.departmentID)}
+                  {getDepartmentName(employee.DepartmentID?.toString() || '')}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {getJobTitle(employee.jobTitleID)}
+                  {getJobTitle(employee.JobTitleID?.toString() || '')}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -140,7 +140,7 @@ export default function EmployeeList({
                 {(isHRAdmin || currentEmployee?.role === 'supervisor') && (
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <button
-                      onClick={(e) => onToggleActive(e, employee.id)}
+                      onClick={(e) => onToggleActive(e, employee.ID.toString())}
                       className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
                     >
                       {!employee.isActive ? (
@@ -153,12 +153,12 @@ export default function EmployeeList({
                 )}
               </tr>
               {employee.role === 'supervisor' && 
-               expandedSupervisors.includes(employee.id) && 
-               getDirectReports(employee.id)
+               expandedSupervisors.includes(employee.ID.toString()) && 
+               getDirectReports(employee.ID.toString())
                .filter(report => report)
                 .map((report, index) => (
                    <tr
-                     key={`report-${report.id}-${index}`}
+                     key={`report-${report.ID}-${index}`}
                      onClick={() => onSelectEmployee(report)}
                      className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer pl-8"
                    >
@@ -166,23 +166,23 @@ export default function EmployeeList({
                        <div className="flex items-center">
                          <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
                          <span className="text-sm font-medium">
-                           {typeof report.fullName === 'string'
-                             ? report.fullName.split(' ').map((n) => n[0]).join('')
+                           {typeof report.FullName === 'string'
+                             ? report.FullName.split(' ').map((n) => n[0]).join('')
                              : ''}
                          </span>
                          </div>
                          <div className="ml-4">
                            <div className="text-sm font-medium text-gray-900 dark:text-white">
-                             {report.fullName}
+                             {report.FullName}
                            </div>
                          </div>
                        </div>
                      </td>
                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                       {getDepartmentName(report.departmentID)}
+                       {getDepartmentName(report.DepartmentID?.toString() || '')}
                      </td>
                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                       {getJobTitle(report.jobTitleID)}
+                       {getJobTitle(report.JobTitleID?.toString() || '')}
                      </td>
                      <td className="px-6 py-4 whitespace-nowrap">
                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -205,7 +205,7 @@ export default function EmployeeList({
                      {(isHRAdmin || currentEmployee?.role === 'supervisor') && (
                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                          <button
-                           onClick={(e) => onToggleActive(e, report.id)}
+                           onClick={(e) => onToggleActive(e, report.ID.toString())}
                            className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
                          >
                            {!report.isActive ? (
