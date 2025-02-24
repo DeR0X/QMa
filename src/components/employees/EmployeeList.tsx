@@ -4,11 +4,6 @@ import { Lock, Unlock, ChevronDown, ChevronRight } from 'lucide-react';
 import type { Employee } from '../../types';
 import { departments, jobTitles, employees as allEmployees } from '../../data/mockData';
 
-// Debug function
-const debugLog = (message: string, data?: any) => {
-  console.log(`[EmployeeList] ${message}`, data || '');
-};
-
 interface Props {
   employees: Employee[];
   onSelectEmployee: (employee: Employee) => void;
@@ -35,16 +30,20 @@ export default function EmployeeList({
     );
   };
 
-  const getJobTitle = (jobTitleId: string | null) => {
-    if (!jobTitleId) return 'Keine Position';
+  const getDepartmentName = (departmentId: string) => {
+    const department = departments.find(d => d.id === departmentId);
+    return department ? department.department : 'Unbekannte Abteilung';
+  };
+
+  const getJobTitle = (jobTitleId: string) => {
     const jobTitle = jobTitles.find(jt => jt.id === jobTitleId);
-    return jobTitle ? jobTitle.jobTitle : jobTitleId;
+    return jobTitle ? jobTitle.jobTitle : 'Keine Position';
   };
 
   // Filter supervisors and their direct reports
   const supervisors = employees.filter(emp => emp.role === 'supervisor');
   const getDirectReports = (supervisorId: string) => 
-    allEmployees.filter(emp => emp.supervisorID?.toString() === supervisorId);
+    allEmployees.filter(emp => emp.supervisorID === supervisorId);
 
   return (
     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -73,46 +72,49 @@ export default function EmployeeList({
         </tr>
       </thead>
       <tbody className="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-[#141616]">
-        {employees
-          .filter(employee => employee)
-          .map((employee, index) => (
-            <React.Fragment key={employee.id}>
-              <tr
-                key={`employee-${employee.id}-${index}`}
-                onClick={() => onSelectEmployee(employee)}
-                className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-              >
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    {employee.role === 'supervisor' && (
-                      <button 
-                        className="mr-2"
-                        onClick={(e) => toggleSupervisor(e, employee.id.toString())}
-                      >
-                        {expandedSupervisors.includes(employee.id.toString()) ? (
-                          <ChevronDown className="h-5 w-5 text-gray-400" />
-                        ) : (
-                          <ChevronRight className="h-5 w-5 text-gray-400" />
-                        )}
-                      </button>
-                    )}
-                    <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
-                      <span className="text-sm font-medium">
-                        {(employee.fullName || '').split(' ').map((n) => n[0]).join('')}
-                      </span>
+      {employees
+      .filter(employee => employee)
+      .map((employee) => {
+        console.log('Employee:', employee);
+        return (
+          <React.Fragment key={employee.id}>
+            <tr
+              onClick={() => onSelectEmployee(employee)}
+              className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+            >
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="flex items-center">
+                  {employee.role === 'supervisor' && (
+                    <button 
+                      className="mr-2"
+                      onClick={(e) => toggleSupervisor(e, employee.id)}
+                    >
+                      {expandedSupervisors.includes(employee.id) ? (
+                        <ChevronDown className="h-5 w-5 text-gray-400" />
+                      ) : (
+                        <ChevronRight className="h-5 w-5 text-gray-400" />
+                      )}
+                    </button>
+                  )}
+                  <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
+                    <span className="text-sm font-medium">
+                      {typeof employee.fullName === 'string'
+                        ? employee.fullName.split(' ').map((n) => n[0]).join('')
+                        : ''}
+                    </span>
+                  </div>
+                  <div className="ml-4">
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">
+                      {employee.fullName}
                     </div>
-                    <div className="ml-4">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {employee.fullName}
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {employee.eMail || 'Keine E-Mail'}
-                      </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      {employee.eMail}
                     </div>
                   </div>
+                </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {employee.departmentID || `Abteilung ${employee.departmentID}`}
+                  {getDepartmentName(employee.departmentID)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                   {getJobTitle(employee.jobTitleID)}
@@ -138,7 +140,7 @@ export default function EmployeeList({
                 {(isHRAdmin || currentEmployee?.role === 'supervisor') && (
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <button
-                      onClick={(e) => onToggleActive(e, employee.id.toString())}
+                      onClick={(e) => onToggleActive(e, employee.id)}
                       className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
                     >
                       {!employee.isActive ? (
@@ -151,34 +153,33 @@ export default function EmployeeList({
                 )}
               </tr>
               {employee.role === 'supervisor' && 
-               expandedSupervisors.includes(employee.id.toString()) && 
-               getDirectReports(employee.id.toString())
+               expandedSupervisors.includes(employee.id) && 
+               getDirectReports(employee.id)
                .filter(report => report)
                 .map((report, index) => (
                    <tr
-                   key={`report-${report.id}-${index}`}
+                     key={`report-${report.id}-${index}`}
                      onClick={() => onSelectEmployee(report)}
                      className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer pl-8"
                    >
                      <td className="px-6 py-4 whitespace-nowrap">
                        <div className="flex items-center">
                          <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
-                           <span className="text-sm font-medium">
-                             {(report.fullName || '').split(' ').map((n) => n[0]).join('')}
-                           </span>
+                         <span className="text-sm font-medium">
+                           {typeof report.fullName === 'string'
+                             ? report.fullName.split(' ').map((n) => n[0]).join('')
+                             : ''}
+                         </span>
                          </div>
                          <div className="ml-4">
                            <div className="text-sm font-medium text-gray-900 dark:text-white">
                              {report.fullName}
                            </div>
-                           <div className="text-sm text-gray-500 dark:text-gray-400">
-                             {report.eMail || 'Keine E-Mail'}
-                           </div>
                          </div>
                        </div>
                      </td>
                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                       {report.departmentID || `Abteilung ${report.departmentID}`}
+                       {getDepartmentName(report.departmentID)}
                      </td>
                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                        {getJobTitle(report.jobTitleID)}
@@ -204,7 +205,7 @@ export default function EmployeeList({
                      {(isHRAdmin || currentEmployee?.role === 'supervisor') && (
                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                          <button
-                           onClick={(e) => onToggleActive(e, report.id.toString())}
+                           onClick={(e) => onToggleActive(e, report.id)}
                            className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
                          >
                            {!report.isActive ? (
@@ -218,7 +219,8 @@ export default function EmployeeList({
                    </tr>
                  ))}
             </React.Fragment>
-          ))}
+          );
+        })}
       </tbody>
     </table>
   );
