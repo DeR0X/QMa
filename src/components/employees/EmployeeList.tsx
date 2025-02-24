@@ -46,84 +46,6 @@ export default function EmployeeList({
   const getDirectReports = (supervisorId: string) => 
     allEmployees.filter(emp => emp.supervisorID?.toString() === supervisorId);
 
-  const renderEmployeeRow = (employee: Employee, isSupervisor: boolean = false) => {
-    return (
-      <tr
-        key={employee.id}
-        onClick={() => onSelectEmployee(employee)}
-        className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-      >
-        <td className="px-6 py-4 whitespace-nowrap">
-          <div className="flex items-center">
-            {isSupervisor && (
-              <button 
-                className="mr-2"
-                onClick={(e) => toggleSupervisor(e, employee.id.toString())}
-              >
-                {expandedSupervisors.includes(employee.id.toString()) ? (
-                  <ChevronDown className="h-5 w-5 text-gray-400" />
-                ) : (
-                  <ChevronRight className="h-5 w-5 text-gray-400" />
-                )}
-              </button>
-            )}
-            <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
-              <span className="text-sm font-medium">
-                {(employee.fullName || '').split(' ').map((n) => n[0]).join('')}
-              </span>
-            </div>
-            <div className="ml-4">
-              <div className="text-sm font-medium text-gray-900 dark:text-white">
-                {employee.fullName}
-              </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                {employee.eMail || 'Keine E-Mail'}
-              </div>
-            </div>
-          </div>
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-          {employee.departmentID || `Abteilung ${employee.departmentID}`}
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-          {getJobTitle(employee.jobTitleID)}
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-            !employee.isActive
-              ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-              : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-          }`}>
-            {!employee.isActive ? 'Gesperrt' : 'Aktiv'}
-          </span>
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-            employee.isTrainer
-              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-              : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-          }`}>
-            {employee.isTrainer ? 'Trainer' : 'Kein Trainer'}
-          </span>
-        </td>
-        {(isHRAdmin || currentEmployee?.role === 'supervisor') && (
-          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-            <button
-              onClick={(e) => onToggleActive(e, employee.id.toString())}
-              className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
-            >
-              {!employee.isActive ? (
-                <Unlock className="h-5 w-5" />
-              ) : (
-                <Lock className="h-5 w-5" />
-              )}
-            </button>
-          </td>
-        )}
-      </tr>
-    );
-  };
-
   return (
     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
       <thead className="bg-gray-50 dark:bg-[#181818]">
@@ -153,10 +75,10 @@ export default function EmployeeList({
       <tbody className="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-[#141616]">
         {employees
           .filter(employee => employee)
-          .map((employee) => (
-            <React.Fragment key={`group-${employee.id}`}>
+          .map((employee, index) => (
+            <React.Fragment key={employee.id}>
               <tr
-                key={`employee-${employee.id}`}
+                key={`employee-${employee.id}-${index}`}
                 onClick={() => onSelectEmployee(employee)}
                 className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
               >
@@ -231,10 +153,10 @@ export default function EmployeeList({
               {employee.role === 'supervisor' && 
                expandedSupervisors.includes(employee.id.toString()) && 
                getDirectReports(employee.id.toString())
-                 .filter(report => report)
-                 .map((report) => (
+               .filter(report => report)
+                .map((report, index) => (
                    <tr
-                     key={`report-${report.id}`}
+                   key={`report-${report.id}-${index}`}
                      onClick={() => onSelectEmployee(report)}
                      className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer pl-8"
                    >
@@ -294,8 +216,7 @@ export default function EmployeeList({
                        </td>
                      )}
                    </tr>
-                 ))
-              }
+                 ))}
             </React.Fragment>
           ))}
       </tbody>
