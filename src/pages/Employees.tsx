@@ -58,6 +58,12 @@ export default function Employees() {
 
   const updateEmployee = useUpdateEmployee();
 
+  // Debounce search term changes
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
   const handleUpdateEmployee = async (id: string, data: Partial<Employee>) => {
     try {
       debugLog('Updating employee', { id, data });
@@ -119,10 +125,7 @@ export default function Employees() {
           <div className="flex flex-col sm:flex-row gap-4">
             <EmployeeFilter
               searchTerm={searchTerm}
-              onSearchChange={(value) => {
-                setSearchTerm(value);
-                setCurrentPage(1);
-              }}
+              onSearchChange={handleSearchChange}
               activeFilter={activeFilter}
               onFilterChange={(value) => {
                 setActiveFilter(value as FilterType);
