@@ -17,8 +17,18 @@ export interface EmployeeFilters {
   endDate?: string;
 }
 
+export interface EmployeeResponse {
+  data: Employee[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export function useEmployees(filters: EmployeeFilters = {}) {
-  return useQuery({
+  return useQuery<EmployeeResponse>({
     queryKey: ['employees', filters],
     queryFn: () => employeeApi.getEmployees(filters),
   });

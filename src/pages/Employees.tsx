@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Download, Upload } from 'lucide-react';
+import { Download, Upload, Bug } from 'lucide-react';
 import type { Employee, EmployeeFilters } from '../types';
 import EmployeeDetails from '../components/employees/EmployeeDetails';
 import AddUserModal from '../components/employees/AddUserModal';
@@ -16,6 +16,11 @@ type FilterType = 'all' | 'employees' | 'supervisors' | 'active' | 'inactive';
 
 const ITEMS_PER_PAGE = 10;
 
+// Debug function
+const debugLog = (message: string, data?: any) => {
+  console.log(`[Employees] ${message}`, data || '');
+};
+
 export default function Employees() {
   const dispatch = useDispatch<AppDispatch>();
   const [searchTerm, setSearchTerm] = useState('');
@@ -24,8 +29,9 @@ export default function Employees() {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortBy, setSortBy] = useState<string>('fullName');
+  const [sortBy, setSortBy] = useState<string>('SurName');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [showDebug, setShowDebug] = useState(false);
   const { employee: currentEmployee } = useSelector((state: RootState) => state.auth);
   const isHRAdmin = hasHRPermissions(currentEmployee);
 
@@ -46,16 +52,19 @@ export default function Employees() {
   const { 
     data: employeesData, 
     isLoading, 
-    error 
+    error,
+    isFetching 
   } = useEmployees(filters);
 
   const updateEmployee = useUpdateEmployee();
 
   const handleUpdateEmployee = async (id: string, data: Partial<Employee>) => {
     try {
+      debugLog('Updating employee', { id, data });
       await updateEmployee.mutateAsync({ id, data });
       toast.success('Mitarbeiter erfolgreich aktualisiert');
     } catch (error) {
+      debugLog('Error updating employee', error);
       toast.error('Fehler beim Aktualisieren des Mitarbeiters');
     }
   };
@@ -63,7 +72,8 @@ export default function Employees() {
   const handleToggleActive = async (e: React.MouseEvent, employeeId: string) => {
     e.stopPropagation();
     try {
-      const employee = employeesData?.data.find((emp: Employee) => emp.id === employeeId);
+      debugLog('Toggling employee active status', employeeId);
+      const employee = employeesData?.data.find((emp: Employee) => emp.id.toString() === employeeId);
       if (employee) {
         const newActiveStatus = !employee.isActive;
         await handleUpdateEmployee(employeeId, { isActive: newActiveStatus });
@@ -94,6 +104,7 @@ export default function Employees() {
   }
 
   if (error) {
+    debugLog('Error loading employees', error);
     return (
       <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
         <p className="text-lg text-red-500">Fehler beim Laden der Mitarbeiter</p>
@@ -139,24 +150,58 @@ export default function Employees() {
                   </button>
                 </>
               )}
+              <button
+                onClick={() => setShowDebug(!showDebug)}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121212] hover:bg-gray-50 dark:hover:bg-gray-600"
+              >
+                <Bug className="h-5 w-5 mr-2" />
+                Debug
+              </button>
             </div>
           </div>
         </div>
 
+        {showDebug && (
+          <div className="p-4 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+            <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Debug Information</h3>
+            <pre className="text-xs overflow-auto max-h-40 bg-white dark:bg-gray-900 p-2 rounded">
+              {JSON.stringify(
+                {
+                  filters,
+                  currentPage,
+                  totalItems: employeesData?.pagination.total,
+                  totalPages: employeesData?.pagination.totalPages,
+                  employeeCount: employeesData?.data.length,
+                  isFetching,
+                  error,
+                },
+                null,
+                2
+              )}
+            </pre>
+          </div>
+        )}
+
         <div className="overflow-x-auto">
-          <EmployeeList
-            employees={employeesData?.data || []}
-            onSelectEmployee={setSelectedEmployee}
-            onToggleActive={handleToggleActive}
-            isHRAdmin={isHRAdmin}
-            currentEmployee={currentEmployee}
-          />
+          {employeesData?.data && employeesData.data.length > 0 ? (
+            <EmployeeList
+              employees={employeesData.data}
+              onSelectEmployee={setSelectedEmployee}
+              onToggleActive={handleToggleActive}
+              isHRAdmin={isHRAdmin}
+              currentEmployee={currentEmployee}
+            />
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-gray-500 dark:text-gray-400">Keine Mitarbeiter gefunden</p>
+            </div>
+          )}
         </div>
 
         <Pagination
           currentPage={currentPage}
-          totalPages={employeesData?.totalPages || 1}
-          totalItems={employeesData?.total || 0}
+          totalPages={employeesData?.pagination.totalPages || 1}
+          totalItems={employeesData?.pagination.total || 0}
           itemsPerPage={ITEMS_PER_PAGE}
           onPageChange={setCurrentPage}
         />
@@ -166,7 +211,7 @@ export default function Employees() {
         <EmployeeDetails
           employee={selectedEmployee}
           onClose={() => setSelectedEmployee(null)}
-          onUpdate={(data) => handleUpdateEmployee(selectedEmployee.id, data)}
+          onUpdate={(data) => handleUpdateEmployee(selectedEmployee.id.toString(), data)}
           approvals={[]}
           trainings={[]}
           handleApproveTraining={() => {}}
@@ -178,7 +223,6 @@ export default function Employees() {
         <AddUserModal
           onClose={() => setShowAddModal(false)}
           onAdd={(data) => {
-            // Handle adding new employee
             setShowAddModal(false);
             toast.success('Mitarbeiter erfolgreich hinzugefügt');
           }}
