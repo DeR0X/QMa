@@ -1,6 +1,6 @@
 import type { Employee, EmployeeFilters } from '../types';
 
-const API_BASE_URL = 'http://localhost:5000/api/v2';
+const API_BASE_URL = 'http://127.0.0.1:5000/api/v2';
 
 function buildQueryString(params: Record<string, any>): string {
   const searchParams = new URLSearchParams();
