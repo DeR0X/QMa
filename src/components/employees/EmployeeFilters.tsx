@@ -1,12 +1,17 @@
 import { Search } from 'lucide-react';
 
+type FilterType = 'all' | 'employees' | 'supervisors' | 'active' | 'inactive';
+
 interface Props {
   searchTerm: string;
   onSearchChange: (value: string) => void;
-  activeFilter: string;
+  activeFilter: FilterType;
   onFilterChange: (value: string) => void;
   showFilters: boolean;
   onToggleFilters: () => void;
+  sortBy: string;
+  sortOrder: 'asc' | 'desc';
+  onSortChange: (field: string, order: 'asc' | 'desc') => void;
 }
 
 const filterOptions = [

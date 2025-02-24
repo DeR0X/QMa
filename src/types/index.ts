@@ -179,3 +179,26 @@ export interface DocumentUploadFormData {
   url: string;
   metadata: Omit<DocumentMetadata, 'id' | 'createdAt' | 'updatedAt' | 'auditTrail'>;
 }
+
+export interface EmployeeFilters {
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  department?: string;
+  role?: string;
+  isActive?: boolean;
+  search?: string;
+  fields?: string[];
+  ids?: string[];
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}

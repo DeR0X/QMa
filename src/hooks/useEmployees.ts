@@ -2,19 +2,25 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { employeeApi } from '../services/api';
 import type { Employee } from '../types';
 
-export function useEmployees(params?: {
-  department?: string;
-  role?: string;
-  search?: string;
-  isActive?: boolean;
+export interface EmployeeFilters {
   page?: number;
   limit?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
-}) {
+  department?: string;
+  role?: string;
+  isActive?: boolean;
+  search?: string;
+  fields?: string[];
+  ids?: string[];
+  startDate?: string;
+  endDate?: string;
+}
+
+export function useEmployees(filters: EmployeeFilters = {}) {
   return useQuery({
-    queryKey: ['employees', params],
-    queryFn: () => employeeApi.getEmployees(params),
+    queryKey: ['employees', filters],
+    queryFn: () => employeeApi.getEmployees(filters),
   });
 }
 
