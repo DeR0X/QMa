@@ -1,4 +1,5 @@
 import { Search } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 type FilterType = 'all' | 'employees' | 'supervisors' | 'active' | 'inactive';
 
@@ -30,10 +31,17 @@ export default function EmployeeFilters({
   showFilters,
   onToggleFilters
 }: Props) {
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    onSearchChange(e.target.value);
-  };
+  const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (localSearchTerm !== searchTerm) {
+        onSearchChange(localSearchTerm);
+      }
+    }, 300); // 300ms debounce delay
+
+    return () => clearTimeout(timeoutId);
+  }, [localSearchTerm, onSearchChange, searchTerm]);
 
   return (
     <div className="flex flex-col sm:flex-row gap-4">
@@ -43,9 +51,9 @@ export default function EmployeeFilters({
           <input
             type="text"
             placeholder="Suche nach Name, Email, Abteilung oder Position..."
-            value={searchTerm}
-            onChange={handleSearchChange}
+            value={localSearchTerm}
             autoFocus
+            onChange={(e) => setLocalSearchTerm(e.target.value)}
             className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
           />
         </div>

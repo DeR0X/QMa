@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Download, Upload, Bug } from 'lucide-react';
 import type { Employee, EmployeeFilters } from '../types';
@@ -35,25 +35,25 @@ export default function Employees() {
   const { employee: currentEmployee } = useSelector((state: RootState) => state.auth);
   const isHRAdmin = hasHRPermissions(currentEmployee);
 
-  // Memoize the search handler
-  const handleSearchChange = useCallback((value: string) => {
-    setSearchTerm(value);
-    setCurrentPage(1);
-  }, []);
-
   // Build filters for API request
-  const filters: EmployeeFilters = {
-    page: currentPage,
-    limit: ITEMS_PER_PAGE,
-    sortBy,
-    sortOrder,
-    search: searchTerm,
-    role: activeFilter === 'employees' ? 'employee' : 
-          activeFilter === 'supervisors' ? 'supervisor' : undefined,
-    isActive: activeFilter === 'active' ? true :
-              activeFilter === 'inactive' ? false : undefined,
-    department: currentEmployee?.role === 'supervisor' ? currentEmployee.DepartmentID?.toString() : undefined,
-  };
+  const filters: EmployeeFilters = useMemo(() => {
+    // Split search term into individual words
+    const searchTerms = searchTerm.toLowerCase().trim().split(/\s+/);
+    
+    return {
+      page: currentPage,
+      limit: ITEMS_PER_PAGE,
+      sortBy,
+      sortOrder,
+      search: searchTerms.join(' '), // Join terms with space for API
+      searchFields: ['FirstName', 'SurName', 'FullName', 'eMail', 'Department'], // Fields to search in
+      role: activeFilter === 'employees' ? 'employee' : 
+            activeFilter === 'supervisors' ? 'supervisor' : undefined,
+      isActive: activeFilter === 'active' ? true :
+                activeFilter === 'inactive' ? false : undefined,
+      department: currentEmployee?.role === 'supervisor' ? currentEmployee.DepartmentID?.toString() : undefined,
+    };
+  }, [currentPage, sortBy, sortOrder, searchTerm, activeFilter, currentEmployee]);
 
   const { 
     data: employeesData, 
@@ -62,7 +62,34 @@ export default function Employees() {
     isFetching 
   } = useEmployees(filters);
 
+  // Filter employees locally based on search terms
+  const filteredEmployees = useMemo(() => {
+    if (!employeesData?.data) return [];
+    
+    if (!searchTerm.trim()) return employeesData.data;
+
+    const searchTerms = searchTerm.toLowerCase().trim().split(/\s+/);
+    
+    return employeesData.data.filter(employee => {
+      const searchableText = [
+        employee.FirstName,
+        employee.SurName,
+        employee.FullName,
+        employee.eMail,
+        employee.Department
+      ].join(' ').toLowerCase();
+
+      // Check if all search terms are found in the searchable text
+      return searchTerms.every(term => searchableText.includes(term));
+    });
+  }, [employeesData?.data, searchTerm]);
+
   const updateEmployee = useUpdateEmployee();
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  }, []);
 
   const handleUpdateEmployee = async (id: string, data: Partial<Employee>) => {
     try {
@@ -175,6 +202,8 @@ export default function Employees() {
                   totalItems: employeesData?.pagination.total,
                   totalPages: employeesData?.pagination.totalPages,
                   employeeCount: employeesData?.data.length,
+                  filteredCount: filteredEmployees.length,
+                  searchTerms: searchTerm.split(/\s+/),
                   isFetching,
                   error,
                 },
@@ -186,9 +215,9 @@ export default function Employees() {
         )}
 
         <div className="overflow-x-auto">
-          {employeesData?.data && employeesData.data.length > 0 ? (
+          {filteredEmployees.length > 0 ? (
             <EmployeeList
-              employees={employeesData.data}
+              employees={filteredEmployees}
               onSelectEmployee={setSelectedEmployee}
               onToggleActive={handleToggleActive}
               isHRAdmin={isHRAdmin}
@@ -203,8 +232,8 @@ export default function Employees() {
 
         <Pagination
           currentPage={currentPage}
-          totalPages={employeesData?.pagination.totalPages || 1}
-          totalItems={employeesData?.pagination.total || 0}
+          totalPages={Math.ceil(filteredEmployees.length / ITEMS_PER_PAGE)}
+          totalItems={filteredEmployees.length}
           itemsPerPage={ITEMS_PER_PAGE}
           onPageChange={setCurrentPage}
         />
