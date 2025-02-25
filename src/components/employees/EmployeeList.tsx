@@ -75,7 +75,6 @@ export default function EmployeeList({
       {employees
       .filter(employee => employee)
       .map((employee) => {
-        console.log('Employee:', employee);
         return (
           <React.Fragment key={employee.ID}>
             <tr

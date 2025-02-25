@@ -30,6 +30,11 @@ export default function EmployeeFilters({
   showFilters,
   onToggleFilters
 }: Props) {
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    onSearchChange(e.target.value);
+  };
+
   return (
     <div className="flex flex-col sm:flex-row gap-4">
       <div className="flex-1">
@@ -39,7 +44,8 @@ export default function EmployeeFilters({
             type="text"
             placeholder="Suche nach Name, Email, Abteilung oder Position..."
             value={searchTerm}
-            onChange={(e) => onSearchChange(e.target.value)}
+            onChange={handleSearchChange}
+            autoFocus
             className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
           />
         </div>

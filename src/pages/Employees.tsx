@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Download, Upload, Bug } from 'lucide-react';
 import type { Employee, EmployeeFilters } from '../types';
@@ -18,7 +18,7 @@ const ITEMS_PER_PAGE = 10;
 
 // Debug function
 const debugLog = (message: string, data?: any) => {
-  console.log(`[Employees] ${message}`, data || '');
+  //console.log(`[Employees] ${message}`, data || '');
 };
 
 export default function Employees() {
@@ -34,6 +34,12 @@ export default function Employees() {
   const [showDebug, setShowDebug] = useState(false);
   const { employee: currentEmployee } = useSelector((state: RootState) => state.auth);
   const isHRAdmin = hasHRPermissions(currentEmployee);
+
+  // Memoize the search handler
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  }, []);
 
   // Build filters for API request
   const filters: EmployeeFilters = {
@@ -57,12 +63,6 @@ export default function Employees() {
   } = useEmployees(filters);
 
   const updateEmployee = useUpdateEmployee();
-
-  // Debounce search term changes
-  const handleSearchChange = (value: string) => {
-    setSearchTerm(value);
-    setCurrentPage(1);
-  };
 
   const handleUpdateEmployee = async (id: string, data: Partial<Employee>) => {
     try {

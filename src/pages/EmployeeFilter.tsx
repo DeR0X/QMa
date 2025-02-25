@@ -30,22 +30,28 @@ export default function EmployeeFilters({
   showFilters,
   onToggleFilters
 }: Props) {
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    onSearchChange(e.target.value);
+  };
+
   return (
     <div className="flex flex-col sm:flex-row gap-4">
       <div className="flex-1">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
           <input
             type="text"
             placeholder="Suche nach Name, Email, Abteilung oder Position..."
             value={searchTerm}
-            onChange={(e) => onSearchChange(e.target.value)}
+            onChange={handleSearchChange}
             className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
           />
         </div>
       </div>
       <div className="relative">
         <button
+          type="button"
           onClick={onToggleFilters}
           className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121212] hover:bg-gray-50 dark:hover:bg-gray-600"
         >
@@ -58,6 +64,7 @@ export default function EmployeeFilters({
               {filterOptions.map((option) => (
                 <button
                   key={option.value}
+                  type="button"
                   onClick={() => {
                     onFilterChange(option.value);
                     onToggleFilters();
