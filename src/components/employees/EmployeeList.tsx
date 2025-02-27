@@ -1,5 +1,5 @@
 import React from 'react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Lock, Unlock, ChevronDown, ChevronRight } from 'lucide-react';
 import type { Employee } from '../../types';
 import { departments, jobTitles, employees as allEmployees } from '../../data/mockData';
