@@ -29,7 +29,7 @@ export default function Trainings() {
   const isSupervisor = employee.role === 'supervisor';
   const canCreateTraining = isHR || isSupervisor;
 
-  const userBookings = bookings.filter(booking => booking.userId === employee.id);
+  const userBookings = bookings.filter(booking => booking.userId === employee.ID.toString());
 
   const filteredTrainings = trainings.filter(training => {
     const matchesSearch = training.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -48,13 +48,13 @@ export default function Trainings() {
     }
 
     // Notify the supervisor
-    const supervisor = employees.find(e => e.id === employee.supervisorID);
+    const supervisor = employees.find(e => e.ID === employee.SupervisorID);
     if (supervisor) {
       dispatch(addNotification({
-        userId: supervisor.id,
+        userId: supervisor.ID.toString(),
         type: 'info',
         title: 'Neue Schulungsbuchung',
-        message: `${employee.fullName} hat sich für die Schulung "${training.title}" angemeldet und wartet auf Genehmigung.`,
+        message: `${employee.FullName} hat sich für die Schulung "${training.title}" angemeldet und wartet auf Genehmigung.`,
       }));
     }
 
@@ -62,16 +62,16 @@ export default function Trainings() {
     const hrEmployees = employees.filter(e => e.role === 'hr');
     hrEmployees.forEach(hrEmployee => {
       dispatch(addNotification({
-        userId: hrEmployee.id,
+        userId: hrEmployee.ID.toString(),
         type: 'info',
         title: 'Neue Schulungsbuchung',
-        message: `${employee.fullName} hat sich für die Schulung "${training.title}" angemeldet. Supervisor: ${supervisor?.fullName || 'Nicht zugewiesen'}`,
+        message: `${employee.FullName} hat sich für die Schulung "${training.title}" angemeldet. Supervisor: ${supervisor?.FullName || 'Nicht zugewiesen'}`,
       }));
     });
 
     // Notify the employee
     dispatch(addNotification({
-      userId: employee.id,
+      userId: employee.ID.toString(),
       type: 'success',
       title: 'Schulung gebucht',
       message: `Ihre Buchung für "${training.title}" wurde erfolgreich eingereicht und wartet auf Genehmigung.`,
@@ -83,13 +83,13 @@ export default function Trainings() {
   const handleAddTraining = (newTraining: Omit<Training, 'id'> & { targetAudience?: string[] }) => {
     // Notify affected employees
     const affectedEmployees = employees.filter(emp => 
-      newTraining.targetAudience?.includes(emp.departmentID) ||
+      (newTraining.targetAudience?.includes(emp.DepartmentID?.toString() || '') && emp.DepartmentID !== undefined) ||
       newTraining.isMandatory
     );
 
     affectedEmployees.forEach(employee => {
       dispatch(addNotification({
-        userId: employee.id,
+        userId: employee.ID.toString(),
         type: 'info',
         title: 'Neue Schulung verfügbar',
         message: `Eine neue Schulung "${newTraining.title}" ist für Sie verfügbar. ${
@@ -103,10 +103,10 @@ export default function Trainings() {
       const hrEmployees = employees.filter(e => e.role === 'hr');
       hrEmployees.forEach(hrEmployee => {
         dispatch(addNotification({
-          userId: hrEmployee.id,
+          userId: hrEmployee.ID.toString(),
           type: 'info',
           title: 'Neue Schulung erstellt',
-          message: `${employee.fullName} hat eine neue Schulung "${newTraining.title}" erstellt.`,
+          message: `${employee.FullName} hat eine neue Schulung "${newTraining.title}" erstellt.`,
         }));
       });
     }
@@ -391,7 +391,7 @@ export default function Trainings() {
         <AddTrainingModal
           onClose={() => setShowAddModal(false)}
           onAdd={handleAddTraining}
-          userDepartment={isSupervisor ? employee.departmentID : undefined}
+          userDepartment={isSupervisor ? employee.DepartmentID?.toString() : undefined}
         />
       )}
 

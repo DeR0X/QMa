@@ -18,12 +18,12 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (employee) {
-      const jobTitle = jobTitles.find(jt => jt.id === employee.jobTitleID);
+      const jobTitle = jobTitles.find(jt => jt.id === employee.JobTitleID?.toString());
       const userQuals = qualifications.filter(qual => jobTitle?.qualificationIDs.includes(qual.id));
       
       userQuals.forEach(qual => {
         const lastTraining = bookings
-          .filter(b => b.userId === employee.id && b.status === 'abgeschlossen')
+          .filter(b => b.userId === employee.ID.toString() && b.status === 'abgeschlossen')
           .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())[0];
 
         if (lastTraining?.completedAt) {
@@ -39,8 +39,8 @@ export default function Dashboard() {
 
   if (!employee) return null;
 
-  const userBookings = bookings.filter(booking => booking.userId === employee.id);
-  const jobTitle = jobTitles.find(jt => jt.id === employee.jobTitleID);
+  const userBookings = bookings.filter(booking => booking.userId === employee.ID);
+  const jobTitle = jobTitles.find(jt => jt.id === employee.JobTitleID?.toString());
   const userQualifications = qualifications.filter(qual => jobTitle?.qualificationIDs.includes(qual.id));
 
   const stats = [
@@ -109,7 +109,7 @@ export default function Dashboard() {
     <div className="space-y-6 p-4 sm:p-6">
       <div>
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-          {employee.fullName}
+          {employee.FullName}
         </h1>
       </div>
 

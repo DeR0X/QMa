@@ -34,7 +34,7 @@ export default function TrainingHistory() {
   );
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState<string | 'all'>(
-    currentEmployee?.id || 'all'
+    currentEmployee?.ID?.toString() || 'all'
   );
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedTraining, setSelectedTraining] = useState<string | null>(null);
@@ -45,20 +45,20 @@ export default function TrainingHistory() {
   const isHR = hasHRPermissions(currentEmployee);
 
   const departments = useMemo(() => {
-    return Array.from(new Set(employees.map(emp => emp.departmentID)));
+    return Array.from(new Set(employees.map(emp => emp.DepartmentID)));
   }, []);
 
   const completedTrainings = useMemo(() => {
     const filtered = bookings
       .filter(booking => {
         const matchesUser = !isHR
-          ? booking.userId === currentEmployee?.id
+          ? booking.userId === currentEmployee?.ID?.toString()
           : selectedEmployee === 'all' || booking.userId === selectedEmployee;
         const matchesStatus = booking.status === 'abgeschlossen';
-        const employee = employees.find(e => e.id === booking.userId);
+        const employee = employees.find(e => e.ID.toString() === booking.userId);
         const matchesDepartment =
           selectedDepartment === 'all' ||
-          employee?.departmentID === selectedDepartment;
+          employee?.DepartmentID === Number(selectedDepartment);
         const matchesYear =
           selectedYear === 'all' ||
           (booking.completedAt &&
@@ -68,7 +68,7 @@ export default function TrainingHistory() {
       })
       .map(booking => {
         const training = trainings.find(t => t.id === booking.trainingId);
-        const employee = employees.find(e => e.id === booking.userId);
+        const employee = employees.find(e => e.ID.toString() === booking.userId);
         return {
           ...booking,
           training,
@@ -77,7 +77,7 @@ export default function TrainingHistory() {
       })
       .filter(item =>
         item.training?.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.employee?.fullName.toLowerCase().includes(searchTerm.toLowerCase())
+        item.employee?.FullName.toLowerCase().includes(searchTerm.toLowerCase())
       );
 
     return filtered;
@@ -152,7 +152,7 @@ export default function TrainingHistory() {
                 >
                   <option value="all">Alle Abteilungen</option>
                   {departments.map((dept) => (
-                    <option key={dept} value={dept}>
+                    <option key={dept} value={dept?.toString()}>
                       {dept}
                     </option>
                   ))}
@@ -171,11 +171,11 @@ export default function TrainingHistory() {
                     .filter(
                       emp =>
                         selectedDepartment === 'all' ||
-                        emp.departmentID === selectedDepartment
+                        emp.DepartmentID === Number(selectedDepartment)
                     )
                     .map((emp) => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.fullName}
+                      <option key={emp.ID} value={emp.ID}>
+                        {emp.FullName}
                       </option>
                     ))}
                 </select>
@@ -248,10 +248,10 @@ export default function TrainingHistory() {
                     {isHR && (
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900 dark:text-white">
-                          {item.employee?.fullName}
+                          {item.employee?.FullName}
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {item.employee?.departmentID}
+                          {item.employee?.DepartmentID}
                         </div>
                       </td>
                     )}

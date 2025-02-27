@@ -20,7 +20,7 @@ export default function Departments() {
   };
 
   const getEmployeeQualifications = (employee: Employee) => {
-    const jobTitle = jobTitles.find(jt => jt.id === employee.jobTitleID);
+    const jobTitle = jobTitles.find(jt => jt.id === employee.JobTitleID?.toString());
     return jobTitle ? jobTitle.qualificationIDs : [];
   };
 
@@ -30,19 +30,19 @@ export default function Departments() {
     if (isHR) {
       return matchesSearch;
     } else if (isSupervisor) {
-      return dept.id === currentUser?.departmentID && matchesSearch;
+      return dept.id === currentUser?.DepartmentID?.toString() && matchesSearch;
     }
     return false;
   });
 
   // Hole Mitarbeiter der ausgewählten Abteilung
   const departmentEmployees = selectedDepartment
-    ? employees.filter(user => user.departmentID === selectedDepartment)
+    ? employees.filter(user => user.DepartmentID?.toString() === selectedDepartment)
     : [];
 
   // Ermittel die Mitarbeiterzahl für eine Abteilung
   const getDepartmentEmployeeCount = (departmentId: string) => {
-    return employees.filter(user => user.departmentID === departmentId).length;
+    return employees.filter(user => user.DepartmentID?.toString() === departmentId).length;
   };
 
   // Zugriff nur erlauben, wenn der Benutzer HR oder Supervisor ist
@@ -151,22 +151,22 @@ export default function Departments() {
               <div className="space-y-6">
                 {departmentEmployees.map((employee) => (
                   <div
-                    key={employee.id}
+                    key={employee.ID}
                     className="bg-gray-50 dark:bg-[#181818] rounded-lg p-4"
                   >
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
                       <div className="flex items-center">
                         <div className="h-12 w-12 rounded-full bg-primary text-white flex items-center justify-center">
                           <span className="text-lg font-medium">
-                            {employee.fullName.split(' ').map((n) => n[0]).join('')}
+                            {employee.FullName.split(' ').map((n) => n[0]).join('')}
                           </span>
                         </div>
                         <div className="ml-0 mt-2 sm:ml-4 sm:mt-0">
                           <h3 className="text-lg font-medium text-gray-900 dark:text-white break-words">
-                            {employee.fullName}
+                            {employee.FullName}
                           </h3>
                           <p className="text-sm text-gray-500 dark:text-gray-400 break-words">
-                            {getJobTitle(employee.jobTitleID)}
+                            {getJobTitle(employee.JobTitleID?.toString() || '')}
                           </p>
                         </div>
                       </div>
@@ -193,7 +193,7 @@ export default function Departments() {
                           </p>
                           <p className="text-sm flex items-center text-gray-500 dark:text-gray-400 break-words">
                             <Users className="h-4 w-4 mr-2" />
-                            Personalnummer: {employee.staffNumber}
+                            Personalnummer: {employee.StaffNumber}
                           </p>
                         </div>
                       </div>
