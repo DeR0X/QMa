@@ -55,7 +55,7 @@ export default function TrainingHistory() {
           ? booking.userId === currentEmployee?.ID?.toString()
           : selectedEmployee === 'all' || booking.userId === selectedEmployee;
         const matchesStatus = booking.status === 'abgeschlossen';
-        const employee = employees.find(e => e.ID.toString() === booking.userId);
+        const employee = employees.find(e => e.ID === booking.userId);
         const matchesDepartment =
           selectedDepartment === 'all' ||
           employee?.DepartmentID === Number(selectedDepartment);
@@ -68,7 +68,7 @@ export default function TrainingHistory() {
       })
       .map(booking => {
         const training = trainings.find(t => t.id === booking.trainingId);
-        const employee = employees.find(e => e.ID.toString() === booking.userId);
+        const employee = employees.find(e => e.ID === booking.userId);
         return {
           ...booking,
           training,

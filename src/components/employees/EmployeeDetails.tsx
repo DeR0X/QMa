@@ -196,6 +196,12 @@ export default function EmployeeDetails({
     !localEmployee.additionalPositions?.includes(jt.id)
   );
 
+  // Helper function to safely get initials from a name
+  const getInitials = (name: string | undefined) => {
+    if (!name) return '??';
+    return name.split(' ').map(n => n[0]).join('');
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-full items-center justify-center p-4 text-center">
@@ -215,7 +221,7 @@ export default function EmployeeDetails({
             <div className="w-full">
               <div className="flex items-center">
                 <div className="h-16 w-16 rounded-full bg-primary text-white flex items-center justify-center text-xl">
-                  {localEmployee.FullName.split(' ').map((n: string) => n[0]).join('')}
+                  {getInitials(localEmployee.FullName)}
                 </div>
                 <div className="ml-4">
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white">
