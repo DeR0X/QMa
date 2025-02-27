@@ -29,7 +29,7 @@ export default function Trainings() {
   const isSupervisor = employee.role === 'supervisor';
   const canCreateTraining = isHR || isSupervisor;
 
-  const userBookings = bookings.filter(booking => booking.userId === employee.ID.toString());
+  const userBookings = bookings.filter(booking => booking.userId === employee.ID);
 
   const filteredTrainings = trainings.filter(training => {
     const matchesSearch = training.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -48,7 +48,10 @@ export default function Trainings() {
     }
 
     // Notify the supervisor
-    const supervisor = employees.find(e => e.ID === employee.SupervisorID);
+    const supervisor = employee.SupervisorID ? 
+      employees.find(e => e.ID === employee.SupervisorID) : 
+      null;
+      
     if (supervisor) {
       dispatch(addNotification({
         userId: supervisor.ID.toString(),
@@ -82,10 +85,12 @@ export default function Trainings() {
 
   const handleAddTraining = (newTraining: Omit<Training, 'id'> & { targetAudience?: string[] }) => {
     // Notify affected employees
-    const affectedEmployees = employees.filter(emp => 
-      (newTraining.targetAudience?.includes(emp.DepartmentID?.toString() || '') && emp.DepartmentID !== undefined) ||
-      newTraining.isMandatory
-    );
+    const affectedEmployees = employees.filter(emp => {
+      // Check if targetAudience exists and if emp.DepartmentID is defined
+      const matchesDepartment = newTraining.targetAudience && emp.DepartmentID !== undefined && 
+        newTraining.targetAudience.includes(emp.DepartmentID.toString());
+      return matchesDepartment || newTraining.isMandatory;
+    });
 
     affectedEmployees.forEach(employee => {
       dispatch(addNotification({

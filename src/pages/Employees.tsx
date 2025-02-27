@@ -118,6 +118,10 @@ export default function Employees() {
     }
   };
 
+  // Calculate total pages based on the total number of items from the API response
+  const totalItems = employeesData?.pagination?.total || filteredEmployees.length;
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+
   if (!isHRAdmin && currentEmployee?.role !== 'supervisor') {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
@@ -199,8 +203,8 @@ export default function Employees() {
                 {
                   filters,
                   currentPage,
-                  totalItems: employeesData?.pagination.total,
-                  totalPages: employeesData?.pagination.totalPages,
+                  totalItems,
+                  totalPages,
                   employeeCount: employeesData?.data.length,
                   filteredCount: filteredEmployees.length,
                   searchTerms: searchTerm.split(/\s+/),
@@ -232,8 +236,8 @@ export default function Employees() {
 
         <Pagination
           currentPage={currentPage}
-          totalPages={Math.ceil(filteredEmployees.length / ITEMS_PER_PAGE)}
-          totalItems={filteredEmployees.length}
+          totalPages={totalPages}
+          totalItems={totalItems}
           itemsPerPage={ITEMS_PER_PAGE}
           onPageChange={setCurrentPage}
         />
