@@ -6,13 +6,15 @@ import {
   Users, 
   CheckCircle, 
   Clock, 
-  AlertTriangle, 
+  AlertCircle, 
+  Search,
   ChevronDown, 
   ChevronRight,
   Info,
   Calendar,
   Award,
-  Target
+  Target,
+  AlertTriangle
 } from 'lucide-react';
 import { employees, jobTitles, bookings } from '../../data/mockData';
 import StatisticsModal from './StatisticsModal';
@@ -30,6 +32,7 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
   const [showDetails, setShowDetails] = useState(false);
   const [expandedDepartments, setExpandedDepartments] = useState<string[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Reset expanded departments when toggling details view
   useEffect(() => {
@@ -43,9 +46,7 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
     data: departments = [], 
     isLoading: isDepartmentsLoading,
     error: departmentsError,
-  } = useDepartments({
-    enabled: showDetails, // Only fetch when details are shown
-  });
+  } = useDepartments();
 
   // Fetch employees data
   const filters: EmployeeFilters = {
@@ -160,8 +161,22 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
     },
   ];
 
+  // Filter departments based on search term
+  const filteredDepartments = departments.filter(dept => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      dept.DepartmentID_Atoss?.toLowerCase().includes(searchLower) ||
+      dept.Department?.toLowerCase().includes(searchLower) ||
+      // Search for employees in department
+      employeesWithStats.some(emp => 
+        emp.DepartmentID?.toString() === dept.ID.toString() &&
+        emp.FullName?.toLowerCase().includes(searchLower)
+      )
+    );
+  });
+
   // Get department statistics with additional details
-  const departmentStats = departments.map(dept => {
+  const departmentStats = filteredDepartments.map(dept => {
     const departmentEmployees = employeesWithStats.filter(
       e => e.DepartmentID?.toString() === dept.ID.toString()
     );
@@ -210,6 +225,7 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
           Schulungsstatistik
         </h3>
         <button
+          type="button"
           onClick={handleToggleDetails}
           className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
         >
@@ -248,6 +264,18 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
         {/* Detailed view */}
         {showDetails && (
           <div className="space-y-6">
+            {/* Search input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Suche nach Atoss-ID, Abteilung oder Mitarbeiter..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+              />
+            </div>
+
             {isDepartmentsLoading ? (
               <div className="text-center py-8">
                 <p className="text-gray-500 dark:text-gray-400">Lade Abteilungen...</p>
@@ -270,6 +298,9 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
                         <h4 className="font-medium text-gray-900 dark:text-white">
                           {dept.name}
                         </h4>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          ID: {dept.DepartmentID_Atoss}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-4">
