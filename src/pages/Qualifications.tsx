@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
-import { Plus, Search, Award, X, Edit2 } from 'lucide-react';
+import { Plus, Search, Award, X, Edit2, Clock, AlertCircle, Info } from 'lucide-react';
 import { RootState } from '../store';
 import { qualifications } from '../data/mockData';
 import { hasHRPermissions } from '../store/slices/authSlice';
@@ -56,7 +56,7 @@ export default function Qualifications() {
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
-      {/* Header – mobile: gestapelt, ab sm: in einer Zeile */}
+      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
@@ -69,17 +69,17 @@ export default function Qualifications() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <button
             onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700 transition-colors duration-200"
           >
             <Plus className="h-5 w-5 mr-2" />
             Neue Qualifikation
           </button>
-          <Award className="h-8 w-8 text-primary" />
+          <Award className="h-8 w-8 text-primary animate-pulse" />
         </div>
       </div>
 
       {/* Suchbereich */}
-      <div className="bg-white dark:bg-[#121212] shadow rounded-lg">
+      <div className="bg-white dark:bg-[#121212] shadow rounded-lg overflow-hidden">
         <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex flex-col gap-4">
             <div className="flex-1 relative">
@@ -89,7 +89,7 @@ export default function Qualifications() {
                 placeholder="Qualifikationen durchsuchen..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-colors duration-200"
               />
             </div>
           </div>
@@ -100,42 +100,72 @@ export default function Qualifications() {
           {filteredQualifications.map((qualification) => (
             <div
               key={qualification.id}
-              className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow p-6"
+              className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 p-6 group"
             >
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white break-words">
-                    {qualification.name}
-                  </h3>
-                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 break-words">
+                <div className="flex-1">
+                  <div className="flex items-start justify-between">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white break-words group-hover:text-primary transition-colors duration-200">
+                      {qualification.name}
+                    </h3>
+                    <button
+                      onClick={() => setEditingQual(qualification)}
+                      className="ml-4 text-gray-400 hover:text-primary dark:hover:text-primary transition-colors duration-200"
+                    >
+                      <Edit2 className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 break-words">
                     {qualification.description}
                   </p>
-                </div>
-                <button
-                  onClick={() => setEditingQual(qualification)}
-                  className="self-start text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
-                >
-                  <Edit2 className="h-5 w-5" />
-                </button>
-              </div>
+                  
+                  <div className="mt-4 flex flex-wrap gap-4">
+                    <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                      <Clock className="h-4 w-4 mr-2 text-primary" />
+                      <span>Gültigkeitsdauer: {qualification.validityInMonth} Monate</span>
+                    </div>
+                    {qualification.isMandatory && (
+                      <div className="flex items-center">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                          <AlertCircle className="h-4 w-4 mr-1" />
+                          Pflichtqualifikation
+                        </span>
+                      </div>
+                    )}
+                  </div>
 
-              {/* Detailbereich: mobile zunächst 1 Spalte, ab sm 2 Spalten */}
-              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm text-gray-500 dark:text-gray-400">
-                <div>
-                  <span className="font-medium">Gültigkeitsdauer:</span>{' '}
-                  {qualification.validityInMonth} Monate
-                </div>
-                <div>
-                  <span className="font-medium">Erforderliche Schulungen:</span>
-                  <ul className="mt-1 list-disc list-inside">
-                    {qualification.requiredQualifications.map((trainingId) => (
-                      <li key={trainingId}>Training #{trainingId}</li>
-                    ))}
-                  </ul>
+                  {qualification.requiredQualifications.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="text-sm font-medium text-gray-900 dark:text-white flex items-center">
+                        <Info className="h-4 w-4 mr-2 text-primary" />
+                        Erforderliche Schulungen:
+                      </h4>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {qualification.requiredQualifications.map((trainingId) => (
+                          <span
+                            key={trainingId}
+                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                          >
+                            Training #{trainingId}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           ))}
+
+          {filteredQualifications.length === 0 && (
+            <div className="text-center py-12">
+              <Award className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">Keine Qualifikationen gefunden</h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Beginnen Sie damit, eine neue Qualifikation zu erstellen.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -152,7 +182,7 @@ export default function Qualifications() {
                   setShowAddModal(false);
                   setEditingQual(null);
                 }}
-                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200"
               >
                 <X className="h-6 w-6" />
               </button>
@@ -198,18 +228,18 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
   const [searchTerm, setSearchTerm] = useState('');
   const [activeStep, setActiveStep] = useState(1);
 
-    const filteredQualifications = qualifications.filter(qual => {
-      // Filtere die aktuelle Qualifikation aus (falls im Bearbeitungsmodus)
-      if (initialData && qual.id === initialData.id) return false;
-      
-      // Filtere bereits ausgewählte Qualifikationen aus den Voraussetzungen
-      if (selectedQualifications.includes(qual.id)) return false;
-      
-      return qual.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-             qual.description.toLowerCase().includes(searchTerm.toLowerCase());
-    });
+  const filteredQualifications = qualifications.filter(qual => {
+    // Filtere die aktuelle Qualifikation aus (falls im Bearbeitungsmodus)
+    if (initialData && qual.id === initialData.id) return false;
+    
+    // Filtere bereits ausgewählte Qualifikationen aus den Voraussetzungen
+    if (selectedQualifications.includes(qual.id)) return false;
+    
+    return qual.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           qual.description.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
- const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     for (let step = 1; step <= 4; step++) {
@@ -262,34 +292,33 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Progress Steps */}
       <div className="relative">
-      <div className="absolute top-4 w-full h-0.5 bg-gray-200 dark:bg-gray-700" />
-      <div className="relative flex justify-between">
-        {[1, 2, 3].map((step) => (
-          <button
-            key={step}
-            type="button"
-            onClick={() => {
-              if (isStepComplete(step)) {
-                setActiveStep(step);
-              }
-            }}
-            className={`w-9 h-9 rounded-full flex items-center justify-center relative bg-white dark:bg-[#121212] border-2 transition-colors ${
-              activeStep >= step
-                ? 'border-primary text-primary'
-                : 'border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'
-            }`}
-          >
-            <span className="text-sm font-medium">{step}</span>
-          </button>
-        ))}
+        <div className="absolute top-4 w-full h-0.5 bg-gray-200 dark:bg-gray-700" />
+        <div className="relative flex justify-between">
+          {[1, 2, 3].map((step) => (
+            <button
+              key={step}
+              type="button"
+              onClick={() => {
+                if (isStepComplete(step)) {
+                  setActiveStep(step);
+                }
+              }}
+              className={`w-9 h-9 rounded-full flex items-center justify-center relative bg-white dark:bg-[#121212] border-2 transition-colors ${
+                activeStep >= step
+                  ? 'border-primary text-primary'
+                  : 'border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'
+              }`}
+            >
+              <span className="text-sm font-medium">{step}</span>
+            </button>
+          ))}
+        </div>
+        <div className="flex justify-between mt-2">
+          <span className="text-xs text-gray-500 dark:text-gray-400">Grundinfo</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">Gültigkeit</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">Zuweisung</span>
+        </div>
       </div>
-      <div className="flex justify-between mt-2">
-        <span className="text-xs text-gray-500 dark:text-gray-400">Grundinfo</span>
-        <span className="text-xs text-gray-500 dark:text-gray-400">Gültigkeit</span>
-        <span className="text-xs text-gray-500 dark:text-gray-400">Zuweisung</span>
-      </div>
-    </div>
-
 
       {/* Step 1: Basic Information */}
       {activeStep === 1 && (
@@ -387,54 +416,54 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
             </div>
 
             <label className="flex items-center">
-            <input
-              type="checkbox"
-              checked={formData.isMandatory}
-              onChange={(e) => setFormData({ ...formData, isMandatory: e.target.checked })}
-              className="mr-2"
-            />
-            Diese Qualifikation ist eine Pflichtqualifikation
-          </label>
+              <input
+                type="checkbox"
+                checked={formData.isMandatory}
+                onChange={(e) => setFormData({ ...formData, isMandatory: e.target.checked })}
+                className="mr-2"
+              />
+              Diese Qualifikation ist eine Pflichtqualifikation
+            </label>
 
-        <fieldset disabled={formData.isMandatory} className={formData.isMandatory ? "opacity-50" : ""}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" >
-              {filteredQualifications.map((qual) => (
-                <div
-                  key={qual.id}
-                  className={`p-4 rounded-lg border transition-colors ${
-                    selectedQualifications.includes(qual.id)
-                      ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                      : 'border-gray-200 dark:border-gray-700'
-                  }`}
-                >
-                  <label className="flex items-start space-x-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedQualifications.includes(qual.id)}
-                      onChange={() => {
-                        const newSelected = selectedQualifications.includes(qual.id)
-                          ? selectedQualifications.filter(id => id !== qual.id)
-                          : [...selectedQualifications, qual.id];
-                        setSelectedQualifications(newSelected);
-                        setFormData({ ...formData, requiredQualifications: newSelected });
-                      }}
-                      className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
-                    />
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">
-                        {qual.name}
-                      </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {qual.description}
-                      </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                        Gültigkeitsdauer: {qual.validityInMonth} Monate
-                      </p>
-                    </div>
-                  </label>
-                </div>
-              ))}
-            </div>
+            <fieldset disabled={formData.isMandatory} className={formData.isMandatory ? "opacity-50" : ""}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" >
+                {filteredQualifications.map((qual) => (
+                  <div
+                    key={qual.id}
+                    className={`p-4 rounded-lg border transition-colors ${
+                      selectedQualifications.includes(qual.id)
+                        ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                        : 'border-gray-200 dark:border-gray-700'
+                    }`}
+                  >
+                    <label className="flex items-start space-x-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedQualifications.includes(qual.id)}
+                        onChange={() => {
+                          const newSelected = selectedQualifications.includes(qual.id)
+                            ? selectedQualifications.filter(id => id !== qual.id)
+                            : [...selectedQualifications, qual.id];
+                          setSelectedQualifications(newSelected);
+                          setFormData({ ...formData, requiredQualifications: newSelected });
+                        }}
+                        className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">
+                          {qual.name}
+                        </p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {qual.description}
+                        </p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                          Gültigkeitsdauer: {qual.validityInMonth} Monate
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                ))}
+              </div>
             </fieldset>
 
             {selectedQualifications.length > 0 && (
