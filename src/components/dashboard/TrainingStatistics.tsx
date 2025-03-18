@@ -30,7 +30,13 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
   const [showDetails, setShowDetails] = useState(false);
   const [expandedDepartments, setExpandedDepartments] = useState<string[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
-  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
+
+  // Reset expanded departments when toggling details view
+  useEffect(() => {
+    if (!showDetails) {
+      setExpandedDepartments([]);
+    }
+  }, [showDetails]);
 
   // Only fetch departments when showing details
   const { 
@@ -181,6 +187,20 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
     };
   });
 
+  const handleToggleDetails = () => {
+    setShowDetails(prev => !prev);
+    setSelectedEmployee(null);
+    setSelectedStat(null);
+  };
+
+  const handleToggleDepartment = (deptName: string) => {
+    setExpandedDepartments(prev => 
+      prev.includes(deptName)
+        ? prev.filter(id => id !== deptName)
+        : [...prev, deptName]
+    );
+  };
+
   return (
     <div className="bg-white dark:bg-[#181818] rounded-lg shadow p-6">
       {/* Header */}
@@ -190,241 +210,245 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
           Schulungsstatistik
         </h3>
         <button
-          onClick={() => setShowDetails(!showDetails)}
+          onClick={handleToggleDetails}
           className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
         >
           {showDetails ? 'Übersicht anzeigen' : 'Details anzeigen'}
         </button>
       </div>
 
-      {/* Stat Cards */}
-      {!showDetails ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {statCards.map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <div
-                key={stat.name}
-                onClick={() => setSelectedStat(stat.type)}
-                className="bg-gray-50 dark:bg-[#121212] p-4 rounded-lg cursor-pointer hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-center">
-                  <Icon className={`h-5 w-5 mr-2 ${stat.color}`} />
-                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                    {stat.name}
-                  </span>
-                </div>
-                <p className={`mt-2 text-2xl font-semibold ${stat.color}`}>
-                  {stat.value}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        // Detailed view
-        <div className="space-y-6">
-          {isDepartmentsLoading ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500 dark:text-gray-400">Lade Abteilungen...</p>
-            </div>
-          ) : departmentsError ? (
-            <div className="text-center py-8">
-              <p className="text-red-500">Fehler beim Laden der Abteilungen</p>
-              <p className="text-sm text-red-400">{departmentsError.toString()}</p>
-            </div>
-          ) : (
-            departmentStats.map(dept => (
-              <div key={dept.name} className="border dark:border-gray-700 rounded-lg overflow-hidden">
-                <div 
-                  className="bg-gray-50 dark:bg-[#121212] p-4 flex justify-between items-center cursor-pointer"
-                  onClick={() => setExpandedDepartments(prev => 
-                    prev.includes(dept.name) 
-                      ? prev.filter(id => id !== dept.name)
-                      : [...prev, dept.name]
-                  )}
+      {/* Content */}
+      <div className="relative">
+        {/* Stat Cards */}
+        {!showDetails && (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {statCards.map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <div
+                  key={stat.name}
+                  onClick={() => setSelectedStat(stat.type)}
+                  className="bg-gray-50 dark:bg-[#121212] p-4 rounded-lg cursor-pointer hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-center">
-                    <Building2 className="h-5 w-5 text-gray-400 mr-2" />
-                    <div>
-                      <h4 className="font-medium text-gray-900 dark:text-white">
-                        {dept.name}
-                      </h4>
-                    </div>
+                    <Icon className={`h-5 w-5 mr-2 ${stat.color}`} />
+                    <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                      {stat.name}
+                    </span>
                   </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="hidden sm:grid sm:grid-cols-4 gap-4">
-                      <div className="text-center">
-                        <span className="text-sm text-green-500 flex items-center">
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          {dept.completedTrainings}
-                        </span>
-                        <span className="text-xs text-gray-500">Abgeschlossen</span>
-                      </div>
-                      <div className="text-center">
-                        <span className="text-sm text-yellow-500 flex items-center">
-                          <Clock className="h-4 w-4 mr-1" />
-                          {dept.pendingTrainings}
-                        </span>
-                        <span className="text-xs text-gray-500">Ausstehend</span>
-                      </div>
-                      <div className="text-center">
-                        <span className="text-sm text-red-500 flex items-center">
-                          <AlertTriangle className="h-4 w-4 mr-1" />
-                          {dept.expiringQualifications}
-                        </span>
-                        <span className="text-xs text-gray-500">Ablaufend</span>
-                      </div>
-                      <div className="text-center">
-                        <span className="text-sm text-blue-500 flex items-center">
-                          <Target className="h-4 w-4 mr-1" />
-                          {dept.completionRate}%
-                        </span>
-                        <span className="text-xs text-gray-500">Abschlussrate</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                        {dept.employeeCount} Mitarbeiter
-                      </span>
-                      {expandedDepartments.includes(dept.name) ? (
-                        <ChevronDown className="h-5 w-5 text-gray-400" />
-                      ) : (
-                        <ChevronRight className="h-5 w-5 text-gray-400" />
-                      )}
-                    </div>
-                  </div>
+                  <p className={`mt-2 text-2xl font-semibold ${stat.color}`}>
+                    {stat.value}
+                  </p>
                 </div>
-                {expandedDepartments.includes(dept.name) && (
-                  <div className="p-4">
-                    {/* Department Details */}
-                    <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="bg-gray-50 dark:bg-[#181818] p-4 rounded-lg">
-                        <h5 className="text-sm font-medium text-gray-900 dark:text-white mb-2 flex items-center">
-                          <Award className="h-4 w-4 mr-2" />
-                          Positionen ({dept.positions.length})
-                        </h5>
-                        <div className="flex flex-wrap gap-2">
-                          {dept.positions.map((position, index) => (
-                            <span
-                              key={index}
-                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                            >
-                              {position}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="bg-gray-50 dark:bg-[#181818] p-4 rounded-lg">
-                        <h5 className="text-sm font-medium text-gray-900 dark:text-white mb-2 flex items-center">
-                          <Info className="h-4 w-4 mr-2" />
-                          Statistiken
-                        </h5>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              Trainer: {dept.trainersCount}
-                            </p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              Abschlussrate: {dept.completionRate}%
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              Aktive Schulungen: {dept.pendingTrainings}
-                            </p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              Abgeschlossen: {dept.completedTrainings}
-                            </p>
-                          </div>
-                        </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Detailed view */}
+        {showDetails && (
+          <div className="space-y-6">
+            {isDepartmentsLoading ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500 dark:text-gray-400">Lade Abteilungen...</p>
+              </div>
+            ) : departmentsError ? (
+              <div className="text-center py-8">
+                <p className="text-red-500">Fehler beim Laden der Abteilungen</p>
+                <p className="text-sm text-red-400">{departmentsError.toString()}</p>
+              </div>
+            ) : (
+              departmentStats.map(dept => (
+                <div key={dept.name} className="border dark:border-gray-700 rounded-lg overflow-hidden">
+                  <div 
+                    className="bg-gray-50 dark:bg-[#121212] p-4 flex justify-between items-center cursor-pointer"
+                    onClick={() => handleToggleDepartment(dept.name)}
+                  >
+                    <div className="flex items-center">
+                      <Building2 className="h-5 w-5 text-gray-400 mr-2" />
+                      <div>
+                        <h4 className="font-medium text-gray-900 dark:text-white">
+                          {dept.name}
+                        </h4>
                       </div>
                     </div>
-
-                    {/* Employee Table */}
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead>
-                          <tr>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Mitarbeiter</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Position</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Abgeschlossen</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Ausstehend</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Ablaufend</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                          {employeesWithStats
-                            .filter(e => e.Department === dept.name)
-                            .filter(report => report)
-                            .map((report, index) => (
-                              <tr
-                                key={`report-${report.ID}-${index}`}
-                                onClick={() => setSelectedEmployee(report)}
-                                className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer pl-8"
+                    <div className="flex items-center space-x-4">
+                      <div className="hidden sm:grid sm:grid-cols-4 gap-4">
+                        <div className="text-center">
+                          <span className="text-sm text-green-500 flex items-center">
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            {dept.completedTrainings}
+                          </span>
+                          <span className="text-xs text-gray-500">Abgeschlossen</span>
+                        </div>
+                        <div className="text-center">
+                          <span className="text-sm text-yellow-500 flex items-center">
+                            <Clock className="h-4 w-4 mr-1" />
+                            {dept.pendingTrainings}
+                          </span>
+                          <span className="text-xs text-gray-500">Ausstehend</span>
+                        </div>
+                        <div className="text-center">
+                          <span className="text-sm text-red-500 flex items-center">
+                            <AlertTriangle className="h-4 w-4 mr-1" />
+                            {dept.expiringQualifications}
+                          </span>
+                          <span className="text-xs text-gray-500">Ablaufend</span>
+                        </div>
+                        <div className="text-center">
+                          <span className="text-sm text-blue-500 flex items-center">
+                            <Target className="h-4 w-4 mr-1" />
+                            {dept.completionRate}%
+                          </span>
+                          <span className="text-xs text-gray-500">Abschlussrate</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          {dept.employeeCount} Mitarbeiter
+                        </span>
+                        {expandedDepartments.includes(dept.name) ? (
+                          <ChevronDown className="h-5 w-5 text-gray-400" />
+                        ) : (
+                          <ChevronRight className="h-5 w-5 text-gray-400" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {expandedDepartments.includes(dept.name) && (
+                    <div className="p-4">
+                      {/* Department Details */}
+                      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-gray-50 dark:bg-[#181818] p-4 rounded-lg">
+                          <h5 className="text-sm font-medium text-gray-900 dark:text-white mb-2 flex items-center">
+                            <Award className="h-4 w-4 mr-2" />
+                            Positionen ({dept.positions.length})
+                          </h5>
+                          <div className="flex flex-wrap gap-2">
+                            {dept.positions.map((position, index) => (
+                              <span
+                                key={index}
+                                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
                               >
-                                <td className="px-4 py-2 whitespace-nowrap">
-                                  <div className="flex items-center">
-                                    <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
-                                      <span className="text-sm font-medium">
-                                        {typeof report.FullName === 'string'
-                                          ? report.FullName.split(' ').map((n) => n[0]).join('')
-                                          : ''}
-                                      </span>
-                                    </div>
-                                    <div className="ml-4">
-                                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                        {report.FullName}
+                                {position}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="bg-gray-50 dark:bg-[#181818] p-4 rounded-lg">
+                          <h5 className="text-sm font-medium text-gray-900 dark:text-white mb-2 flex items-center">
+                            <Info className="h-4 w-4 mr-2" />
+                            Statistiken
+                          </h5>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                Trainer: {dept.trainersCount}
+                              </p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                Abschlussrate: {dept.completionRate}%
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                Aktive Schulungen: {dept.pendingTrainings}
+                              </p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                Abgeschlossen: {dept.completedTrainings}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Employee Table */}
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                          <thead>
+                            <tr>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Mitarbeiter</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Position</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Abgeschlossen</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Ausstehend</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Ablaufend</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                            {employeesWithStats
+                              .filter(e => e.Department === dept.name)
+                              .filter(report => report)
+                              .map((report, index) => (
+                                <tr
+                                  key={`report-${report.ID}-${index}`}
+                                  onClick={() => setSelectedEmployee(report)}
+                                  className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer pl-8"
+                                >
+                                  <td className="px-4 py-2 whitespace-nowrap">
+                                    <div className="flex items-center">
+                                      <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
+                                        <span className="text-sm font-medium">
+                                          {typeof report.FullName === 'string'
+                                            ? report.FullName.split(' ').map((n) => n[0]).join('')
+                                            : ''}
+                                        </span>
+                                      </div>
+                                      <div className="ml-4">
+                                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                          {report.FullName}
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
-                                </td>
-                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                                  {jobTitles.find(jt => jt.id === report.JobTitleID?.toString())?.jobTitle || '-'}
-                                </td>
-                                <td className="px-4 py-2">
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                                    {report.completedTrainings}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-2">
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                                    {report.pendingTrainings}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-2">
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                                    {report.expiringQualifications.length}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                        </tbody>
-                      </table>
+                                  </td>
+                                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                    {jobTitles.find(jt => jt.id === report.JobTitleID?.toString())?.jobTitle || '-'}
+                                  </td>
+                                  <td className="px-4 py-2">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                      {report.completedTrainings}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-2">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                      {report.pendingTrainings}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-2">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                      {report.expiringQualifications.length}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      )}
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
 
-      <StatisticsModal
-        isOpen={selectedStat !== null}
-        onClose={() => setSelectedStat(null)}
-        title={
-          selectedStat === 'all'
-            ? 'Alle Mitarbeiter'
-            : selectedStat === 'completed'
-            ? 'Abgeschlossene Schulungen'
-            : selectedStat === 'pending'
-            ? 'Ausstehende Schulungen'
-            : 'Ablaufende Qualifikationen'
-        }
-        employees={getFilteredEmployees()}
-        type={selectedStat || 'all'}
-      />
+      {/* Modals */}
+      {selectedStat !== null && (
+        <StatisticsModal
+          isOpen={true}
+          onClose={() => setSelectedStat(null)}
+          title={
+            selectedStat === 'all'
+              ? 'Alle Mitarbeiter'
+              : selectedStat === 'completed'
+              ? 'Abgeschlossene Schulungen'
+              : selectedStat === 'pending'
+              ? 'Ausstehende Schulungen'
+              : 'Ablaufende Qualifikationen'
+          }
+          employees={getFilteredEmployees()}
+          type={selectedStat}
+        />
+      )}
 
       {selectedEmployee && (
         <EmployeeDetails
