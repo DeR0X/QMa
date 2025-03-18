@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
-import { Plus, Search, Award, X, Edit2, Clock, AlertCircle, Info } from 'lucide-react';
+import { Plus, Search, Award, X, Edit2, Clock, AlertCircle, Info, Building2, Briefcase, Star } from 'lucide-react';
 import { RootState } from '../store';
-import { qualifications } from '../data/mockData';
+import { qualifications, jobTitles } from '../data/mockData';
 import { hasHRPermissions } from '../store/slices/authSlice';
 import { toast } from 'sonner';
 import type { Qualification } from '../types';
@@ -216,12 +216,13 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
     validityPeriod: initialData?.validityInMonth || 12,
     requiredQualifications: initialData?.requiredQualifications || [],
     isMandatory: initialData?.isMandatory || false,
-    department: '',
-    positions: [] as string[],
-    isFreeQualification: false,
+    assignmentType: 'jobTitle', // 'jobTitle', 'additionalFunction', or 'mandatory'
+    selectedJobTitles: [] as string[],
+    selectedDepartment: '',
+    additionalFunctionName: '',
+    additionalFunctionDescription: '',
   });
 
-  const [selectedDepartment, setSelectedDepartment] = useState('');
   const [selectedQualifications, setSelectedQualifications] = useState<string[]>(
     initialData?.requiredQualifications || []
   );
@@ -229,10 +230,7 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
   const [activeStep, setActiveStep] = useState(1);
 
   const filteredQualifications = qualifications.filter(qual => {
-    // Filtere die aktuelle Qualifikation aus (falls im Bearbeitungsmodus)
     if (initialData && qual.id === initialData.id) return false;
-    
-    // Filtere bereits ausgewählte Qualifikationen aus den Voraussetzungen
     if (selectedQualifications.includes(qual.id)) return false;
     
     return qual.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -242,16 +240,15 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    for (let step = 1; step <= 4; step++) {
-      if (!isStepComplete(step)) {
-        return;
-      }
+    if (!isStepComplete(activeStep)) {
+      return;
     }
 
     const qualificationData = {
       ...formData,
       validityInMonth: formData.validityPeriod,
       requiredQualifications: selectedQualifications,
+      isMandatory: formData.assignmentType === 'mandatory',
     };
 
     onSubmit(qualificationData);
@@ -262,12 +259,8 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
 
     switch (step) {
       case 1:
-        if (!formData.name.trim()) {
-          newErrors.name = 'Name ist erforderlich';
-        }
-        if (!formData.description.trim()) {
-          newErrors.description = 'Beschreibung ist erforderlich';
-        }
+        if (!formData.name.trim()) newErrors.name = 'Name ist erforderlich';
+        if (!formData.description.trim()) newErrors.description = 'Beschreibung ist erforderlich';
         break;
 
       case 2:
@@ -277,8 +270,20 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
         break;
 
       case 3:
-        if (!formData.isFreeQualification && formData.department && formData.positions.length === 0) {
-          newErrors.positions = 'Mindestens eine Position muss ausgewählt werden';
+        switch (formData.assignmentType) {
+          case 'jobTitle':
+            if (formData.selectedJobTitles.length === 0) {
+              newErrors.jobTitles = 'Mindestens eine Position muss ausgewählt werden';
+            }
+            break;
+          case 'additionalFunction':
+            if (!formData.additionalFunctionName) {
+              newErrors.additionalFunction = 'Name der Zusatzfunktion ist erforderlich';
+            }
+            break;
+          case 'mandatory':
+            // No additional validation needed for mandatory qualifications
+            break;
         }
         break;
     }
@@ -287,6 +292,210 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
   };
   
   const canProceed = isStepComplete(activeStep);
+
+  const renderAssignmentStep = () => (
+    <div className="space-y-6">
+      <div className="mb-6">
+        <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
+          Qualifikationszuweisung
+        </h4>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <button
+            type="button"
+            onClick={() => setFormData({ ...formData, assignmentType: 'jobTitle' })}
+            className={`p-4 rounded-lg border ${
+              formData.assignmentType === 'jobTitle'
+                ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                : 'border-gray-200 dark:border-gray-700'
+            } text-left`}
+          >
+            <Briefcase className={`h-6 w-6 mb-2 ${
+              formData.assignmentType === 'jobTitle' ? 'text-primary' : 'text-gray-400'
+            }`} />
+            <h5 className="font-medium text-gray-900 dark:text-white">Jobtitel</h5>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              An bestimmte Positionen binden
+            </p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setFormData({ ...formData, assignmentType: 'additionalFunction' })}
+            className={`p-4 rounded-lg border ${
+              formData.assignmentType === 'additionalFunction'
+                ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                : 'border-gray-200 dark:border-gray-700'
+            } text-left`}
+          >
+            <Star className={`h-6 w-6 mb-2 ${
+              formData.assignmentType === 'additionalFunction' ? 'text-primary' : 'text-gray-400'
+            }`} />
+            <h5 className="font-medium text-gray-900 dark:text-white">Zusatzfunktion</h5>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Als zusätzliche Qualifikation definieren
+            </p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setFormData({ ...formData, assignmentType: 'mandatory' })}
+            className={`p-4 rounded-lg border ${
+              formData.assignmentType === 'mandatory'
+                ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                : 'border-gray-200 dark:border-gray-700'
+            } text-left`}
+          >
+            <AlertCircle className={`h-6 w-6 mb-2 ${
+              formData.assignmentType === 'mandatory' ? 'text-primary' : 'text-gray-400'
+            }`} />
+            <h5 className="font-medium text-gray-900 dark:text-white">Pflichtqualifikation</h5>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Für alle Mitarbeiter verpflichtend
+            </p>
+          </button>
+        </div>
+      </div>
+
+      {/* Assignment Type Specific Content */}
+      {formData.assignmentType === 'jobTitle' && (
+        <div className="space-y-4">
+          <h5 className="text-sm font-medium text-gray-900 dark:text-white">
+            Positionen auswählen
+          </h5>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {jobTitles.map(jobTitle => (
+              <label
+                key={jobTitle.id}
+                className={`p-4 rounded-lg border ${
+                  formData.selectedJobTitles.includes(jobTitle.id)
+                    ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                    : 'border-gray-200 dark:border-gray-700'
+                } flex items-start space-x-3 cursor-pointer`}
+              >
+                <input
+                  type="checkbox"
+                  checked={formData.selectedJobTitles.includes(jobTitle.id)}
+                  onChange={(e) => {
+                    const newSelected = e.target.checked
+                      ? [...formData.selectedJobTitles, jobTitle.id]
+                      : formData.selectedJobTitles.filter(id => id !== jobTitle.id);
+                    setFormData({ ...formData, selectedJobTitles: newSelected });
+                  }}
+                  className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">{jobTitle.jobTitle}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{jobTitle.description}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {formData.assignmentType === 'additionalFunction' && (
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Name der Zusatzfunktion
+            </label>
+            <input
+              type="text"
+              value={formData.additionalFunctionName}
+              onChange={(e) => setFormData({ ...formData, additionalFunctionName: e.target.value })}
+              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
+              placeholder="z.B. Ersthelfer, Brandschutzbeauftragter"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Beschreibung der Zusatzfunktion
+            </label>
+            <textarea
+              value={formData.additionalFunctionDescription}
+              onChange={(e) => setFormData({ ...formData, additionalFunctionDescription: e.target.value })}
+              rows={3}
+              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
+              placeholder="Beschreiben Sie die Aufgaben und Verantwortlichkeiten dieser Zusatzfunktion..."
+            />
+          </div>
+        </div>
+      )}
+
+      {formData.assignmentType === 'mandatory' && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-900/50 rounded-lg p-4">
+          <div className="flex">
+            <AlertCircle className="h-5 w-5 text-yellow-400 mr-2" />
+            <div>
+              <h5 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                Pflichtqualifikation
+              </h5>
+              <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-300">
+                Diese Qualifikation wird für alle Mitarbeiter verpflichtend sein. Stellen Sie sicher,
+                dass dies wirklich erforderlich ist.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-6">
+        <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
+          Erforderliche Qualifikationen
+        </h4>
+        
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Qualifikationen suchen..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-primary focus:border-primary dark:bg-[#181818] dark:text-white"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {filteredQualifications.map((qual) => (
+            <div
+              key={qual.id}
+              className={`p-4 rounded-lg border transition-colors ${
+                selectedQualifications.includes(qual.id)
+                  ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                  : 'border-gray-200 dark:border-gray-700'
+              }`}
+            >
+              <label className="flex items-start space-x-3">
+                <input
+                  type="checkbox"
+                  checked={selectedQualifications.includes(qual.id)}
+                  onChange={() => {
+                    const newSelected = selectedQualifications.includes(qual.id)
+                      ? selectedQualifications.filter(id => id !== qual.id)
+                      : [...selectedQualifications, qual.id];
+                    setSelectedQualifications(newSelected);
+                  }}
+                  className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    {qual.name}
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {qual.description}
+                  </p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    Gültigkeitsdauer: {qual.validityInMonth} Monate
+                  </p>
+                </div>
+              </label>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -299,7 +508,7 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
               key={step}
               type="button"
               onClick={() => {
-                if (isStepComplete(step)) {
+                if (isStepComplete(step - 1)) {
                   setActiveStep(step);
                 }
               }}
@@ -320,7 +529,7 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
         </div>
       </div>
 
-      {/* Step 1: Basic Information */}
+      {/* Step Content */}
       {activeStep === 1 && (
         <div className="space-y-4">
           <div>
@@ -353,7 +562,6 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
         </div>
       )}
 
-      {/* Step 2: Validity Period */}
       {activeStep === 2 && (
         <div className="space-y-6">
           <div>
@@ -396,110 +604,7 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
         </div>
       )}
 
-      {/* Step 3: Assignment */}
-      {activeStep === 3 && (
-        <div className="space-y-6">
-          <div>
-            <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
-              Erforderliche Qualifikationen
-            </h4>
-            
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Qualifikationen suchen..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-primary focus:border-primary dark:bg-[#181818] dark:text-white"
-              />
-            </div>
-
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={formData.isMandatory}
-                onChange={(e) => setFormData({ ...formData, isMandatory: e.target.checked })}
-                className="mr-2"
-              />
-              Diese Qualifikation ist eine Pflichtqualifikation
-            </label>
-
-            <fieldset disabled={formData.isMandatory} className={formData.isMandatory ? "opacity-50" : ""}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" >
-                {filteredQualifications.map((qual) => (
-                  <div
-                    key={qual.id}
-                    className={`p-4 rounded-lg border transition-colors ${
-                      selectedQualifications.includes(qual.id)
-                        ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                        : 'border-gray-200 dark:border-gray-700'
-                    }`}
-                  >
-                    <label className="flex items-start space-x-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedQualifications.includes(qual.id)}
-                        onChange={() => {
-                          const newSelected = selectedQualifications.includes(qual.id)
-                            ? selectedQualifications.filter(id => id !== qual.id)
-                            : [...selectedQualifications, qual.id];
-                          setSelectedQualifications(newSelected);
-                          setFormData({ ...formData, requiredQualifications: newSelected });
-                        }}
-                        className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
-                      />
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">
-                          {qual.name}
-                        </p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {qual.description}
-                        </p>
-                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                          Gültigkeitsdauer: {qual.validityInMonth} Monate
-                        </p>
-                      </div>
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </fieldset>
-
-            {selectedQualifications.length > 0 && (
-              <div className="mt-4">
-                <h5 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                  Ausgewählte Qualifikationen:
-                </h5>
-                <div className="flex flex-wrap gap-2">
-                  {selectedQualifications.map(qualId => {
-                    const qual = qualifications.find(q => q.id === qualId);
-                    return qual && (
-                      <span
-                        key={qualId}
-                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary"
-                      >
-                        {qual.name}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newSelected = selectedQualifications.filter(id => id !== qualId);
-                            setSelectedQualifications(newSelected);
-                            setFormData({ ...formData, requiredQualifications: newSelected });
-                          }}
-                          className="ml-1 hover:text-primary/80"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {activeStep === 3 && renderAssignmentStep()}
 
       {/* Navigation Buttons */}
       <div className="flex justify-between pt-6">
