@@ -14,10 +14,11 @@ import {
   Award,
   Target
 } from 'lucide-react';
-import { employees, departments, jobTitles, bookings } from '../../data/mockData';
+import { employees, jobTitles, bookings } from '../../data/mockData';
 import StatisticsModal from './StatisticsModal';
 import EmployeeDetails from '../employees/EmployeeDetails';
 import { useEmployees } from '../../hooks/useEmployees';
+import { useDepartments } from '../../hooks/useDepartments';
 import type { EmployeeFilters } from '../../types';
 
 interface Props {
@@ -31,6 +32,28 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
   const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
 
+  // Fetch departments with debug logging
+  const { 
+    data: departments = [], 
+    isLoading: isDepartmentsLoading, 
+    error: departmentsError,
+    isFetching: isDepartmentsFetching,
+    isError: isDepartmentsError,
+    failureCount: departmentsFailureCount,
+    failureReason: departmentsFailureReason
+  } = useDepartments();
+
+  // Debug logging
+  console.log('Departments state:', {
+    loading: isDepartmentsLoading,
+    fetching: isDepartmentsFetching,
+    error: isDepartmentsError,
+    failureCount: departmentsFailureCount,
+    failureReason: departmentsFailureReason,
+    departmentsCount: departments.length,
+    departments
+  });
+
   // Fetch employees data
   const filters: EmployeeFilters = {
     page: 1,
@@ -42,25 +65,42 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
 
   const { 
     data: employeesData, 
-    isLoading, 
-    error 
+    isLoading: isEmployeesLoading, 
+    error: employeesError 
   } = useEmployees(filters);
 
-  if (isLoading) {
+  if (isEmployeesLoading || isDepartmentsLoading) {
     return (
       <div className="bg-white dark:bg-[#181818] rounded-lg shadow p-6">
         <div className="flex items-center justify-center h-32">
-          <p className="text-gray-500 dark:text-gray-400">Laden...</p>
+          <p className="text-gray-500 dark:text-gray-400">
+            {isEmployeesLoading && isDepartmentsLoading 
+              ? 'Lade Mitarbeiter und Abteilungen...'
+              : isEmployeesLoading 
+                ? 'Lade Mitarbeiter...' 
+                : 'Lade Abteilungen...'}
+          </p>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (employeesError || departmentsError) {
     return (
       <div className="bg-white dark:bg-[#181818] rounded-lg shadow p-6">
-        <div className="flex items-center justify-center h-32">
+        <div className="flex flex-col items-center justify-center h-32 space-y-2">
           <p className="text-red-500">Fehler beim Laden der Daten</p>
+          {employeesError && (
+            <p className="text-sm text-red-400">Mitarbeiter: {employeesError.toString()}</p>
+          )}
+          {departmentsError && (
+            <p className="text-sm text-red-400">Abteilungen: {departmentsError.toString()}</p>
+          )}
+          {import.meta.env.DEV && departmentsFailureReason && (
+            <pre className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded text-xs overflow-auto max-w-full">
+              {JSON.stringify(departmentsFailureReason, null, 2)}
+            </pre>
+          )}
         </div>
       </div>
     );
@@ -146,17 +186,14 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
   // Get department statistics with additional details
   const departmentStats = departments.map(dept => {
     const departmentEmployees = employeesWithStats.filter(
-      e => e.DepartmentID?.toString() === dept.id
+      e => e.DepartmentID?.toString() === dept.ID.toString()
     );
     
-    const positions = Array.from(new Set(departmentEmployees.map(emp => 
-      jobTitles.find(jt => jt.id === emp.JobTitleID?.toString())?.jobTitle
-    ).filter(Boolean)));
-
     const trainersCount = departmentEmployees.filter(emp => emp.isTrainer).length;
     
     return {
       ...dept,
+      name: dept.Department, // Map the Department field to name for consistency
       employeeCount: departmentEmployees.length,
       completedTrainings: departmentEmployees.reduce((sum, emp) => sum + emp.completedTrainings, 0),
       pendingTrainings: departmentEmployees.reduce((sum, emp) => sum + emp.pendingTrainings, 0),
@@ -164,7 +201,7 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
         (sum, emp) => sum + emp.expiringQualifications.length, 
         0
       ),
-      positions,
+      positions: dept.positions || [], // Use empty array if positions not available
       trainersCount,
       completionRate: departmentEmployees.length > 0 
         ? Math.round((departmentEmployees.reduce((sum, emp) => sum + emp.completedTrainings, 0) / 
@@ -217,24 +254,21 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
         // Detailed view
         <div className="space-y-6">
           {departmentStats.map(dept => (
-            <div key={dept.id} className="border dark:border-gray-700 rounded-lg overflow-hidden">
+            <div key={dept.name} className="border dark:border-gray-700 rounded-lg overflow-hidden">
               <div 
                 className="bg-gray-50 dark:bg-[#121212] p-4 flex justify-between items-center cursor-pointer"
                 onClick={() => setExpandedDepartments(prev => 
-                  prev.includes(dept.id) 
-                    ? prev.filter(id => id !== dept.id)
-                    : [...prev, dept.id]
+                  prev.includes(dept.name) 
+                    ? prev.filter(id => id !== dept.name)
+                    : [...prev, dept.name]
                 )}
               >
                 <div className="flex items-center">
                   <Building2 className="h-5 w-5 text-gray-400 mr-2" />
                   <div>
                     <h4 className="font-medium text-gray-900 dark:text-white">
-                      {dept.department}
+                      {dept.name}
                     </h4>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      ID: {dept.departmentID_Atoss}
-                    </p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-4">
@@ -272,7 +306,7 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
                     <span className="text-sm text-gray-500 dark:text-gray-400">
                       {dept.employeeCount} Mitarbeiter
                     </span>
-                    {expandedDepartments.includes(dept.id) ? (
+                    {expandedDepartments.includes(dept.name) ? (
                       <ChevronDown className="h-5 w-5 text-gray-400" />
                     ) : (
                       <ChevronRight className="h-5 w-5 text-gray-400" />
@@ -280,7 +314,7 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
                   </div>
                 </div>
               </div>
-              {expandedDepartments.includes(dept.id) && (
+              {expandedDepartments.includes(dept.name) && (
                 <div className="p-4">
                   {/* Department Details */}
                   <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -340,7 +374,7 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
                       </thead>
                       <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                         {employeesWithStats
-                          .filter(e => e.DepartmentID?.toString() === dept.id)
+                          .filter(e => e.Department === dept.name)
                           .map((employee) => (
                             <tr
                               key={employee.ID}
