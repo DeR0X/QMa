@@ -1,6 +1,19 @@
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
-import { PieChart, Building2, Users, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { 
+  PieChart, 
+  Building2, 
+  Users, 
+  CheckCircle, 
+  Clock, 
+  AlertTriangle, 
+  ChevronDown, 
+  ChevronRight,
+  Info,
+  Calendar,
+  Award,
+  Target
+} from 'lucide-react';
 import { employees, departments, jobTitles, bookings } from '../../data/mockData';
 import StatisticsModal from './StatisticsModal';
 import EmployeeDetails from '../employees/EmployeeDetails';
@@ -16,11 +29,12 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
   const [showDetails, setShowDetails] = useState(false);
   const [expandedDepartments, setExpandedDepartments] = useState<string[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
+  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
 
   // Fetch employees data
   const filters: EmployeeFilters = {
     page: 1,
-    limit: 100, // Increased limit to get all employees
+    limit: 100,
     sortBy: 'SurName',
     sortOrder: 'asc',
     department: departmentFilter !== 'all' ? departmentFilter : undefined,
@@ -31,12 +45,6 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
     isLoading, 
     error 
   } = useEmployees(filters);
-
-  // Debug logging
-  console.log('Employees Data:', employeesData);
-  console.log('Departments:', departments);
-  console.log('Job Titles:', jobTitles);
-  console.log('Bookings:', bookings);
 
   if (isLoading) {
     return (
@@ -135,6 +143,36 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
     },
   ];
 
+  // Get department statistics with additional details
+  const departmentStats = departments.map(dept => {
+    const departmentEmployees = employeesWithStats.filter(
+      e => e.DepartmentID?.toString() === dept.id
+    );
+    
+    const positions = Array.from(new Set(departmentEmployees.map(emp => 
+      jobTitles.find(jt => jt.id === emp.JobTitleID?.toString())?.jobTitle
+    ).filter(Boolean)));
+
+    const trainersCount = departmentEmployees.filter(emp => emp.isTrainer).length;
+    
+    return {
+      ...dept,
+      employeeCount: departmentEmployees.length,
+      completedTrainings: departmentEmployees.reduce((sum, emp) => sum + emp.completedTrainings, 0),
+      pendingTrainings: departmentEmployees.reduce((sum, emp) => sum + emp.pendingTrainings, 0),
+      expiringQualifications: departmentEmployees.reduce(
+        (sum, emp) => sum + emp.expiringQualifications.length, 
+        0
+      ),
+      positions,
+      trainersCount,
+      completionRate: departmentEmployees.length > 0 
+        ? Math.round((departmentEmployees.reduce((sum, emp) => sum + emp.completedTrainings, 0) / 
+          (departmentEmployees.reduce((sum, emp) => sum + emp.completedTrainings + emp.pendingTrainings, 0))) * 100)
+        : 0
+    };
+  });
+
   return (
     <div className="bg-white dark:bg-[#181818] rounded-lg shadow p-6">
       {/* Header */}
@@ -178,7 +216,7 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
       ) : (
         // Detailed view
         <div className="space-y-6">
-          {departments.map(dept => (
+          {departmentStats.map(dept => (
             <div key={dept.id} className="border dark:border-gray-700 rounded-lg overflow-hidden">
               <div 
                 className="bg-gray-50 dark:bg-[#121212] p-4 flex justify-between items-center cursor-pointer"
@@ -190,16 +228,105 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
               >
                 <div className="flex items-center">
                   <Building2 className="h-5 w-5 text-gray-400 mr-2" />
-                  <h4 className="font-medium text-gray-900 dark:text-white">
-                    {dept.department}
-                  </h4>
+                  <div>
+                    <h4 className="font-medium text-gray-900 dark:text-white">
+                      {dept.department}
+                    </h4>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      ID: {dept.departmentID_Atoss}
+                    </p>
+                  </div>
                 </div>
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  {employeesWithStats.filter(e => e.DepartmentID?.toString() === dept.id).length} Mitarbeiter
-                </span>
+                <div className="flex items-center space-x-4">
+                  <div className="hidden sm:grid sm:grid-cols-4 gap-4">
+                    <div className="text-center">
+                      <span className="text-sm text-green-500 flex items-center">
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        {dept.completedTrainings}
+                      </span>
+                      <span className="text-xs text-gray-500">Abgeschlossen</span>
+                    </div>
+                    <div className="text-center">
+                      <span className="text-sm text-yellow-500 flex items-center">
+                        <Clock className="h-4 w-4 mr-1" />
+                        {dept.pendingTrainings}
+                      </span>
+                      <span className="text-xs text-gray-500">Ausstehend</span>
+                    </div>
+                    <div className="text-center">
+                      <span className="text-sm text-red-500 flex items-center">
+                        <AlertTriangle className="h-4 w-4 mr-1" />
+                        {dept.expiringQualifications}
+                      </span>
+                      <span className="text-xs text-gray-500">Ablaufend</span>
+                    </div>
+                    <div className="text-center">
+                      <span className="text-sm text-blue-500 flex items-center">
+                        <Target className="h-4 w-4 mr-1" />
+                        {dept.completionRate}%
+                      </span>
+                      <span className="text-xs text-gray-500">Abschlussrate</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      {dept.employeeCount} Mitarbeiter
+                    </span>
+                    {expandedDepartments.includes(dept.id) ? (
+                      <ChevronDown className="h-5 w-5 text-gray-400" />
+                    ) : (
+                      <ChevronRight className="h-5 w-5 text-gray-400" />
+                    )}
+                  </div>
+                </div>
               </div>
               {expandedDepartments.includes(dept.id) && (
                 <div className="p-4">
+                  {/* Department Details */}
+                  <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-gray-50 dark:bg-[#181818] p-4 rounded-lg">
+                      <h5 className="text-sm font-medium text-gray-900 dark:text-white mb-2 flex items-center">
+                        <Award className="h-4 w-4 mr-2" />
+                        Positionen ({dept.positions.length})
+                      </h5>
+                      <div className="flex flex-wrap gap-2">
+                        {dept.positions.map((position, index) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                          >
+                            {position}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-[#181818] p-4 rounded-lg">
+                      <h5 className="text-sm font-medium text-gray-900 dark:text-white mb-2 flex items-center">
+                        <Info className="h-4 w-4 mr-2" />
+                        Statistiken
+                      </h5>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Trainer: {dept.trainersCount}
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Abschlussrate: {dept.completionRate}%
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Aktive Schulungen: {dept.pendingTrainings}
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Abgeschlossen: {dept.completedTrainings}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Employee Table */}
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                       <thead>
