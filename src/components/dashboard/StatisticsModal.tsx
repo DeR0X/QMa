@@ -25,12 +25,6 @@ export default function StatisticsModal({ isOpen, onClose, title, employees, typ
     currentPage * ITEMS_PER_PAGE
   );
 
-  // Debug logging
-  console.log('Modal Employees:', employees);
-  console.log('Paginated Employees:', paginatedEmployees);
-  console.log('Departments:', departments);
-  console.log('Job Titles:', jobTitles);
-
   if (!isOpen) return null;
 
   const getStatusBadge = (status: string) => {
@@ -63,10 +57,9 @@ export default function StatisticsModal({ isOpen, onClose, title, employees, typ
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      {/* Mobile-first: Standardmäßig klein, ab sm: breiter */}
-      <div className="bg-white dark:bg-[#121212] rounded-lg w-full max-w-md sm:max-w-6xl max-h-[90vh] flex flex-col">
+      <div className="bg-white dark:bg-[#121212] rounded-lg w-full max-w-md sm:max-w-6xl h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex-shrink-0 flex justify-between items-center p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
             {title}
           </h2>
@@ -79,7 +72,7 @@ export default function StatisticsModal({ isOpen, onClose, title, employees, typ
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-hidden p-4 sm:p-6">
+        <div className="flex-1 min-h-0 p-4 sm:p-6">
           {paginatedEmployees.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -87,99 +80,91 @@ export default function StatisticsModal({ isOpen, onClose, title, employees, typ
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <div className="inline-block min-w-full align-middle">
-                <div className="overflow-hidden border border-gray-200 dark:border-gray-700 sm:rounded-lg">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-[#181818]">
-                      <tr>
-                        <th className="py-2 pl-4 pr-3 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">
-                          Mitarbeiter
-                        </th>
-                        <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
-                          Abteilung
-                        </th>
-                        <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
-                          Position
-                        </th>
-                        <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
-                          Details
-                        </th>
-                        <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
-                          Status
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-[#141616]">
-                      {paginatedEmployees.map((employee) => {
-                        // Get department and job title information
-                        const department = departments.find(d => d.id === employee.DepartmentID?.toString());
-                        const jobTitle = jobTitles.find(jt => jt.id === employee.JobTitleID?.toString());
-                        
-                        // Get employee initials for avatar
-                        const initials = employee.FullName
-                          ? employee.FullName.split(' ').map((n: string) => n[0]).join('')
-                          : '??';
+            <div className="h-full overflow-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-[#181818] sticky top-0">
+                  <tr>
+                    <th className="py-2 pl-4 pr-3 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">
+                      Mitarbeiter
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
+                      Abteilung
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
+                      Position
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
+                      Details
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-[#141616]">
+                  {paginatedEmployees.map((employee) => {
+                    const jobTitle = jobTitles.find(jt => jt.id === employee.JobTitleID?.toString());
+                    const initials = employee.FullName
+                      ? employee.FullName.split(' ').map((n: string) => n[0]).join('')
+                      : '??';
 
-                        return (
-                          <tr 
-                            key={employee.ID} 
-                            className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-                            onClick={() => setSelectedEmployee(employee)}
-                          >
-                            <td className="whitespace-nowrap py-2 pl-4 pr-3 sm:pl-6">
-                              <div className="flex items-center">
-                                <div className="h-8 w-8 flex-shrink-0 rounded-full bg-primary text-white flex items-center justify-center">
-                                  <span className="text-xs sm:text-sm font-medium">
-                                    {initials}
-                                  </span>
-                                </div>
-                                <div className="ml-2">
-                                  <div className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
-                                    {employee.FullName}
-                                  </div>
-                                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                                    {employee.StaffNumber}
-                                  </div>
-                                </div>
+                    return (
+                      <tr 
+                        key={employee.ID} 
+                        className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                        onClick={() => setSelectedEmployee(employee)}
+                      >
+                        <td className="whitespace-nowrap py-2 pl-4 pr-3 sm:pl-6">
+                          <div className="flex items-center">
+                            <div className="h-8 w-8 flex-shrink-0 rounded-full bg-primary text-white flex items-center justify-center">
+                              <span className="text-xs sm:text-sm font-medium">
+                                {initials}
+                              </span>
+                            </div>
+                            <div className="ml-2">
+                              <div className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                                {employee.FullName}
                               </div>
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm text-gray-900 dark:text-white">
-                              {employee.Department || '-'}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm text-gray-900 dark:text-white">
-                              {employee.JobTitleID || '-'}
-                            </td>
-                            <td className="px-3 py-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                              {type === 'expiring' && employee.expiringQualifications?.map((qual: any) => (
-                                <div key={qual.id}>
-                                  {qual.name} – Läuft ab am {formatDate(qual.expirationDate)}
-                                </div>
-                              ))}
-                              {type === 'completed' && (
-                                <div>{employee.completedTrainings} abgeschlossene Schulungen</div>
-                              )}
-                              {type === 'pending' && (
-                                <div>{employee.pendingTrainings} ausstehende Schulungen</div>
-                              )}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
-                              {getStatusBadge(type)}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+                              <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                                {employee.StaffNumber}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm text-gray-900 dark:text-white">
+                          {employee.Department || '-'}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm text-gray-900 dark:text-white">
+                          {jobTitle?.jobTitle || '-'}
+                        </td>
+                        <td className="px-3 py-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                          {type === 'expiring' && employee.expiringQualifications?.map((qual: any) => (
+                            <div key={qual.id}>
+                              {qual.name} – Läuft ab am {formatDate(qual.expirationDate)}
+                            </div>
+                          ))}
+                          {type === 'completed' && (
+                            <div>{employee.completedTrainings} abgeschlossene Schulungen</div>
+                          )}
+                          {type === 'pending' && (
+                            <div>{employee.pendingTrainings} ausstehende Schulungen</div>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
+                          {getStatusBadge(type)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
 
         {/* Footer with Pagination */}
         {!selectedEmployee && (
-          <div className="border-t border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-3">
+          <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-3">
             <div className="flex items-center justify-between">
               <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                 Zeige{' '}
