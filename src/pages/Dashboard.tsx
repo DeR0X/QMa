@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
+import { useQuery } from '@tanstack/react-query';
 import { GraduationCap, Calendar, Award, Building2 } from 'lucide-react';
 import { RootState } from '../store';
 import { trainings, bookings, qualifications, employees, jobTitles } from '../data/mockData';
@@ -8,13 +9,35 @@ import { hasHRPermissions } from '../store/slices/authSlice';
 import { sendQualificationExpiryNotification } from '../lib/notifications';
 import TrainingStatistics from '../components/dashboard/TrainingStatistics';
 import QualificationDetails from '../components/dashboard/QualificationDetails';
-import type { Qualification } from '../types';
+import type { Qualification, Employee, EmployeeFilters } from '../types';
+import { useEmployees } from '../hooks/useEmployees';
 
+interface DashboardStats {
+  totalEmployees: number;
+  completedTrainings: number;
+  pendingTrainings: number;
+  expiringQualifications: number;
+}
 
 export default function Dashboard() {
   const { employee } = useSelector((state: RootState) => state.auth);
   const isHR = hasHRPermissions(employee);
   const [selectedQual, setSelectedQual] = useState<Qualification | null>(null);
+
+  // Fetch employees data using the same hook as Employees page
+  const filters: EmployeeFilters = {
+    page: 1,
+    limit: 10,
+    sortBy: 'SurName',
+    sortOrder: 'asc',
+    department: employee?.DepartmentID?.toString(),
+  };
+
+  const { 
+    data: employeesData, 
+    isLoading, 
+    error 
+  } = useEmployees(filters);
 
   useEffect(() => {
     if (employee) {
@@ -38,6 +61,22 @@ export default function Dashboard() {
   }, [employee]);
 
   if (!employee) return null;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+        <p className="text-lg text-gray-500 dark:text-gray-400">Laden...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+        <p className="text-lg text-red-500">Fehler beim Laden der Daten</p>
+      </div>
+    );
+  }
 
   const userBookings = bookings.filter(booking => booking.userId === employee.ID);
   const jobTitle = jobTitles.find(jt => jt.id === employee.JobTitleID?.toString());
@@ -111,6 +150,9 @@ export default function Dashboard() {
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
           {employee.FullName}
         </h1>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          {employeesData?.data.length} Mitarbeiter in der Abteilung
+        </p>
       </div>
 
       {isHR && <TrainingStatistics />}

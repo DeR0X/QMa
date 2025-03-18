@@ -115,7 +115,7 @@ export default function StatisticsModal({ isOpen, onClose, title, employees, typ
                             <div className="flex items-center">
                               <div className="h-8 w-8 flex-shrink-0 rounded-full bg-primary text-white flex items-center justify-center">
                                 <span className="text-xs sm:text-sm font-medium">
-                                  {employee.fullName.split(' ').map((n: string) => n[0]).join('')}
+                                  {employee.fullName}
                                 </span>
                               </div>
                               <div className="ml-2">

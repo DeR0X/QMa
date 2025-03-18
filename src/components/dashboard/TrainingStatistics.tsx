@@ -1,8 +1,11 @@
 import { useState } from 'react';
+import { useSelector } from 'react-redux';
 import { PieChart, Building2, Users, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { employees, departments, jobTitles, bookings } from '../../data/mockData';
 import StatisticsModal from './StatisticsModal';
 import EmployeeDetails from '../employees/EmployeeDetails';
+import { useEmployees } from '../../hooks/useEmployees';
+import type { EmployeeFilters } from '../../types';
 
 interface Props {
   departmentFilter?: string;
@@ -14,26 +17,56 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
   const [expandedDepartments, setExpandedDepartments] = useState<string[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
 
-  // Filter employees based on department filter
-  const allUsers = employees.filter(u => 
-    departmentFilter === 'all' || u.departmentID === departmentFilter
-  );
+  // Fetch employees data
+  const filters: EmployeeFilters = {
+    page: 1,
+    limit: 100, // Increased limit to get all employees
+    sortBy: 'SurName',
+    sortOrder: 'asc',
+    department: departmentFilter !== 'all' ? departmentFilter : undefined,
+  };
 
-  // Calculate statistics
+  const { 
+    data: employeesData, 
+    isLoading, 
+    error 
+  } = useEmployees(filters);
+
+  if (isLoading) {
+    return (
+      <div className="bg-white dark:bg-[#181818] rounded-lg shadow p-6">
+        <div className="flex items-center justify-center h-32">
+          <p className="text-gray-500 dark:text-gray-400">Laden...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white dark:bg-[#181818] rounded-lg shadow p-6">
+        <div className="flex items-center justify-center h-32">
+          <p className="text-red-500">Fehler beim Laden der Daten</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate statistics based on database employees
   const stats = {
-    totalEmployees: allUsers.length,
+    totalEmployees: employeesData?.data.length || 0,
     completedTrainings: 0,
     pendingTrainings: 0,
     expiringQualifications: 0,
   };
 
-  const employeesWithStats = allUsers.map(employee => {
+  const employeesWithStats = (employeesData?.data || []).map(employee => {
     const completedTrainings = bookings.filter(
-      b => b.userId === employee.id && b.status === 'abgeschlossen'
+      b => b.userId === employee.ID.toString() && b.status === 'abgeschlossen'
     ).length;
     
     const pendingTrainings = bookings.filter(
-      b => b.userId === employee.id && b.status === 'ausstehend'
+      b => b.userId === employee.ID.toString() && b.status === 'ausstehend'
     ).length;
 
     const expiringQuals: any[] = []; // This would be calculated based on qualification expiry dates
@@ -156,7 +189,7 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
                   </h4>
                 </div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">
-                  {employeesWithStats.filter(e => e.departmentID === dept.id).length} Mitarbeiter
+                  {employeesWithStats.filter(e => e.DepartmentID === dept.id).length} Mitarbeiter
                 </span>
               </div>
               {expandedDepartments.includes(dept.id) && (
@@ -174,16 +207,16 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
                       </thead>
                       <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                         {employeesWithStats
-                          .filter(e => e.departmentID === dept.id)
+                          .filter(e => e.DepartmentID === dept.id)
                           .map(employee => (
-                            <tr 
-                              key={employee.id}
+                            <tr
+                              key={employee.ID}
                               onClick={() => setSelectedEmployee(employee)}
                               className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
                             >
-                              <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{employee.fullName}</td>
+                              <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{employee.FullName}</td>
                               <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
-                                {jobTitles.find(jt => jt.id === employee.jobTitleID)?.jobTitle}
+                                {jobTitles.find(jt => jt.id === employee.JobTitleID?.toString())?.jobTitle}
                               </td>
                               <td className="px-4 py-2">
                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
