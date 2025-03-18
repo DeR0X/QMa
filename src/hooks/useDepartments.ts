@@ -13,7 +13,13 @@ async function fetchDepartments(): Promise<Department[]> {
   if (DEBUG) console.log('Fetching departments...');
   
   try {
-    const response = await fetch('/api/departments');
+    const response = await fetch('/api/departments', {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+    });
+    
     if (DEBUG) {
       console.log('Response status:', response.status);
       console.log('Response headers:', Object.fromEntries(response.headers.entries()));
@@ -21,6 +27,12 @@ async function fetchDepartments(): Promise<Department[]> {
 
     if (!response.ok) {
       throw new Error(`Failed to fetch departments: ${response.status} ${response.statusText}`);
+    }
+
+    // Ensure we're getting JSON
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error(`Expected JSON response but got ${contentType}`);
     }
 
     const data = await response.json();
@@ -31,10 +43,10 @@ async function fetchDepartments(): Promise<Department[]> {
     // Transform the data to include empty positions array if needed
     const transformedData = Array.isArray(data) ? data.map(dept => ({
       ...dept,
-      positions: [] // Initialize empty positions array
+      positions: dept.positions || [] // Initialize empty positions array if not present
     })) : [data].map(dept => ({
       ...dept,
-      positions: [] // Initialize empty positions array
+      positions: dept.positions || [] // Initialize empty positions array if not present
     }));
 
     if (DEBUG) {
