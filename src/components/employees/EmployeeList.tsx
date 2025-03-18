@@ -32,6 +32,7 @@ export default function EmployeeList({
 
   const getDepartmentName = (departmentId: string) => {
     const department = departments.find(d => d.id === departmentId);
+    console.log(departmentId);
     return department ? department.department : 'Unbekannte Abteilung';
   };
 
@@ -113,11 +114,13 @@ export default function EmployeeList({
                 </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {getDepartmentName(employee.DepartmentID?.toString() || '')}
+                  {employee.Department}
+                  <div className="text-xs text-gray-500">ID: {employee.DepartmentID}</div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {getJobTitle(employee.JobTitleID?.toString() || '')}
-                </td>
+                <td className="py-4 px-4 whitespace-nowrap">
+                <div className="text-sm text-gray-900">{getJobTitle(employee.JobTitleID?.toString() || '')}</div>
+                {employee.JobTitleID && <div className="text-xs text-gray-500">ID: {employee.JobTitleID}</div>}
+              </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                     !employee.isActive

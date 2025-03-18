@@ -69,7 +69,7 @@ export default function EmployeeDetails({
   const tabs = [
     { id: 'info', label: 'Information' },
     { id: 'qualifications', label: 'Qualifikationen' },
-    { id: 'documents', label: 'Documents' },
+    { id: 'documents', label: 'Dokumente' },
     ...(isHRAdmin ? [
       { id: 'approvals', label: 'Genehmigungen' },
       { id: 'trainer', label: 'Trainer-Status' }
@@ -228,7 +228,7 @@ export default function EmployeeDetails({
                     {localEmployee.FullName}
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {getJobTitle(localEmployee.JobTitleID)} • {getDepartmentName(localEmployee.DepartmentID)}
+                    {getJobTitle(localEmployee.JobTitleID)} • {localEmployee.Department}
                   </p>
                 </div>
               </div>
@@ -272,7 +272,7 @@ export default function EmployeeDetails({
                       <div className="flex items-center">
                         <Building2 className="h-5 w-5 text-gray-400" />
                         <span className="ml-2 text-sm text-gray-900 dark:text-white">
-                          Abteilung: {getDepartmentName(localEmployee.DepartmentID)}
+                          Abteilung: {localEmployee.Department}
                         </span>
                       </div>
                       <div className="flex items-center">
@@ -324,7 +324,7 @@ export default function EmployeeDetails({
                           className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a]"
                         >
                           <Plus className="h-4 w-4 mr-1" />
-                          Position hinzufügen
+                          Qualifikation hinzufügen
                         </button>
                       )}
                     </div>

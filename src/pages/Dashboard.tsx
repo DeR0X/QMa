@@ -50,7 +50,7 @@ export default function Dashboard() {
       icon: Award 
     },
     { 
-      name: 'Genehmigte Schulungen', 
+      name: 'Erforderliche Schulungen', 
       value: userBookings.filter(b => b.status === 'genehmigt').length,
       icon: Calendar 
     },

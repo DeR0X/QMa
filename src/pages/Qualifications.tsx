@@ -185,6 +185,7 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
     description: initialData?.description || '',
     validityPeriod: initialData?.validityInMonth || 12,
     requiredQualifications: initialData?.requiredQualifications || [],
+    isMandatory: initialData?.isMandatory || false,
     department: '',
     positions: [] as string[],
     isFreeQualification: false,
@@ -385,7 +386,18 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={formData.isMandatory}
+              onChange={(e) => setFormData({ ...formData, isMandatory: e.target.checked })}
+              className="mr-2"
+            />
+            Diese Qualifikation ist eine Pflichtqualifikation
+          </label>
+
+        <fieldset disabled={formData.isMandatory} className={formData.isMandatory ? "opacity-50" : ""}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" >
               {filteredQualifications.map((qual) => (
                 <div
                   key={qual.id}
@@ -423,6 +435,7 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
                 </div>
               ))}
             </div>
+            </fieldset>
 
             {selectedQualifications.length > 0 && (
               <div className="mt-4">
