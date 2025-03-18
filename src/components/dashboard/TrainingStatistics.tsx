@@ -32,6 +32,12 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
     error 
   } = useEmployees(filters);
 
+  // Debug logging
+  console.log('Employees Data:', employeesData);
+  console.log('Departments:', departments);
+  console.log('Job Titles:', jobTitles);
+  console.log('Bookings:', bookings);
+
   if (isLoading) {
     return (
       <div className="bg-white dark:bg-[#181818] rounded-lg shadow p-6">
@@ -60,7 +66,7 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
     expiringQualifications: 0,
   };
 
-  const employeesWithStats = (employeesData?.data || []).map(employee => {
+  const employeesWithStats = (employeesData?.data || employees).map(employee => {
     const completedTrainings = bookings.filter(
       b => b.userId === employee.ID.toString() && b.status === 'abgeschlossen'
     ).length;
@@ -189,7 +195,7 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
                   </h4>
                 </div>
                 <span className="text-sm text-gray-500 dark:text-gray-400">
-                  {employeesWithStats.filter(e => e.DepartmentID === dept.id).length} Mitarbeiter
+                  {employeesWithStats.filter(e => e.DepartmentID?.toString() === dept.id).length} Mitarbeiter
                 </span>
               </div>
               {expandedDepartments.includes(dept.id) && (
@@ -207,16 +213,18 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
                       </thead>
                       <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                         {employeesWithStats
-                          .filter(e => e.DepartmentID === dept.id)
-                          .map(employee => (
+                          .filter(e => e.DepartmentID?.toString() === dept.id)
+                          .map((employee) => (
                             <tr
                               key={employee.ID}
                               onClick={() => setSelectedEmployee(employee)}
                               className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
                             >
-                              <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">{employee.FullName}</td>
+                              <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">
+                                {employee.FullName}
+                              </td>
                               <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
-                                {jobTitles.find(jt => jt.id === employee.JobTitleID?.toString())?.jobTitle}
+                                {jobTitles.find(jt => jt.id === employee.JobTitleID?.toString())?.jobTitle || '-'}
                               </td>
                               <td className="px-4 py-2">
                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">

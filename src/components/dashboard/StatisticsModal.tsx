@@ -25,6 +25,12 @@ export default function StatisticsModal({ isOpen, onClose, title, employees, typ
     currentPage * ITEMS_PER_PAGE
   );
 
+  // Debug logging
+  console.log('Modal Employees:', employees);
+  console.log('Paginated Employees:', paginatedEmployees);
+  console.log('Departments:', departments);
+  console.log('Job Titles:', jobTitles);
+
   if (!isOpen) return null;
 
   const getStatusBadge = (status: string) => {
@@ -105,53 +111,64 @@ export default function StatisticsModal({ isOpen, onClose, title, employees, typ
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-[#141616]">
-                      {paginatedEmployees.map((employee) => (
-                        <tr 
-                          key={employee.id} 
-                          className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-                          onClick={() => setSelectedEmployee(employee)}
-                        >
-                          <td className="whitespace-nowrap py-2 pl-4 pr-3 sm:pl-6">
-                            <div className="flex items-center">
-                              <div className="h-8 w-8 flex-shrink-0 rounded-full bg-primary text-white flex items-center justify-center">
-                                <span className="text-xs sm:text-sm font-medium">
-                                  {employee.fullName}
-                                </span>
-                              </div>
-                              <div className="ml-2">
-                                <div className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
-                                  {employee.fullName}
+                      {paginatedEmployees.map((employee) => {
+                        // Get department and job title information
+                        const department = departments.find(d => d.id === employee.DepartmentID?.toString());
+                        const jobTitle = jobTitles.find(jt => jt.id === employee.JobTitleID?.toString());
+                        
+                        // Get employee initials for avatar
+                        const initials = employee.FullName
+                          ? employee.FullName.split(' ').map((n: string) => n[0]).join('')
+                          : '??';
+
+                        return (
+                          <tr 
+                            key={employee.ID} 
+                            className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                            onClick={() => setSelectedEmployee(employee)}
+                          >
+                            <td className="whitespace-nowrap py-2 pl-4 pr-3 sm:pl-6">
+                              <div className="flex items-center">
+                                <div className="h-8 w-8 flex-shrink-0 rounded-full bg-primary text-white flex items-center justify-center">
+                                  <span className="text-xs sm:text-sm font-medium">
+                                    {initials}
+                                  </span>
                                 </div>
-                                <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                                  {employee.staffNumber}
+                                <div className="ml-2">
+                                  <div className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
+                                    {employee.FullName}
+                                  </div>
+                                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                                    {employee.StaffNumber}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm text-gray-900 dark:text-white">
-                            {departments.find(d => d.id === employee.departmentID)?.department || '-'}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm text-gray-900 dark:text-white">
-                            {jobTitles.find(jt => jt.id === employee.jobTitleID)?.jobTitle || '-'}
-                          </td>
-                          <td className="px-3 py-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                            {type === 'expiring' && employee.expiringQualifications?.map((qual: any) => (
-                              <div key={qual.id}>
-                                {qual.name} – Läuft ab am {new Date(qual.expirationDate).toLocaleDateString()}
-                              </div>
-                            ))}
-                            {type === 'completed' && (
-                              <div>{employee.completedTrainings} abgeschlossene Schulungen</div>
-                            )}
-                            {type === 'pending' && (
-                              <div>{employee.pendingTrainings} ausstehende Schulungen</div>
-                            )}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
-                            {getStatusBadge(type)}
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm text-gray-900 dark:text-white">
+                              {employee.Department || '-'}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm text-gray-900 dark:text-white">
+                              {employee.JobTitleID || '-'}
+                            </td>
+                            <td className="px-3 py-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                              {type === 'expiring' && employee.expiringQualifications?.map((qual: any) => (
+                                <div key={qual.id}>
+                                  {qual.name} – Läuft ab am {formatDate(qual.expirationDate)}
+                                </div>
+                              ))}
+                              {type === 'completed' && (
+                                <div>{employee.completedTrainings} abgeschlossene Schulungen</div>
+                              )}
+                              {type === 'pending' && (
+                                <div>{employee.pendingTrainings} ausstehende Schulungen</div>
+                              )}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
+                              {getStatusBadge(type)}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
