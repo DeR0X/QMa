@@ -171,8 +171,8 @@ export default function Qualifications() {
 
       {/* Modal für Hinzufügen / Bearbeiten */}
       {(showAddModal || editingQual) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-2xl w-full">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-2xl w-full my-8">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                 {editingQual ? 'Qualifikation bearbeiten' : 'Neue Qualifikation erstellen'}
@@ -188,14 +188,22 @@ export default function Qualifications() {
               </button>
             </div>
 
-            <QualificationForm
-              onSubmit={editingQual ? handleEditQualification : handleAddQualification}
-              initialData={editingQual}
-              onCancel={() => {
-                setShowAddModal(false);
-                setEditingQual(null);
-              }}
-            />
+            <div className="max-h-[calc(100vh-12rem)] overflow-y-auto pr-2
+              [&::-webkit-scrollbar]:w-2
+              [&::-webkit-scrollbar-track]:bg-gray-100
+              [&::-webkit-scrollbar-thumb]:bg-gray-300
+              dark:[&::-webkit-scrollbar-track]:bg-neutral-700
+              dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500
+            ">
+              <QualificationForm
+                onSubmit={editingQual ? handleEditQualification : handleAddQualification}
+                initialData={editingQual}
+                onCancel={() => {
+                  setShowAddModal(false);
+                  setEditingQual(null);
+                }}
+              />
+            </div>
           </div>
         </div>
       )}
@@ -440,7 +448,7 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
         </div>
       )}
 
-      <div className="mt-6">
+      <div className={`mt-6 ${formData.assignmentType === 'mandatory' ? 'opacity-50 pointer-events-none' : ''}`}>
         <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
           Erforderliche Qualifikationen
         </h4>
@@ -453,6 +461,7 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-primary focus:border-primary dark:bg-[#181818] dark:text-white"
+            disabled={formData.assignmentType === 'mandatory'}
           />
         </div>
 
@@ -471,12 +480,14 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
                   type="checkbox"
                   checked={selectedQualifications.includes(qual.id)}
                   onChange={() => {
+                    if (formData.assignmentType === 'mandatory') return;
                     const newSelected = selectedQualifications.includes(qual.id)
                       ? selectedQualifications.filter(id => id !== qual.id)
                       : [...selectedQualifications, qual.id];
                     setSelectedQualifications(newSelected);
                   }}
                   className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
+                  disabled={formData.assignmentType === 'mandatory'}
                 />
                 <div>
                   <p className="font-medium text-gray-900 dark:text-white">
