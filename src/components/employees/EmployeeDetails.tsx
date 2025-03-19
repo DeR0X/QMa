@@ -71,7 +71,6 @@ export default function EmployeeDetails({
     { id: 'qualifications', label: 'Qualifikationen' },
     { id: 'documents', label: 'Dokumente' },
     ...(isHRAdmin ? [
-      { id: 'approvals', label: 'Genehmigungen' },
       { id: 'trainer', label: 'Trainer-Status' }
     ] : []),
   ].filter(Boolean) as Array<{ id: 'info' | 'qualifications' | 'documents' | 'approvals' | 'trainer'; label: string }>;
@@ -556,17 +555,18 @@ export default function EmployeeDetails({
                         Erforderliche Qualifikationen: {jobTitle.qualificationIDs.length}
                       </p>
                       <div className="flex flex-col gap-2">
-                        <button
+{/*                         <button
+
                           onClick={() => handleUpdatePosition(jobTitle.id)}
                           className="w-full px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a]"
                         >
                           Als Hauptposition
-                        </button>
+                        </button> */}
                         <button
                           onClick={() => handleUpdatePosition(jobTitle.id, true)}
                           className="w-full px-4 py-2 text-sm font-medium text-primary border border-primary rounded-md hover:bg-primary/10 dark:hover:bg-primary/5"
                         >
-                          Als Zusatzposition
+                          Als Zusatzfunktion
                         </button>
                       </div>
                     </div>
