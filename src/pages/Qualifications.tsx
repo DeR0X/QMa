@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
-import { Plus, Search, Award, X, Edit2, Clock, AlertCircle, Info, Building2, Briefcase, Star } from 'lucide-react';
+import { Plus, Search, Award, X, Edit2, Clock, AlertCircle, Info, Building2, Briefcase, Star, Users } from 'lucide-react';
 import { RootState } from '../store';
 import { qualifications, jobTitles } from '../data/mockData';
 import { hasHRPermissions } from '../store/slices/authSlice';
@@ -102,56 +102,88 @@ export default function Qualifications() {
               key={qualification.id}
               className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 p-6 group"
             >
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex-1">
-                  <div className="flex items-start justify-between">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white break-words group-hover:text-primary transition-colors duration-200">
-                      {qualification.name}
-                    </h3>
-                    <button
-                      onClick={() => setEditingQual(qualification)}
-                      className="ml-4 text-gray-400 hover:text-primary dark:hover:text-primary transition-colors duration-200"
-                    >
-                      <Edit2 className="h-5 w-5" />
-                    </button>
-                  </div>
-                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 break-words">
-                    {qualification.description}
-                  </p>
-                  
-                  <div className="mt-4 flex flex-wrap gap-4">
-                    <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                      <Clock className="h-4 w-4 mr-2 text-primary" />
-                      <span>Gültigkeitsdauer: {qualification.validityInMonth} Monate</span>
+              <div className="flex flex-col gap-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between">
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white break-words group-hover:text-primary transition-colors duration-200">
+                        {qualification.name}
+                      </h3>
+                      <button
+                        onClick={() => setEditingQual(qualification)}
+                        className="ml-4 text-gray-400 hover:text-primary dark:hover:text-primary transition-colors duration-200"
+                      >
+                        <Edit2 className="h-5 w-5" />
+                      </button>
                     </div>
+                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 break-words">
+                      {qualification.description}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Gültigkeitsdauer */}
+                  <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                    <Clock className="h-4 w-4 mr-2 text-primary" />
+                    <span>Gültigkeitsdauer: {qualification.validityInMonth} Monate</span>
+                  </div>
+
+                  {/* Pflichtqualifikation Status */}
+                  <div className="flex items-center">
                     {qualification.isMandatory && (
-                      <div className="flex items-center">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                          <AlertCircle className="h-4 w-4 mr-1" />
-                          Pflichtqualifikation
-                        </span>
-                      </div>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        Pflichtqualifikation
+                      </span>
                     )}
                   </div>
 
-                  {qualification.requiredQualifications.length > 0 && (
-                    <div className="mt-4">
-                      <h4 className="text-sm font-medium text-gray-900 dark:text-white flex items-center">
-                        <Info className="h-4 w-4 mr-2 text-primary" />
-                        Erforderliche Schulungen:
-                      </h4>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {qualification.requiredQualifications.map((trainingId) => (
-                          <span
-                            key={trainingId}
-                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                          >
-                            Training #{trainingId}
-                          </span>
-                        ))}
-                      </div>
+                  {/* Trainer */}
+                  <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                    <Users className="h-4 w-4 mr-2 text-primary" />
+                    <span>Trainer: {qualification.requiredQualifications.length}</span>
+                  </div>
+                </div>
+
+                {/* Erforderliche Schulungen */}
+                {qualification.requiredQualifications.length > 0 && (
+                  <div className="mt-2">
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white flex items-center mb-2">
+                      <Info className="h-4 w-4 mr-2 text-primary" />
+                      Erforderliche Schulungen:
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {qualification.requiredQualifications.map((trainingId) => (
+                        <span
+                          key={trainingId}
+                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                        >
+                          Training #{trainingId}
+                        </span>
+                      ))}
                     </div>
-                  )}
+                  </div>
+                )}
+
+                {/* Zielgruppe */}
+                <div className="mt-2">
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white flex items-center mb-2">
+                    <Users className="h-4 w-4 mr-2 text-primary" />
+                    Zielgruppe:
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {jobTitles
+                      .filter(job => job.qualificationIDs.includes(qualification.id))
+                      .map(job => (
+                        <span
+                          key={job.id}
+                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
+                        >
+                          {job.jobTitle}
+                        </span>
+                      ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -236,6 +268,7 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
   );
   const [searchTerm, setSearchTerm] = useState('');
   const [activeStep, setActiveStep] = useState(1);
+  const [showSummary, setShowSummary] = useState(false);
 
   const filteredQualifications = qualifications.filter(qual => {
     if (initialData && qual.id === initialData.id) return false;
@@ -249,6 +282,11 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
     e.preventDefault();
     
     if (!isStepComplete(activeStep)) {
+      return;
+    }
+
+    if (activeStep < 4) {
+      setActiveStep(activeStep + 1);
       return;
     }
 
@@ -301,212 +339,298 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
   
   const canProceed = isStepComplete(activeStep);
 
-  const renderAssignmentStep = () => (
-    <div className="space-y-6">
-      <div className="mb-6">
-        <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
-          Qualifikationszuweisung
-        </h4>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <button
-            type="button"
-            onClick={() => setFormData({ ...formData, assignmentType: 'jobTitle' })}
-            className={`p-4 rounded-lg border ${
-              formData.assignmentType === 'jobTitle'
-                ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                : 'border-gray-200 dark:border-gray-700'
-            } text-left`}
-          >
-            <Briefcase className={`h-6 w-6 mb-2 ${
-              formData.assignmentType === 'jobTitle' ? 'text-primary' : 'text-gray-400'
-            }`} />
-            <h5 className="font-medium text-gray-900 dark:text-white">Jobtitel</h5>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              An bestimmte Positionen binden
-            </p>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setFormData({ ...formData, assignmentType: 'additionalFunction' })}
-            className={`p-4 rounded-lg border ${
-              formData.assignmentType === 'additionalFunction'
-                ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                : 'border-gray-200 dark:border-gray-700'
-            } text-left`}
-          >
-            <Star className={`h-6 w-6 mb-2 ${
-              formData.assignmentType === 'additionalFunction' ? 'text-primary' : 'text-gray-400'
-            }`} />
-            <h5 className="font-medium text-gray-900 dark:text-white">Zusatzfunktion</h5>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Als zusätzliche Qualifikation definieren
-            </p>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setFormData({ ...formData, assignmentType: 'mandatory' })}
-            className={`p-4 rounded-lg border ${
-              formData.assignmentType === 'mandatory'
-                ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                : 'border-gray-200 dark:border-gray-700'
-            } text-left`}
-          >
-            <AlertCircle className={`h-6 w-6 mb-2 ${
-              formData.assignmentType === 'mandatory' ? 'text-primary' : 'text-gray-400'
-            }`} />
-            <h5 className="font-medium text-gray-900 dark:text-white">Pflichtqualifikation</h5>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Für alle Mitarbeiter verpflichtend
-            </p>
-          </button>
-        </div>
-      </div>
-
-      {/* Assignment Type Specific Content */}
-      {formData.assignmentType === 'jobTitle' && (
-        <div className="space-y-4">
-          <h5 className="text-sm font-medium text-gray-900 dark:text-white">
-            Positionen auswählen
-          </h5>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {jobTitles.map(jobTitle => (
-              <label
-                key={jobTitle.id}
-                className={`p-4 rounded-lg border ${
-                  formData.selectedJobTitles.includes(jobTitle.id)
-                    ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                    : 'border-gray-200 dark:border-gray-700'
-                } flex items-start space-x-3 cursor-pointer`}
-              >
-                <input
-                  type="checkbox"
-                  checked={formData.selectedJobTitles.includes(jobTitle.id)}
-                  onChange={(e) => {
-                    const newSelected = e.target.checked
-                      ? [...formData.selectedJobTitles, jobTitle.id]
-                      : formData.selectedJobTitles.filter(id => id !== jobTitle.id);
-                    setFormData({ ...formData, selectedJobTitles: newSelected });
-                  }}
-                  className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
-                />
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-white">{jobTitle.jobTitle}</p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{jobTitle.description}</p>
-                </div>
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {formData.assignmentType === 'additionalFunction' && (
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Name der Zusatzfunktion
-            </label>
-            <input
-              type="text"
-              value={formData.additionalFunctionName}
-              onChange={(e) => setFormData({ ...formData, additionalFunctionName: e.target.value })}
-              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-              placeholder="z.B. Ersthelfer, Brandschutzbeauftragter"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Beschreibung der Zusatzfunktion
-            </label>
-            <textarea
-              value={formData.additionalFunctionDescription}
-              onChange={(e) => setFormData({ ...formData, additionalFunctionDescription: e.target.value })}
-              rows={3}
-              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-              placeholder="Beschreiben Sie die Aufgaben und Verantwortlichkeiten dieser Zusatzfunktion..."
-            />
-          </div>
-        </div>
-      )}
-
-      {formData.assignmentType === 'mandatory' && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-900/50 rounded-lg p-4">
-          <div className="flex">
-            <AlertCircle className="h-5 w-5 text-yellow-400 mr-2" />
+  const renderStepContent = () => {
+    switch (activeStep) {
+      case 1:
+        return (
+          <div className="space-y-4">
             <div>
-              <h5 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                Pflichtqualifikation
-              </h5>
-              <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-300">
-                Diese Qualifikation wird für alle Mitarbeiter verpflichtend sein. Stellen Sie sicher,
-                dass dies wirklich erforderlich ist.
-              </p>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Name der Qualifikation *
+              </label>
+              <input
+                type="text"
+                required
+                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="z.B. IT-Sicherheitszertifizierung"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Beschreibung *
+              </label>
+              <textarea
+                required
+                rows={4}
+                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Detaillierte Beschreibung der Qualifikation und ihrer Anforderungen..."
+              />
             </div>
           </div>
-        </div>
-      )}
+        );
 
-      <div className={`mt-6 ${formData.assignmentType === 'mandatory' ? 'opacity-50 pointer-events-none' : ''}`}>
-        <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
-          Erforderliche Qualifikationen
-        </h4>
-        
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Qualifikationen suchen..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-primary focus:border-primary dark:bg-[#181818] dark:text-white"
-            disabled={formData.assignmentType === 'mandatory'}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {filteredQualifications.map((qual) => (
-            <div
-              key={qual.id}
-              className={`p-4 rounded-lg border transition-colors ${
-                selectedQualifications.includes(qual.id)
-                  ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                  : 'border-gray-200 dark:border-gray-700'
-              }`}
-            >
-              <label className="flex items-start space-x-3">
-                <input
-                  type="checkbox"
-                  checked={selectedQualifications.includes(qual.id)}
-                  onChange={() => {
-                    if (formData.assignmentType === 'mandatory') return;
-                    const newSelected = selectedQualifications.includes(qual.id)
-                      ? selectedQualifications.filter(id => id !== qual.id)
-                      : [...selectedQualifications, qual.id];
-                    setSelectedQualifications(newSelected);
-                  }}
-                  className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
-                  disabled={formData.assignmentType === 'mandatory'}
-                />
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    {qual.name}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {qual.description}
-                  </p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                    Gültigkeitsdauer: {qual.validityInMonth} Monate
-                  </p>
-                </div>
+      case 2:
+        return (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Gültigkeitsdauer (Monate)
               </label>
+              <div className="mt-2 relative">
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
+                  value={formData.validityPeriod}
+                  onChange={(e) =>
+                    setFormData({ ...formData, validityPeriod: parseInt(e.target.value) })
+                  }
+                />
+                <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                  Die Qualifikation muss nach {formData.validityPeriod} Monaten erneuert werden.
+                </div>
+              </div>
             </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+
+            <div className="bg-gray-50 dark:bg-[#181818] rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                Empfohlene Gültigkeitsdauer
+              </h4>
+              <div className="space-y-2">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  • Sicherheitsschulungen: 12 Monate
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  • Technische Zertifizierungen: 24 Monate
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  • Grundlegende Qualifikationen: 36 Monate
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 3:
+        return (
+          <div className="space-y-6">
+            <div className="mb-6">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
+                Qualifikationszuweisung
+              </h4>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, assignmentType: 'jobTitle' })}
+                  className={`p-4 rounded-lg border ${
+                    formData.assignmentType === 'jobTitle'
+                      ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                      : 'border-gray-200 dark:border-gray-700'
+                  } text-left`}
+                >
+                  <Briefcase className={`h-6 w-6 mb-2 ${
+                    formData.assignmentType === 'jobTitle' ? 'text-primary' : 'text-gray-400'
+                  }`} />
+                  <h5 className="font-medium text-gray-900 dark:text-white">Jobtitel</h5>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    An bestimmte Positionen binden
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, assignmentType: 'additionalFunction' })}
+                  className={`p-4 rounded-lg border ${
+                    formData.assignmentType === 'additionalFunction'
+                      ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                      : 'border-gray-200 dark:border-gray-700'
+                  } text-left`}
+                >
+                  <Star className={`h-6 w-6 mb-2 ${
+                    formData.assignmentType === 'additionalFunction' ? 'text-primary' : 'text-gray-400'
+                  }`} />
+                  <h5 className="font-medium text-gray-900 dark:text-white">Zusatzfunktion</h5>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Als zusätzliche Qualifikation definieren
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, assignmentType: 'mandatory' })}
+                  className={`p-4 rounded-lg border ${
+                    formData.assignmentType === 'mandatory'
+                      ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                      : 'border-gray-200 dark:border-gray-700'
+                  } text-left`}
+                >
+                  <AlertCircle className={`h-6 w-6 mb-2 ${
+                    formData.assignmentType === 'mandatory' ? 'text-primary' : 'text-gray-400'
+                  }`} />
+                  <h5 className="font-medium text-gray-900 dark:text-white">Pflichtqualifikation</h5>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Für alle Mitarbeiter verpflichtend
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            {/* Assignment Type Specific Content */}
+            {formData.assignmentType === 'jobTitle' && (
+              <div className="space-y-4">
+                <h5 className="text-sm font-medium text-gray-900 dark:text-white">
+                  Positionen auswählen
+                </h5>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {jobTitles.map(jobTitle => (
+                    <label
+                      key={jobTitle.id}
+                      className={`p-4 rounded-lg border ${
+                        formData.selectedJobTitles.includes(jobTitle.id)
+                          ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                          : 'border-gray-200 dark:border-gray-700'
+                      } flex items-start space-x-3 cursor-pointer`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={formData.selectedJobTitles.includes(jobTitle.id)}
+                        onChange={(e) => {
+                          const newSelected = e.target.checked
+                            ? [...formData.selectedJobTitles, jobTitle.id]
+                            : formData.selectedJobTitles.filter(id => id !== jobTitle.id);
+                          setFormData({ ...formData, selectedJobTitles: newSelected });
+                        }}
+                        className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">{jobTitle.jobTitle}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{jobTitle.description}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {formData.assignmentType === 'additionalFunction' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Name der Zusatzfunktion
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.additionalFunctionName}
+                    onChange={(e) => setFormData({ ...formData, additionalFunctionName: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
+                    placeholder="z.B. Ersthelfer, Brandschutzbeauftragter"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Beschreibung der Zusatzfunktion
+                  </label>
+                  <textarea
+                    value={formData.additionalFunctionDescription}
+                    onChange={(e) => setFormData({ ...formData, additionalFunctionDescription: e.target.value })}
+                    rows={3}
+                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
+                    placeholder="Beschreiben Sie die Aufgaben und Verantwortlichkeiten dieser Zusatzfunktion..."
+                  />
+                </div>
+              </div>
+            )}
+
+            {formData.assignmentType === 'mandatory' && (
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-900/50 rounded-lg p-4">
+                <div className="flex">
+                  <AlertCircle className="h-5 w-5 text-yellow-400 mr-2" />
+                  <div>
+                    <h5 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                      Pflichtqualifikation
+                    </h5>
+                    <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-300">
+                      Diese Qualifikation wird für alle Mitarbeiter verpflichtend sein. Stellen Sie sicher,
+                      dass dies wirklich erforderlich ist.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      case 4:
+        return (
+          <div className="space-y-6">
+            <div>
+              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
+                Erforderliche Qualifikationen
+              </h4>
+              
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Qualifikationen suchen..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-primary focus:border-primary dark:bg-[#181818] dark:text-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {filteredQualifications.map((qual) => (
+                  <div
+                    key={qual.id}
+                    className={`p-4 rounded-lg border transition-colors ${
+                      selectedQualifications.includes(qual.id)
+                        ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                        : 'border-gray-200 dark:border-gray-700'
+                    }`}
+                  >
+                    <label className="flex items-start space-x-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedQualifications.includes(qual.id)}
+                        onChange={() => {
+                          const newSelected = selectedQualifications.includes(qual.id)
+                            ? selectedQualifications.filter(id => id !== qual.id)
+                            : [...selectedQualifications, qual.id];
+                          setSelectedQualifications(newSelected);
+                        }}
+                        className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">
+                          {qual.name}
+                        </p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {qual.description}
+                        </p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                          Gültigkeitsdauer: {qual.validityInMonth} Monate
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -514,10 +638,11 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
       <div className="relative">
         <div className="absolute top-4 w-full h-0.5 bg-gray-200 dark:bg-gray-700" />
         <div className="relative flex justify-between">
-          {[1, 2, 3].map((step) => (
+          {[1, 2, 3, 4].map((step) => (
             <button
               key={step}
               type="button"
+              
               onClick={() => {
                 if (isStepComplete(step - 1)) {
                   setActiveStep(step);
@@ -537,85 +662,12 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
           <span className="text-xs text-gray-500 dark:text-gray-400">Grundinfo</span>
           <span className="text-xs text-gray-500 dark:text-gray-400">Gültigkeit</span>
           <span className="text-xs text-gray-500 dark:text-gray-400">Zuweisung</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">Qualifikationen</span>
         </div>
       </div>
 
       {/* Step Content */}
-      {activeStep === 1 && (
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Name der Qualifikation
-            </label>
-            <input
-              type="text"
-              required
-              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="z.B. IT-Sicherheitszertifizierung"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Beschreibung
-            </label>
-            <textarea
-              required
-              rows={4}
-              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Detaillierte Beschreibung der Qualifikation und ihrer Anforderungen..."
-            />
-          </div>
-        </div>
-      )}
-
-      {activeStep === 2 && (
-        <div className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Gültigkeitsdauer (Monate)
-            </label>
-            <div className="mt-2 relative">
-              <input
-                type="number"
-                required
-                min="1"
-                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-                value={formData.validityPeriod}
-                onChange={(e) =>
-                  setFormData({ ...formData, validityPeriod: parseInt(e.target.value) })
-                }
-              />
-              <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Die Qualifikation muss nach {formData.validityPeriod} Monaten erneuert werden.
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gray-50 dark:bg-[#181818] rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-            <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-              Empfohlene Gültigkeitsdauer
-            </h4>
-            <div className="space-y-2">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                • Sicherheitsschulungen: 12 Monate
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                • Technische Zertifizierungen: 24 Monate
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                • Grundlegende Qualifikationen: 36 Monate
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeStep === 3 && renderAssignmentStep()}
+      {renderStepContent()}
 
       {/* Navigation Buttons */}
       <div className="flex justify-between pt-6">
@@ -627,24 +679,13 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
           {activeStep > 1 ? 'Zurück' : 'Abbrechen'}
         </button>
         
-        {activeStep < 3 ? (
-          <button
-            type="button"
-            onClick={() => canProceed && setActiveStep(activeStep + 1)}
-            disabled={!canProceed}
-            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Weiter
-          </button>
-        ) : (
-          <button
-            type="submit"
-            disabled={!canProceed}
-            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {initialData ? 'Aktualisieren' : 'Erstellen'}
-          </button>
-        )}
+        <button
+          type="submit"
+          disabled={!canProceed}
+          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {activeStep < 4 ? 'Weiter' : (initialData ? 'Aktualisieren' : 'Erstellen')}
+        </button>
       </div>
     </form>
   );
