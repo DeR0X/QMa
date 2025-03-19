@@ -14,7 +14,8 @@ import {
   Calendar,
   Award,
   Target,
-  AlertTriangle
+  AlertTriangle,
+  SlidersHorizontal
 } from 'lucide-react';
 import { employees, jobTitles, bookings } from '../../data/mockData';
 import StatisticsModal from './StatisticsModal';
@@ -27,12 +28,28 @@ interface Props {
   departmentFilter?: string;
 }
 
+interface DepartmentFilters {
+  hideEmptyDepartments: boolean;
+  minEmployees: number;
+  minCompletionRate: number;
+  hasTrainers: boolean;
+  sortBy: 'name' | 'employeeCount' | 'completionRate' | 'trainersCount';
+}
+
 export default function TrainingStatistics({ departmentFilter = 'all' }: Props) {
   const [selectedStat, setSelectedStat] = useState<'all' | 'completed' | 'pending' | 'expiring' | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [expandedDepartments, setExpandedDepartments] = useState<string[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<DepartmentFilters>({
+    hideEmptyDepartments: false,
+    minEmployees: 0,
+    minCompletionRate: 0,
+    hasTrainers: false,
+    sortBy: 'name'
+  });
 
   // Reset expanded departments when toggling details view
   useEffect(() => {
@@ -49,7 +66,7 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
   } = useDepartments();
 
   // Fetch employees data
-  const filters: EmployeeFilters = {
+  const apiFilters: EmployeeFilters = {
     page: 1,
     limit: 100,
     sortBy: 'SurName',
@@ -61,7 +78,7 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
     data: employeesData, 
     isLoading: isEmployeesLoading, 
     error: employeesError 
-  } = useEmployees(filters);
+  } = useEmployees(apiFilters);
 
   if (isEmployeesLoading) {
     return (
@@ -161,31 +178,25 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
     },
   ];
 
-  // Filter departments based on search term
-  const filteredDepartments = departments.filter(dept => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      dept.DepartmentID_Atoss?.toLowerCase().includes(searchLower) ||
-      dept.Department?.toLowerCase().includes(searchLower) ||
-      // Search for employees in department
-      employeesWithStats.some(emp => 
-        emp.DepartmentID?.toString() === dept.ID.toString() &&
-        emp.FullName?.toLowerCase().includes(searchLower)
-      )
-    );
-  });
-
   // Get department statistics with additional details
-  const departmentStats = filteredDepartments.map(dept => {
-    const departmentEmployees = employeesWithStats.filter(
-      e => e.DepartmentID?.toString() === dept.ID.toString()
-    );
+  const getDepartmentStats = (dept: any) => {
+    // Add debug logging
+/*     console.log('Department:', dept);
+    console.log('Department ID:', dept.ID); */
+    
+    const departmentEmployees = employeesWithStats.filter(e => {
+      // Handle both string and number comparisons
+      return e.DepartmentID === dept.ID || 
+             e.DepartmentID?.toString() === dept.ID?.toString();
+    });
+    
+    /* console.log('Found employees for department:', departmentEmployees.length); */
     
     const trainersCount = departmentEmployees.filter(emp => emp.isTrainer).length;
     
     return {
       ...dept,
-      name: dept.Department, // Map the Department field to name for consistency
+      name: dept.Department || dept.department, // Handle both property names
       employeeCount: departmentEmployees.length,
       completedTrainings: departmentEmployees.reduce((sum, emp) => sum + emp.completedTrainings, 0),
       pendingTrainings: departmentEmployees.reduce((sum, emp) => sum + emp.pendingTrainings, 0),
@@ -193,14 +204,51 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
         (sum, emp) => sum + emp.expiringQualifications.length, 
         0
       ),
-      positions: dept.positions || [], // Use empty array if positions not available
+      positions: dept.positions || [],
       trainersCount,
       completionRate: departmentEmployees.length > 0 
         ? Math.round((departmentEmployees.reduce((sum, emp) => sum + emp.completedTrainings, 0) / 
-          (departmentEmployees.reduce((sum, emp) => sum + emp.completedTrainings + emp.pendingTrainings, 0))) * 100)
+          (departmentEmployees.reduce((sum, emp) => sum + emp.completedTrainings + emp.pendingTrainings, 0) || 1)) * 100)
         : 0
     };
-  });
+  };
+
+  // Filter and sort departments
+  const filteredDepartments = departments
+    .map(getDepartmentStats)
+    .filter(dept => {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = 
+        dept.DepartmentID_Atoss?.toLowerCase().includes(searchLower) ||
+        dept.name.toLowerCase().includes(searchLower) ||
+        employeesWithStats.some(emp => 
+          emp.DepartmentID?.toString() === dept.ID.toString() &&
+          emp.FullName?.toLowerCase().includes(searchLower)
+        );
+
+      const passesEmptyFilter = !filters.hideEmptyDepartments || dept.employeeCount > 0;
+      const passesMinEmployees = dept.employeeCount >= filters.minEmployees;
+      const passesCompletionRate = dept.completionRate >= filters.minCompletionRate;
+      const passesTrainerFilter = !filters.hasTrainers || dept.trainersCount > 0;
+
+      return matchesSearch && 
+             passesEmptyFilter && 
+             passesMinEmployees && 
+             passesCompletionRate && 
+             passesTrainerFilter;
+    })
+    .sort((a, b) => {
+      switch (filters.sortBy) {
+        case 'employeeCount':
+          return b.employeeCount - a.employeeCount;
+        case 'completionRate':
+          return b.completionRate - a.completionRate;
+        case 'trainersCount':
+          return b.trainersCount - a.trainersCount;
+        default:
+          return a.name.localeCompare(b.name);
+      }
+    });
 
   const handleToggleDetails = () => {
     setShowDetails(prev => !prev);
@@ -264,16 +312,116 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
         {/* Detailed view */}
         {showDetails && (
           <div className="space-y-6">
-            {/* Search input */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Suche nach Atoss-ID, Abteilung oder Mitarbeiter..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-              />
+            {/* Search and Filters */}
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Suche nach Atoss-ID, Abteilung oder Mitarbeiter..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                  />
+                </div>
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121212] hover:bg-gray-50 dark:hover:bg-gray-800"
+                >
+                  <SlidersHorizontal className="h-5 w-5 mr-2" />
+                  Filter
+                </button>
+              </div>
+
+              {/* Advanced Filters */}
+              {showFilters && (
+                <div className="bg-gray-50 dark:bg-[#181818] p-4 rounded-lg space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={filters.hideEmptyDepartments}
+                        onChange={(e) => setFilters(prev => ({
+                          ...prev,
+                          hideEmptyDepartments: e.target.checked
+                        }))}
+                        className="rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        Leere Abteilungen ausblenden
+                      </span>
+                    </label>
+
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={filters.hasTrainers}
+                        onChange={(e) => setFilters(prev => ({
+                          ...prev,
+                          hasTrainers: e.target.checked
+                        }))}
+                        className="rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        Nur Abteilungen mit Trainern
+                      </span>
+                    </label>
+
+                    <div>
+                      <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
+                        Min. Mitarbeiter
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={filters.minEmployees}
+                        onChange={(e) => setFilters(prev => ({
+                          ...prev,
+                          minEmployees: parseInt(e.target.value) || 0
+                        }))}
+                        className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#121212] dark:text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
+                        Min. Abschlussrate (%)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={filters.minCompletionRate}
+                        onChange={(e) => setFilters(prev => ({
+                          ...prev,
+                          minCompletionRate: parseInt(e.target.value) || 0
+                        }))}
+                        className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#121212] dark:text-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
+                      Sortierung
+                    </label>
+                    <select
+                      value={filters.sortBy}
+                      onChange={(e) => setFilters(prev => ({
+                        ...prev,
+                        sortBy: e.target.value as typeof filters.sortBy
+                      }))}
+                      className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#121212] dark:text-white"
+                    >
+                      <option value="name">Nach Name</option>
+                      <option value="employeeCount">Nach Mitarbeiteranzahl</option>
+                      <option value="completionRate">Nach Abschlussrate</option>
+                      <option value="trainersCount">Nach Traineranzahl</option>
+                    </select>
+                  </div>
+                </div>
+              )}
             </div>
 
             {isDepartmentsLoading ? (
@@ -286,8 +434,8 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
                 <p className="text-sm text-red-400">{departmentsError.toString()}</p>
               </div>
             ) : (
-              departmentStats.map(dept => (
-                <div key={dept.name} className="border dark:border-gray-700 rounded-lg overflow-hidden">
+              filteredDepartments.map(dept => (
+                <div key={`${dept.ID}-${dept.name}`} className="border dark:border-gray-700 rounded-lg overflow-hidden">
                   <div 
                     className="bg-gray-50 dark:bg-[#121212] p-4 flex justify-between items-center cursor-pointer"
                     onClick={() => handleToggleDepartment(dept.name)}
@@ -406,7 +554,7 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
                           </thead>
                           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                             {employeesWithStats
-                              .filter(e => e.Department === dept.name)
+                              .filter(e => e.DepartmentID?.toString() === dept.ID.toString())
                               .filter(report => report)
                               .map((report, index) => (
                                 <tr

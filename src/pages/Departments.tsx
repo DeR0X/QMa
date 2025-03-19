@@ -10,6 +10,7 @@ export default function Departments() {
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
   const { employee: currentUser } = useSelector((state: RootState) => state.auth);
   const [searchTerm, setSearchTerm] = useState('');
+  const [hideEmptyDepartments, setHideEmptyDepartments] = useState(false);
 
   const isHR = hasHRPermissions(currentUser);
   const isSupervisor = currentUser?.role === 'supervisor';
@@ -27,10 +28,13 @@ export default function Departments() {
   // Filtere Abteilungen anhand der Suchanfrage und Benutzerrolle
   const filteredDepartments = departments.filter(dept => {
     const matchesSearch = dept.department.toLowerCase().includes(searchTerm.toLowerCase());
+    const employeeCount = employees.filter(user => user.DepartmentID?.toString() === dept.id).length;
+    const passesEmptyFilter = !hideEmptyDepartments || employeeCount > 0;
+    
     if (isHR) {
-      return matchesSearch;
+      return matchesSearch && passesEmptyFilter;
     } else if (isSupervisor) {
-      return dept.id === currentUser?.DepartmentID?.toString() && matchesSearch;
+      return dept.id === currentUser?.DepartmentID?.toString() && matchesSearch && passesEmptyFilter;
     }
     return false;
   });
@@ -73,61 +77,91 @@ export default function Departments() {
 
       {/* Suchfeld und Abteilungsübersicht */}
       <div className="bg-white dark:bg-[#121212] shadow rounded-lg p-6">
-        <div className="mb-6">
-          <input
-            type="text"
-            placeholder="Abteilungen durchsuchen..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-primary focus:border-primary dark:bg-[#181818] dark:text-white"
-          />
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex-1">
+            <input
+              type="text"
+              placeholder="Abteilungen durchsuchen..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-primary focus:border-primary dark:bg-[#181818] dark:text-white"
+            />
+          </div>
+          <div className="flex items-center">
+            <label className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
+              <input
+                type="checkbox"
+                checked={hideEmptyDepartments}
+                onChange={(e) => setHideEmptyDepartments(e.target.checked)}
+                className="rounded border-gray-300 text-primary focus:ring-primary"
+              />
+              <span>Leere Abteilungen ausblenden</span>
+            </label>
+          </div>
         </div>
 
         {/* Grid: mobile 1 Spalte, ab md 2 Spalten, ab lg 3 Spalten */}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredDepartments.map((dept) => (
-            <div
-              key={dept.id}
-              onClick={() => setSelectedDepartment(dept.id)}
-              className="bg-white dark:bg-[#181818] shadow rounded-lg p-6 cursor-pointer hover:shadow-lg transition-shadow border border-gray-200 dark:border-gray-700"
-            >
-              <div className="flex items-center">
-                <Building2 className="h-8 w-8 text-primary" />
-                <div className="ml-4">
-                  <h2 className="text-lg font-medium text-gray-900 dark:text-white">
-                    {dept.department}
-                  </h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {getDepartmentEmployeeCount(dept.id)} Mitarbeiter
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    ID: {dept.departmentID_Atoss}
-                  </p>
+          {filteredDepartments.map((dept) => {
+            const employeeCount = getDepartmentEmployeeCount(dept.id);
+            return (
+              <div
+                key={dept.id}
+                onClick={() => setSelectedDepartment(dept.id)}
+                className="bg-white dark:bg-[#181818] shadow rounded-lg p-6 cursor-pointer hover:shadow-lg transition-shadow border border-gray-200 dark:border-gray-700"
+              >
+                <div className="flex items-center">
+                  <Building2 className="h-8 w-8 text-primary" />
+                  <div className="ml-4">
+                    <h2 className="text-lg font-medium text-gray-900 dark:text-white">
+                      {dept.department}
+                    </h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {employeeCount} Mitarbeiter
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      ID: {dept.departmentID_Atoss}
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="mt-4 space-y-2">
-                <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-                  Positionen:
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {dept.positions.slice(0, 5).map((position) => (
-                    <span
-                      key={position}
-                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
-                    >
-                      {position}
-                    </span>
-                  ))}
-                  {dept.positions.length > 5 && (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 dark:bg-primary/20 text-primary">
-                      +{dept.positions.length - 5} weitere
-                    </span>
-                  )}
+                <div className="mt-4 space-y-2">
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                    Positionen:
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {dept.positions.slice(0, 5).map((position) => (
+                      <span
+                        key={position}
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
+                      >
+                        {position}
+                      </span>
+                    ))}
+                    {dept.positions.length > 5 && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 dark:bg-primary/20 text-primary">
+                        +{dept.positions.length - 5} weitere
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
+            );
+          })}
+
+          {filteredDepartments.length === 0 && (
+            <div className="col-span-full text-center py-8">
+              <Building2 className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+                Keine Abteilungen gefunden
+              </h3>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {hideEmptyDepartments 
+                  ? 'Versuchen Sie den Filter für leere Abteilungen zu deaktivieren'
+                  : 'Versuchen Sie die Suchkriterien anzupassen'}
+              </p>
             </div>
-          ))}
+          )}
         </div>
       </div>
 

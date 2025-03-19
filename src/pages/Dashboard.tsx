@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useQuery } from '@tanstack/react-query';
-import { GraduationCap, Calendar, Award, Building2 } from 'lucide-react';
+import { GraduationCap, Calendar, Award, Building2, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { RootState } from '../store';
 import { trainings, bookings, qualifications, employees, jobTitles } from '../data/mockData';
 import { formatDate, calculateExpirationDate, isExpiringSoon } from '../lib/utils';
@@ -84,19 +84,19 @@ export default function Dashboard() {
 
   const stats = [
     { 
-      name: 'Abgeschlossen Schulungen', 
+      name: 'Abgeschlossene Schulungen', 
       value: userBookings.filter(b => b.status === 'abgeschlossen').length,
-      icon: Award 
+      icon: CheckCircle 
     },
     { 
-      name: 'Erforderliche Schulungen', 
+      name: 'Ausstehende Schulungen', 
       value: userBookings.filter(b => b.status === 'genehmigt').length,
-      icon: Calendar 
+      icon: Clock 
     },
     { 
       name: 'Verfügbare Schulungen', 
       value: trainings.length - userBookings.length,
-      icon: GraduationCap 
+      icon: Calendar 
     },
   ];
 
@@ -151,7 +151,7 @@ export default function Dashboard() {
           {employee.FullName}
         </h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          {employeesData?.data.length} Mitarbeiter in der Abteilung
+          {employees.length} Mitarbeiter in der Abteilung
         </p>
       </div>
 

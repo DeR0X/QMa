@@ -26,10 +26,10 @@ export default function StatisticsModal({ isOpen, onClose, title, employees, typ
   );
 
   // Debug logging
-  console.log('Modal Employees:', employees);
+/*   console.log('Modal Employees:', employees);
   console.log('Paginated Employees:', paginatedEmployees);
   console.log('Departments:', departments);
-  console.log('Job Titles:', jobTitles);
+  console.log('Job Titles:', jobTitles); */
 
   if (!isOpen) return null;
 
