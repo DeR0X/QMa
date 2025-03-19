@@ -24,6 +24,7 @@ export default function Dashboard() {
   const isHR = hasHRPermissions(employee);
   const [selectedQual, setSelectedQual] = useState<Qualification | null>(null);
 
+/*   console.log("Current employee ", employee); */
   // Fetch employees data using the same hook as Employees page
   const filters: EmployeeFilters = {
     page: 1,
@@ -148,14 +149,23 @@ export default function Dashboard() {
     <div className="space-y-6 p-4 sm:p-6">
       <div>
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-          {employee.FullName}
+          {employee.fullName}
         </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          {employees.length} Mitarbeiter in der Abteilung
-        </p>
       </div>
 
-      {isHR && <TrainingStatistics />}
+      {isHR && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Detaillierte Übersicht aller Schulungen, Teilnehmer und Qualifikationen im Unternehmen. 
+                Verfolgen Sie den Fortschritt, identifizieren Sie Schulungsbedarf und planen Sie zukünftige Maßnahmen.
+              </p>
+            </div>
+          </div>
+          <TrainingStatistics />
+        </div>
+      )}
 
       <div className="flex items-center justify-between">
         <div>
