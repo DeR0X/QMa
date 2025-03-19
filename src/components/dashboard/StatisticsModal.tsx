@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, CheckCircle, Clock, AlertCircle, Users, Calendar, Building2, Award } from 'lucide-react';
+import { X, CheckCircle, Clock, AlertCircle, Users, Calendar, Building2, Award, History as HistoryIcon, UserCheck } from 'lucide-react';
 import { departments, jobTitles, trainings, bookings, qualifications, employeeQualifications } from '../../data/mockData';
 import { formatDate } from '../../lib/utils';
 import EmployeeDetails from '../employees/EmployeeDetails';
@@ -14,6 +14,17 @@ interface Props {
   type: 'all' | 'completed' | 'pending' | 'expiring';
 }
 
+const findSupervisorByStaffNumber = (employees: Array<any>, supervisorId: number | null) => {
+  if (!supervisorId) return 'Nicht zugewiesen';
+// Update this line in the employee mapping section:
+const supervisor = employees.find(e => e.StaffNumber?.toString() === employee.SupervisorID?.toString())?.FullName || employee.SupervisorID;
+
+
+  const superv = employees.find(e => e.StaffNumber === supervisor);
+  console.log("Super: " , supervisor);
+  return supervisor ? supervisor.FullName : supervisorId.toString();
+};
+
 export default function StatisticsModal({ isOpen, onClose, title, employees, type }: Props) {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
@@ -25,41 +36,7 @@ export default function StatisticsModal({ isOpen, onClose, title, employees, typ
     currentPage * ITEMS_PER_PAGE
   );
 
-  // Debug logging
-/*   console.log('Modal Employees:', employees);
-  console.log('Paginated Employees:', paginatedEmployees);
-  console.log('Departments:', departments);
-  console.log('Job Titles:', jobTitles); */
-
   if (!isOpen) return null;
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-            <CheckCircle className="w-4 h-4 mr-1" />
-            Abgeschlossen
-          </span>
-        );
-      case 'pending':
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-            <Clock className="w-4 h-4 mr-1" />
-            Ausstehend
-          </span>
-        );
-      case 'expiring':
-        return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-            <AlertCircle className="w-4 h-4 mr-1" />
-            Ablaufend
-          </span>
-        );
-      default:
-        return null;
-    }
-  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -100,23 +77,26 @@ export default function StatisticsModal({ isOpen, onClose, title, employees, typ
                           Abteilung
                         </th>
                         <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
-                          Position
+                          Qualifikationen
                         </th>
                         <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
-                          Details
+                          Aktivitäten
                         </th>
                         <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
-                          Status
+                          Personalinfo
                         </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-[#141616]">
                       {paginatedEmployees.map((employee) => {
-                        // Get department and job title information
                         const department = departments.find(d => d.id === employee.DepartmentID?.toString());
-                        const jobTitle = jobTitles.find(jt => jt.id === employee.JobTitleID?.toString());
-                        
-                        // Get employee initials for avatar
+                        const employeeQuals = employeeQualifications.filter(eq => eq.employeeID === employee.ID.toString());
+                        const completedTrainings = bookings.filter(b => 
+                          b.userId === employee.ID.toString() && 
+                          b.status === 'abgeschlossen'
+                        ).length;
+                  
+                        const supervisor = employees.find(e => e.StaffNumber?.toString() === e.SupervisorID?.toString()) || employee.SupervisorID;
                         const initials = employee.FullName
                           ? employee.FullName.split(' ').map((n: string) => n[0]).join('')
                           : '??';
@@ -147,24 +127,40 @@ export default function StatisticsModal({ isOpen, onClose, title, employees, typ
                             <td className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm text-gray-900 dark:text-white">
                               {employee.Department || '-'}
                             </td>
-                            <td className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm text-gray-900 dark:text-white">
-                              {employee.JobTitleID || '-'}
+                            <td className="px-3 py-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                              <div className="flex items-center">
+                                <Award className="h-4 w-4 mr-1 text-blue-500" />
+                                <span>{employeeQuals.length} aktive Qualifikationen</span>
+                              </div>
+                              {employee.isTrainer && (
+                                <div className="flex items-center mt-1">
+                                <Users className="h-4 w-4 mr-1 text-green-500" />
+                                  <span>Trainer für {employee.trainerFor?.length || 0} Schulung(en)</span>
+                                </div>
+                              )}
                             </td>
                             <td className="px-3 py-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                              <div className="flex items-center">
+                                <HistoryIcon className="h-4 w-4 mr-1 text-purple-500" />
+                                <span>{completedTrainings} abgeschlossene Schulungen</span>
+                              </div>
                               {type === 'expiring' && employee.expiringQualifications?.map((qual: any) => (
-                                <div key={qual.id}>
-                                  {qual.name} – Läuft ab am {formatDate(qual.expirationDate)}
+                                <div key={qual.id} className="flex items-center mt-1">
+                                  <Calendar className="h-4 w-4 mr-1 text-red-500" />
+                                  <span>Läuft ab am {formatDate(qual.expirationDate)}</span>
                                 </div>
                               ))}
-                              {type === 'completed' && (
-                                <div>{employee.completedTrainings} abgeschlossene Schulungen</div>
-                              )}
-                              {type === 'pending' && (
-                                <div>{employee.pendingTrainings} ausstehende Schulungen</div>
-                              )}
                             </td>
-                            <td className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm">
-                              {getStatusBadge(type)}
+                            <td className="px-3 py-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                              <div className="flex items-center">
+                                <UserCheck className="h-4 w-4 mr-1 text-indigo-500" />
+                                <span>Vorgesetzter: {supervisor ? supervisor : 'Nicht zugewiesen'}</span>
+                              </div>
+                              <div className="flex items-center mt-1">
+                                <Building2 className="h-4 w-4 mr-1 text-orange-500" />
+                                <span>Rolle: {employee.role === 'supervisor' ? 'Vorgesetzter' : 
+                                            employee.role === 'hr' ? 'HR' : 'Mitarbeiter'}</span>
+                              </div>
                             </td>
                           </tr>
                         );
