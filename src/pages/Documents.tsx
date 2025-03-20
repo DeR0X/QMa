@@ -144,7 +144,7 @@ export default function Documents() {
           }`}
         >
           <Users className="h-5 w-5 mr-2" />
-          Mitarbeiterdokumente
+          Schulungsnachweise
         </button>
         <button
           onClick={() => setActiveTab('training')}

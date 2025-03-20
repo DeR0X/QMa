@@ -68,7 +68,7 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
   // Fetch employees data
   const apiFilters: EmployeeFilters = {
     page: 1,
-    limit: 100,
+    limit: 500,
     sortBy: 'SurName',
     sortOrder: 'asc',
     department: departmentFilter !== 'all' ? departmentFilter : undefined,
@@ -223,7 +223,8 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
         dept.name.toLowerCase().includes(searchLower) ||
         employeesWithStats.some(emp => 
           emp.DepartmentID?.toString() === dept.ID.toString() &&
-          emp.FullName?.toLowerCase().includes(searchLower)
+          (emp.FullName?.toLowerCase().includes(searchLower) ||
+           emp.StaffNumber?.toString().includes(searchLower)) // Add staff number search
         );
 
       const passesEmptyFilter = !filters.hideEmptyDepartments || dept.employeeCount > 0;
@@ -314,12 +315,11 @@ export default function TrainingStatistics({ departmentFilter = 'all' }: Props) 
           <div className="space-y-6">
             {/* Search and Filters */}
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
                   <input
                     type="text"
-                    placeholder="Suche nach Atoss-ID, Abteilung oder Mitarbeiter..."
+                    placeholder="Suche nach Atoss-ID, Personalnummer, Abteilung oder Mitarbeiter..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"

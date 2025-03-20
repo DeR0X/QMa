@@ -50,7 +50,7 @@ export default function EmployeeFilters({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
           <input
             type="text"
-            placeholder="Suche nach Name, Email, Abteilung oder Position..."
+            placeholder="Suche nach Name, Personalnummer, Email, Abteilung oder Position..."
             value={localSearchTerm}
             autoFocus
             onChange={(e) => setLocalSearchTerm(e.target.value)}

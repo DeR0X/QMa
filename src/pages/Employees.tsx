@@ -46,7 +46,7 @@ export default function Employees() {
       sortBy,
       sortOrder,
       search: searchTerms.join(' '), // Join terms with space for API
-      searchFields: ['FirstName', 'SurName', 'FullName', 'eMail', 'Department'], // Fields to search in
+      searchFields: ['FirstName', 'SurName', 'FullName', 'eMail', 'Department', 'StaffNumber'], // Added StaffNumber
       role: activeFilter === 'employees' ? 'employee' : 
             activeFilter === 'supervisors' ? 'supervisor' : undefined,
       isActive: activeFilter === 'active' ? true :
@@ -54,6 +54,7 @@ export default function Employees() {
       department: currentEmployee?.role === 'supervisor' ? currentEmployee.DepartmentID?.toString() : undefined,
     };
   }, [currentPage, sortBy, sortOrder, searchTerm, activeFilter, currentEmployee]);
+
 
   const { 
     data: employeesData, 
@@ -76,7 +77,8 @@ export default function Employees() {
         employee.SurName,
         employee.FullName,
         employee.eMail,
-        employee.Department
+        employee.Department,
+        employee.StaffNumber?.toString() // Added StaffNumber
       ].join(' ').toLowerCase();
 
       // Check if all search terms are found in the searchable text
