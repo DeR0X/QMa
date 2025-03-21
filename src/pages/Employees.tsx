@@ -18,7 +18,7 @@ const ITEMS_PER_PAGE = 10;
 
 // Debug function
 const debugLog = (message: string, data?: any) => {
-  //console.log(`[Employees] ${message}`, data || '');
+  console.log(`[Employees] ${message}`, data || '');
 };
 
 export default function Employees() {
@@ -37,16 +37,12 @@ export default function Employees() {
 
   // Build filters for API request
   const filters: EmployeeFilters = useMemo(() => {
-    // Split search term into individual words
-    const searchTerms = searchTerm.toLowerCase().trim().split(/\s+/);
-    
     return {
       page: currentPage,
       limit: ITEMS_PER_PAGE,
       sortBy,
       sortOrder,
-      search: searchTerms.join(' '), // Join terms with space for API
-      searchFields: ['FirstName', 'SurName', 'FullName', 'eMail', 'Department', 'StaffNumber'], // Added StaffNumber
+      search: searchTerm,
       role: activeFilter === 'employees' ? 'employee' : 
             activeFilter === 'supervisors' ? 'supervisor' : undefined,
       isActive: activeFilter === 'active' ? true :
@@ -54,7 +50,6 @@ export default function Employees() {
       department: currentEmployee?.role === 'supervisor' ? currentEmployee.DepartmentID?.toString() : undefined,
     };
   }, [currentPage, sortBy, sortOrder, searchTerm, activeFilter, currentEmployee]);
-
 
   const { 
     data: employeesData, 
@@ -69,20 +64,18 @@ export default function Employees() {
     
     if (!searchTerm.trim()) return employeesData.data;
 
-    const searchTerms = searchTerm.toLowerCase().trim().split(/\s+/);
+    const searchLower = searchTerm.toLowerCase();
     
     return employeesData.data.filter(employee => {
-      const searchableText = [
-        employee.FirstName,
-        employee.SurName,
-        employee.FullName,
-        employee.eMail,
-        employee.Department,
-        employee.StaffNumber?.toString() // Added StaffNumber
-      ].join(' ').toLowerCase();
+      const matchesSearch = 
+        employee.FirstName?.toLowerCase().includes(searchLower) ||
+        employee.SurName?.toLowerCase().includes(searchLower) ||
+        employee.FullName?.toLowerCase().includes(searchLower) ||
+        employee.eMail?.toLowerCase().includes(searchLower) ||
+        employee.Department?.toLowerCase().includes(searchLower) ||
+        employee.StaffNumber?.toString().includes(searchLower);
 
-      // Check if all search terms are found in the searchable text
-      return searchTerms.every(term => searchableText.includes(term));
+      return matchesSearch;
     });
   }, [employeesData?.data, searchTerm]);
 
