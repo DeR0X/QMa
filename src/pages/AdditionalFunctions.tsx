@@ -87,15 +87,16 @@ export default function AdditionalFunctions() {
     func.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleAddFunction = (newFunction: { name: string; description: string }) => {
+  const handleAddFunction = (newFunction: Partial<AdditionalFunction>) => {
     const functionToAdd = {
       ...newFunction,
       id: (additionalFunctions.length + 1).toString(),
-      validityPeriod: 24,
-      departments: [],
-      qualifications: [],
+      departments: newFunction.departments || [],
+      qualifications: newFunction.qualifications || [],
+      validityPeriod: newFunction.validityPeriod || 24,
       createdAt: new Date().toISOString()
-    };
+    } as AdditionalFunction;
+    
     setAdditionalFunctions([...additionalFunctions, functionToAdd]);
     toast.success('Zusatzfunktion erfolgreich erstellt');
     setShowAddModal(false);
@@ -167,18 +168,20 @@ export default function AdditionalFunctions() {
                       {func.description}
                     </p>
                   </div>
-                  <button
+                  <div className="flex space-x-2">
+                    <button
                       onClick={() => setEditingFunction(func)}
                       className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
                     >
                       <Edit2 className="h-5 w-5" />
                     </button>
-                  <button
-                    onClick={() => setSelectedFunction(func)}
-                    className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
-                  >
-                    <Info className="h-5 w-5" />
-                  </button>
+                    <button
+                      onClick={() => setSelectedFunction(func)}
+                      className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                    >
+                      <Info className="h-5 w-5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -227,16 +230,22 @@ export default function AdditionalFunctions() {
 }
 
 interface AddModalProps {
-    onClose: () => void;
-    onSubmit: (data: any) => void;
-    initialData?: AdditionalFunction;
+  onClose: () => void;
+  onSubmit: (data: AdditionalFunction) => void;
+  initialData?: AdditionalFunction;
 }
 
 function AdditionalFunctionModal({ onClose, onSubmit, initialData }: AddModalProps) {
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
+    name: initialData?.name || '',
+    description: initialData?.description || '',
+    validityPeriod: initialData?.validityPeriod || 24,
+    departments: initialData?.departments || [],
+    qualifications: initialData?.qualifications || []
   });
+
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
+  const [selectedQualification, setSelectedQualification] = useState<string>('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -245,18 +254,52 @@ function AdditionalFunctionModal({ onClose, onSubmit, initialData }: AddModalPro
       return;
     }
     onSubmit({
-        ...formData,
-        id: initialData?.id,
-        createdAt: initialData?.createdAt
-      });
+      ...formData,
+      id: initialData?.id || '',
+      createdAt: initialData?.createdAt || new Date().toISOString()
+    } as AdditionalFunction);
+  };
+
+  const handleAddDepartment = () => {
+    if (selectedDepartment && !formData.departments.includes(selectedDepartment)) {
+      setFormData(prev => ({
+        ...prev,
+        departments: [...prev.departments, selectedDepartment]
+      }));
+      setSelectedDepartment('');
+    }
+  };
+
+  const handleRemoveDepartment = (dept: string) => {
+    setFormData(prev => ({
+      ...prev,
+      departments: prev.departments.filter(d => d !== dept)
+    }));
+  };
+
+  const handleAddQualification = () => {
+    if (selectedQualification && !formData.qualifications.includes(selectedQualification)) {
+      setFormData(prev => ({
+        ...prev,
+        qualifications: [...prev.qualifications, selectedQualification]
+      }));
+      setSelectedQualification('');
+    }
+  };
+
+  const handleRemoveQualification = (qualId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      qualifications: prev.qualifications.filter(q => q !== qualId)
+    }));
   };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-2xl w-full m-4">
+      <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-2xl w-full m-4 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Neue Zusatzfunktion erstellen
+            {initialData ? 'Zusatzfunktion bearbeiten' : 'Neue Zusatzfunktion erstellen'}
           </h2>
           <button
             onClick={onClose}
@@ -294,6 +337,7 @@ function AdditionalFunctionModal({ onClose, onSubmit, initialData }: AddModalPro
               placeholder="Detaillierte Beschreibung der Zusatzfunktion..."
             />
           </div>
+            
 
           <div className="flex justify-end space-x-3">
             <button
@@ -307,7 +351,7 @@ function AdditionalFunctionModal({ onClose, onSubmit, initialData }: AddModalPro
               type="submit"
               className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
             >
-              Erstellen
+              {initialData ? 'Speichern' : 'Erstellen'}
             </button>
           </div>
         </form>
