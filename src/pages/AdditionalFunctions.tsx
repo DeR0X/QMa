@@ -9,7 +9,8 @@ import {
   Clock,
   Info,
   Users,
-  Building2
+  Building2,
+  Edit2
 } from 'lucide-react';
 import { RootState } from '../store';
 import { hasHRPermissions } from '../store/slices/authSlice';
@@ -65,6 +66,7 @@ export default function AdditionalFunctions() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedFunction, setSelectedFunction] = useState<AdditionalFunction | null>(null);
+  const [editingFunction, setEditingFunction] = useState<AdditionalFunction | null>(null);
   const [additionalFunctions, setAdditionalFunctions] = useState(mockAdditionalFunctions);
 
   const isHR = hasHRPermissions(employee);
@@ -85,15 +87,26 @@ export default function AdditionalFunctions() {
     func.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleAddFunction = (newFunction: Omit<AdditionalFunction, 'id' | 'createdAt'>) => {
+  const handleAddFunction = (newFunction: { name: string; description: string }) => {
     const functionToAdd = {
       ...newFunction,
       id: (additionalFunctions.length + 1).toString(),
+      validityPeriod: 24,
+      departments: [],
+      qualifications: [],
       createdAt: new Date().toISOString()
     };
     setAdditionalFunctions([...additionalFunctions, functionToAdd]);
     toast.success('Zusatzfunktion erfolgreich erstellt');
     setShowAddModal(false);
+  };
+
+  const handleEditFunction = (updatedFunction: AdditionalFunction) => {
+    setAdditionalFunctions(prev =>
+      prev.map(func => func.id === updatedFunction.id ? updatedFunction : func)
+    );
+    toast.success('Zusatzfunktion erfolgreich aktualisiert');
+    setEditingFunction(null);
   };
 
   return (
@@ -155,55 +168,17 @@ export default function AdditionalFunctions() {
                     </p>
                   </div>
                   <button
+                      onClick={() => setEditingFunction(func)}
+                      className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                    >
+                      <Edit2 className="h-5 w-5" />
+                    </button>
+                  <button
                     onClick={() => setSelectedFunction(func)}
                     className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
                   >
                     <Info className="h-5 w-5" />
                   </button>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-white flex items-center mb-2">
-                      <Building2 className="h-4 w-4 mr-2" />
-                      Verfügbar in Abteilungen:
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {func.departments.map((dept) => (
-                        <span
-                          key={dept}
-                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                        >
-                          {dept}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-white flex items-center mb-2">
-                      <Award className="h-4 w-4 mr-2" />
-                      Erforderliche Qualifikationen:
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {func.qualifications.map((qualId) => {
-                        const qual = qualifications.find(q => q.id === qualId);
-                        return qual ? (
-                          <span
-                            key={qualId}
-                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                          >
-                            {qual.name}
-                          </span>
-                        ) : null;
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                  <Clock className="h-4 w-4 mr-2" />
-                  Gültigkeitsdauer: {func.validityPeriod} Monate
                 </div>
               </div>
             </div>
@@ -225,9 +200,18 @@ export default function AdditionalFunctions() {
 
       {/* Modal für neue Zusatzfunktion */}
       {showAddModal && (
-        <AddAdditionalFunctionModal
+        <AdditionalFunctionModal
           onClose={() => setShowAddModal(false)}
-          onAdd={handleAddFunction}
+          onSubmit={handleAddFunction}
+        />
+      )}
+
+      {/* Modal für Bearbeitung */}
+      {editingFunction && (
+        <AdditionalFunctionModal
+          onClose={() => setEditingFunction(null)}
+          onSubmit={handleEditFunction}
+          initialData={editingFunction}
         />
       )}
 
@@ -243,17 +227,15 @@ export default function AdditionalFunctions() {
 }
 
 interface AddModalProps {
-  onClose: () => void;
-  onAdd: (data: Omit<AdditionalFunction, 'id' | 'createdAt'>) => void;
+    onClose: () => void;
+    onSubmit: (data: any) => void;
+    initialData?: AdditionalFunction;
 }
 
-function AddAdditionalFunctionModal({ onClose, onAdd }: AddModalProps) {
+function AdditionalFunctionModal({ onClose, onSubmit, initialData }: AddModalProps) {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    validityPeriod: 24,
-    departments: [] as string[],
-    qualifications: [] as string[],
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -262,7 +244,11 @@ function AddAdditionalFunctionModal({ onClose, onAdd }: AddModalProps) {
       toast.error('Bitte füllen Sie alle Pflichtfelder aus');
       return;
     }
-    onAdd(formData);
+    onSubmit({
+        ...formData,
+        id: initialData?.id,
+        createdAt: initialData?.createdAt
+      });
   };
 
   return (
@@ -291,6 +277,7 @@ function AddAdditionalFunctionModal({ onClose, onAdd }: AddModalProps) {
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
+              placeholder="z.B. Ersthelfer"
             />
           </div>
 
@@ -300,85 +287,12 @@ function AddAdditionalFunctionModal({ onClose, onAdd }: AddModalProps) {
             </label>
             <textarea
               required
-              rows={3}
+              rows={4}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
+              placeholder="Detaillierte Beschreibung der Zusatzfunktion..."
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Gültigkeitsdauer (Monate)
-            </label>
-            <input
-              type="number"
-              min="1"
-              value={formData.validityPeriod}
-              onChange={(e) => setFormData({ ...formData, validityPeriod: parseInt(e.target.value) })}
-              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Verfügbare Abteilungen
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {allDepartments.map((dept) => (
-                <label
-                  key={dept.name}
-                  className="flex items-center space-x-3 p-4 rounded-lg border border-gray-200 dark:border-gray-700"
-                >
-                  <input
-                    type="checkbox"
-                    checked={formData.departments.includes(dept.name)}
-                    onChange={(e) => {
-                      const newDepts = e.target.checked
-                        ? [...formData.departments, dept.name]
-                        : formData.departments.filter(d => d !== dept.name);
-                      setFormData({ ...formData, departments: newDepts });
-                    }}
-                    className="rounded border-gray-300 text-primary focus:ring-primary"
-                  />
-                  <span className="text-sm text-gray-900 dark:text-white">{dept.name}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Erforderliche Qualifikationen
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {qualifications.map((qual) => (
-                <label
-                  key={qual.id}
-                  className="flex items-center space-x-3 p-4 rounded-lg border border-gray-200 dark:border-gray-700"
-                >
-                  <input
-                    type="checkbox"
-                    checked={formData.qualifications.includes(qual.id)}
-                    onChange={(e) => {
-                      const newQuals = e.target.checked
-                        ? [...formData.qualifications, qual.id]
-                        : formData.qualifications.filter(q => q !== qual.id);
-                      setFormData({ ...formData, qualifications: newQuals });
-                    }}
-                    className="rounded border-gray-300 text-primary focus:ring-primary"
-                  />
-                  <div>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      {qual.name}
-                    </span>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {qual.description}
-                    </p>
-                  </div>
-                </label>
-              ))}
-            </div>
           </div>
 
           <div className="flex justify-end space-x-3">

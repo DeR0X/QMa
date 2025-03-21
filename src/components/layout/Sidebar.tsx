@@ -23,7 +23,6 @@ const navigation = [
   { name: 'Qualifikationen', href: '/qualifikationen', icon: Award },
   { name: 'Zusatzfunktionen', href: '/zusatzfunktionen', icon: Star },
   { name: 'Mitarbeiter', href: '/mitarbeiter', icon: Users },
-  { name: 'Abteilungen', href: '/abteilungen', icon: Building2 },
   { name: 'Dokumente', href: '/dokumente', icon: FileText },
 ];
 
