@@ -38,18 +38,12 @@ export default function Employees() {
   // Build filters for API request
   const filters: EmployeeFilters = useMemo(() => {
     return {
-      page: currentPage,
-      limit: ITEMS_PER_PAGE,
+      limit: 1000, // Load more records initially
       sortBy,
       sortOrder,
-      search: searchTerm,
-      role: activeFilter === 'employees' ? 'employee' : 
-            activeFilter === 'supervisors' ? 'supervisor' : undefined,
-      isActive: activeFilter === 'active' ? true :
-                activeFilter === 'inactive' ? false : undefined,
       department: currentEmployee?.role === 'supervisor' ? currentEmployee.DepartmentID?.toString() : undefined,
     };
-  }, [currentPage, sortBy, sortOrder, searchTerm, activeFilter, currentEmployee]);
+  }, [sortBy, sortOrder, currentEmployee]);
 
   const { 
     data: employeesData, 
@@ -58,16 +52,14 @@ export default function Employees() {
     isFetching 
   } = useEmployees(filters);
 
-  // Filter employees locally based on search terms
+  // Client-side filtering
   const filteredEmployees = useMemo(() => {
     if (!employeesData?.data) return [];
     
-    if (!searchTerm.trim()) return employeesData.data;
-
-    const searchLower = searchTerm.toLowerCase();
-    
     return employeesData.data.filter(employee => {
-      const matchesSearch = 
+      // Search term filtering
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = !searchTerm || 
         employee.FirstName?.toLowerCase().includes(searchLower) ||
         employee.SurName?.toLowerCase().includes(searchLower) ||
         employee.FullName?.toLowerCase().includes(searchLower) ||
@@ -75,9 +67,35 @@ export default function Employees() {
         employee.Department?.toLowerCase().includes(searchLower) ||
         employee.StaffNumber?.toString().includes(searchLower);
 
-      return matchesSearch;
+      // Role filtering
+      const matchesRole = activeFilter === 'all' ||
+        (activeFilter === 'employees' && employee.role === 'employee') ||
+        (activeFilter === 'supervisors' && employee.role === 'supervisor');
+
+      // Active status filtering
+      const matchesStatus = activeFilter === 'all' ||
+        (activeFilter === 'active' && employee.isActive) ||
+        (activeFilter === 'inactive' && !employee.isActive);
+
+      return matchesSearch && matchesRole && matchesStatus;
+    }).sort((a, b) => {
+      const aValue = a[sortBy as keyof Employee];
+      const bValue = b[sortBy as keyof Employee];
+      
+      if (aValue === null || bValue === null) return 0;
+      
+      const comparison = String(aValue).localeCompare(String(bValue));
+      return sortOrder === 'asc' ? comparison : -comparison;
     });
-  }, [employeesData?.data, searchTerm]);
+  }, [employeesData?.data, searchTerm, activeFilter, sortBy, sortOrder]);
+
+  // Pagination calculation
+  const paginatedEmployees = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredEmployees.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredEmployees, currentPage]);
+
+  const totalPages = Math.ceil(filteredEmployees.length / ITEMS_PER_PAGE);
 
   const updateEmployee = useUpdateEmployee();
 
@@ -112,10 +130,6 @@ export default function Employees() {
       toast.error('Fehler beim Ändern des Aktivitätsstatus');
     }
   };
-
-  // Calculate total pages based on the total number of items from the API response
-  const totalItems = employeesData?.pagination?.total || filteredEmployees.length;
-  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   if (!isHRAdmin && currentEmployee?.role !== 'supervisor') {
     return (
@@ -169,10 +183,10 @@ export default function Employees() {
             <div className="flex gap-2">
               {isHRAdmin && (
                 <>
-                  <button className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121212] hover:bg-gray-50 dark:hover:bg-gray-600">
+                  {/* <button className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121212] hover:bg-gray-50 dark:hover:bg-gray-600">
                     <Upload className="h-5 w-5 mr-2" />
                     Import
-                  </button>
+                  </button> */}
                   <button className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121212] hover:bg-gray-50 dark:hover:bg-gray-600">
                     <Download className="h-5 w-5 mr-2" />
                     Export
@@ -196,15 +210,16 @@ export default function Employees() {
             <pre className="text-xs overflow-auto max-h-40 bg-white dark:bg-gray-900 p-2 rounded">
               {JSON.stringify(
                 {
-                  filters,
-                  currentPage,
-                  totalItems,
-                  totalPages,
-                  employeeCount: employeesData?.data.length,
+                  totalEmployees: employeesData?.data.length,
                   filteredCount: filteredEmployees.length,
-                  searchTerms: searchTerm.split(/\s+/),
+                  paginatedCount: paginatedEmployees.length,
+                  currentPage,
+                  totalPages,
+                  searchTerm,
+                  activeFilter,
+                  sortBy,
+                  sortOrder,
                   isFetching,
-                  error,
                 },
                 null,
                 2
@@ -214,9 +229,9 @@ export default function Employees() {
         )}
 
         <div className="overflow-x-auto">
-          {filteredEmployees.length > 0 ? (
+          {paginatedEmployees.length > 0 ? (
             <EmployeeList
-              employees={filteredEmployees}
+              employees={paginatedEmployees}
               onSelectEmployee={setSelectedEmployee}
               onToggleActive={handleToggleActive}
               isHRAdmin={isHRAdmin}
@@ -232,7 +247,7 @@ export default function Employees() {
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
-          totalItems={totalItems}
+          totalItems={filteredEmployees.length}
           itemsPerPage={ITEMS_PER_PAGE}
           onPageChange={setCurrentPage}
         />
