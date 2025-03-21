@@ -10,13 +10,7 @@ import Trainings from '../pages/Trainings';
 import Documents from '../pages/Documents';
 import Qualifications from '../pages/Qualifications';
 import TrainingHistory from '../pages/TrainingHistory';
-
-// Temporary placeholder component for development
-const PlaceholderComponent = () => (
-  <div className="flex min-h-screen items-center justify-center">
-    <h1 className="text-2xl font-bold">Coming Soon</h1>
-  </div>
-);
+import AdditionalFunctions from '../pages/AdditionalFunctions';
 
 export default function AppRoutes() {
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
@@ -35,6 +29,7 @@ export default function AppRoutes() {
         <Route path="/schulungen" element={<Trainings />} />
         <Route path="/training-history" element={<TrainingHistory />} />
         <Route path="/qualifikationen" element={<Qualifications />} />
+        <Route path="/zusatzfunktionen" element={<AdditionalFunctions />} />
         <Route path="/dokumente" element={<Documents />} />
       </Route>
 

@@ -9,7 +9,8 @@ import {
   GraduationCap,
   X,
   Award,
-  History as HistoryIcon
+  History as HistoryIcon,
+  Star
 } from 'lucide-react';
 import { RootState } from '../../store';
 import { toggleSidebar } from '../../store/slices/uiSlice';
@@ -20,6 +21,7 @@ const navigation = [
   { name: 'Schulungen', href: '/schulungen', icon: GraduationCap },
   { name: 'Schulungshistorie', href: '/training-history', icon: HistoryIcon },
   { name: 'Qualifikationen', href: '/qualifikationen', icon: Award },
+  { name: 'Zusatzfunktionen', href: '/zusatzfunktionen', icon: Star },
   { name: 'Mitarbeiter', href: '/mitarbeiter', icon: Users },
   { name: 'Abteilungen', href: '/abteilungen', icon: Building2 },
   { name: 'Dokumente', href: '/dokumente', icon: FileText },
@@ -33,7 +35,7 @@ export default function Sidebar() {
   // Filter navigation items based on user role
   const filteredNavigation = navigation.filter(item => {
     if (employee?.role === 'employee') {
-      return !['Mitarbeiter', 'Abteilungen', 'Qualifikationen'].includes(item.name);
+      return !['Mitarbeiter', 'Abteilungen', 'Qualifikationen', 'Zusatzfunktionen'].includes(item.name);
     }
     return true;
   });
