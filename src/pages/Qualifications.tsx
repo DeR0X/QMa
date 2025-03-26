@@ -31,6 +31,8 @@ export default function Qualifications() {
     );
   }
 
+  const [selectedJobTitle, setSelectedJobTitle] = useState<string | null>(null);
+
   const handleAddQualification = (qualification: Omit<Qualification, 'id'>) => {
     const newQual = {
       ...qualification,
@@ -256,12 +258,13 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
     validityPeriod: initialData?.validityInMonth || 12,
     requiredQualifications: initialData?.requiredQualifications || [],
     isMandatory: initialData?.isMandatory || false,
-    assignmentType: 'jobTitle', // 'jobTitle', 'additionalFunction', or 'mandatory'
+    assignmentType: 'jobTitle',
     selectedJobTitles: [] as string[],
     selectedDepartment: '',
-    additionalFunctionName: '',
-    additionalFunctionDescription: '',
+    selectedAdditionalSkills: [] as string[]
   });
+
+  const [selectedJobTitle, setSelectedJobTitle] = useState<string | null>(null);
 
   const [selectedQualifications, setSelectedQualifications] = useState<string[]>(
     initialData?.requiredQualifications || []
@@ -285,7 +288,7 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
       return;
     }
 
-    if (activeStep < 4) {
+    if (activeStep < 3) {
       setActiveStep(activeStep + 1);
       return;
     }
@@ -323,8 +326,8 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
             }
             break;
           case 'additionalFunction':
-            if (!formData.additionalFunctionName) {
-              newErrors.additionalFunction = 'Name der Zusatzfunktion ist erforderlich';
+            if (!formData.selectedAdditionalSkills) {
+              newErrors.additionalFunction = 'Es muss eine Zusatzfunktion ausgewählt werden';
             }
             break;
           case 'mandatory':
@@ -521,29 +524,31 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
 
             {formData.assignmentType === 'additionalFunction' && (
               <div className="space-y-4">
-                <div>
+                <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Name der Zusatzfunktion
+                    Zusatzfunktion auswählen
                   </label>
-                  <input
-                    type="text"
-                    value={formData.additionalFunctionName}
-                    onChange={(e) => setFormData({ ...formData, additionalFunctionName: e.target.value })}
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-                    placeholder="z.B. Ersthelfer, Brandschutzbeauftragter"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Beschreibung der Zusatzfunktion
-                  </label>
-                  <textarea
-                    value={formData.additionalFunctionDescription}
-                    onChange={(e) => setFormData({ ...formData, additionalFunctionDescription: e.target.value })}
-                    rows={3}
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-                    placeholder="Beschreiben Sie die Aufgaben und Verantwortlichkeiten dieser Zusatzfunktion..."
-                  />
+                  {jobTitles.map(jobTitle => (
+                    <label
+                      key={jobTitle.id}
+                      className={`p-4 rounded-lg border ${
+                        formData.selectedJobTitles.includes(jobTitle.id)
+                          ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                          : 'border-gray-200 dark:border-gray-700'
+                      } flex items-start space-x-3 cursor-pointer`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedJobTitle === jobTitle.id}
+                        onChange={() => setSelectedJobTitle(jobTitle.id)}
+                        className="rounded border-gray-300 text-primary focus:ring-primary"
+                      />
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">{jobTitle.jobTitle}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{jobTitle.description}</p>
+                      </div>
+                    </label>
+                  ))}
                 </div>
               </div>
             )}
@@ -566,67 +571,6 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
             )}
           </div>
         );
-
-      case 4:
-        return (
-          <div className="space-y-6">
-            <div>
-              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
-                Erforderliche Qualifikationen
-              </h4>
-              
-              <div className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Qualifikationen suchen..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-primary focus:border-primary dark:bg-[#181818] dark:text-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {filteredQualifications.map((qual) => (
-                  <div
-                    key={qual.id}
-                    className={`p-4 rounded-lg border transition-colors ${
-                      selectedQualifications.includes(qual.id)
-                        ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                        : 'border-gray-200 dark:border-gray-700'
-                    }`}
-                  >
-                    <label className="flex items-start space-x-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedQualifications.includes(qual.id)}
-                        onChange={() => {
-                          const newSelected = selectedQualifications.includes(qual.id)
-                            ? selectedQualifications.filter(id => id !== qual.id)
-                            : [...selectedQualifications, qual.id];
-                          setSelectedQualifications(newSelected);
-                        }}
-                        className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
-                      />
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">
-                          {qual.name}
-                        </p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {qual.description}
-                        </p>
-                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                          Gültigkeitsdauer: {qual.validityInMonth} Monate
-                        </p>
-                      </div>
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-
       default:
         return null;
     }
@@ -638,7 +582,7 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
       <div className="relative">
         <div className="absolute top-4 w-full h-0.5 bg-gray-200 dark:bg-gray-700" />
         <div className="relative flex justify-between">
-          {[1, 2, 3, 4].map((step) => (
+          {[1, 2, 3].map((step) => (
             <button
               key={step}
               type="button"
@@ -662,7 +606,6 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
           <span className="text-xs text-gray-500 dark:text-gray-400">Grundinfo</span>
           <span className="text-xs text-gray-500 dark:text-gray-400">Gültigkeit</span>
           <span className="text-xs text-gray-500 dark:text-gray-400">Zuweisung</span>
-          <span className="text-xs text-gray-500 dark:text-gray-400">Qualifikationen</span>
         </div>
       </div>
 
@@ -684,7 +627,7 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
           disabled={!canProceed}
           className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {activeStep < 4 ? 'Weiter' : (initialData ? 'Aktualisieren' : 'Erstellen')}
+          {activeStep < 3 ? 'Weiter' : (initialData ? 'Aktualisieren' : 'Erstellen')}
         </button>
       </div>
     </form>

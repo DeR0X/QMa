@@ -432,30 +432,6 @@ function AdditionalFunctionDetails({ func, onClose }: DetailsModalProps) {
               ))}
             </div>
           </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-              Erforderliche Qualifikationen
-            </h3>
-            <div className="space-y-2">
-              {func.qualifications.map((qualId) => {
-                const qual = qualifications.find(q => q.id === qualId);
-                return qual ? (
-                  <div
-                    key={qualId}
-                    className="p-3 rounded-lg bg-gray-50 dark:bg-[#181818] border border-gray-200 dark:border-gray-700"
-                  >
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-white">
-                      {qual.name}
-                    </h4>
-                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      {qual.description}
-                    </p>
-                  </div>
-                ) : null;
-              })}
-            </div>
-          </div>
         </div>
       </div>
     </div>
