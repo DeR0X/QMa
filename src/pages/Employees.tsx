@@ -167,18 +167,6 @@ export default function Employees() {
               searchTerm={searchTerm}
               onSearchChange={handleSearchChange}
               activeFilter={activeFilter}
-              onFilterChange={(value) => {
-                setActiveFilter(value as FilterType);
-                setCurrentPage(1);
-              }}
-              showFilters={showFilters}
-              onToggleFilters={() => setShowFilters(!showFilters)}
-              sortBy={sortBy}
-              sortOrder={sortOrder}
-              onSortChange={(field, order) => {
-                setSortBy(field);
-                setSortOrder(order);
-              }}
             />
             <div className="flex gap-2">
               {isHRAdmin && (

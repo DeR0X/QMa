@@ -1,35 +1,22 @@
 import { Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-type FilterType = 'all' | 'employees' | 'supervisors' | 'active' | 'inactive';
-
 interface Props {
   searchTerm: string;
   onSearchChange: (value: string) => void;
-  activeFilter: FilterType;
-  onFilterChange: (value: string) => void;
-  showFilters: boolean;
-  onToggleFilters: () => void;
-  sortBy: string;
-  sortOrder: 'asc' | 'desc';
-  onSortChange: (field: string, order: 'asc' | 'desc') => void;
+  showFilters?: boolean;
+  onToggleFilters?: () => void;
+  activeFilter?: string;
+  onFilterChange?: (value: string) => void;
 }
-
-const filterOptions = [
-  { value: 'all', label: 'Alle' },
-  { value: 'employees', label: 'Nur Mitarbeiter' },
-  { value: 'supervisors', label: 'Nur Vorgesetzte' },
-  { value: 'active', label: 'Aktive' },
-  { value: 'inactive', label: 'Gesperrte' },
-];
 
 export default function EmployeeFilters({
   searchTerm,
   onSearchChange,
-  activeFilter,
+  showFilters = false,
+  onToggleFilters,
+  activeFilter = '',
   onFilterChange,
-  showFilters,
-  onToggleFilters
 }: Props) {
   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
 
@@ -38,7 +25,7 @@ export default function EmployeeFilters({
       if (localSearchTerm !== searchTerm) {
         onSearchChange(localSearchTerm);
       }
-    }, 300); // 300ms debounce delay
+    }, 300);
 
     return () => clearTimeout(timeoutId);
   }, [localSearchTerm, onSearchChange, searchTerm]);
@@ -58,39 +45,17 @@ export default function EmployeeFilters({
           />
         </div>
       </div>
-      <div className="relative">
-        <button
-          type="button"
-          onClick={onToggleFilters}
-          className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121212] hover:bg-gray-50 dark:hover:bg-gray-600"
-        >
-          {filterOptions.find(f => f.value === activeFilter)?.label}
-        </button>
-        
-        {showFilters && (
-          <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-10">
-            <div className="py-1">
-              {filterOptions.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => {
-                    onFilterChange(option.value);
-                    onToggleFilters();
-                  }}
-                  className={`block w-full text-left px-4 py-2 text-sm ${
-                    activeFilter === option.value
-                      ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      {showFilters && onToggleFilters && onFilterChange && (
+        <div className="relative">
+          <button
+            type="button"
+            onClick={onToggleFilters}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121212] hover:bg-gray-50 dark:hover:bg-gray-600"
+          >
+            {activeFilter || 'Filter wählen'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
