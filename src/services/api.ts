@@ -22,7 +22,7 @@ function buildQueryString(params: Record<string, any>): string {
 export const employeeApi = {
   async getEmployees(filters: EmployeeFilters = {}) {
     const queryString = buildQueryString(filters);
-    const response = await fetch(`${API_BASE_URL}/employees${queryString}`);
+    const response = await fetch(`${API_BASE_URL}/employees-view${queryString}`);
     
     if (!response.ok) {
       throw new Error('Failed to fetch employees');
@@ -33,7 +33,7 @@ export const employeeApi = {
 
   async getEmployeeById(id: string, fields?: string[]) {
     const queryString = fields ? buildQueryString({ fields: fields.join(',') }) : '';
-    const response = await fetch(`${API_BASE_URL}/employees/${id}${queryString}`);
+    const response = await fetch(`${API_BASE_URL}/employees-view/${id}${queryString}`);
     
     if (!response.ok) {
       throw new Error('Failed to fetch employee');

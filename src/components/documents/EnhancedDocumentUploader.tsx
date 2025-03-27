@@ -92,7 +92,7 @@ export default function EnhancedDocumentUploader({ onClose, onSubmit }: Props) {
     limit: 100,
     sortBy: 'SurName',
     sortOrder: 'asc',
-    search: employeeSearchTerm,
+    search: searchTerm, // Use the searchTerm directly here
   };
 
   const { 
@@ -571,10 +571,10 @@ export default function EnhancedDocumentUploader({ onClose, onSubmit }: Props) {
                         <div className="flex items-center space-x-4">
                           <div className="flex-1 relative">
                           <EmployeeFilter
-                            searchTerm={searchTerm}
-                            onSearchChange={handleSearchChange}
-                            activeFilter={activeFilter}
-                          />
+                              searchTerm={searchTerm}
+                              onSearchChange={handleSearchChange}
+                              activeFilter={activeFilter}
+                            />
                           </div>
                         </div>
 
@@ -612,6 +612,9 @@ export default function EnhancedDocumentUploader({ onClose, onSubmit }: Props) {
                                     </p>
                                     <p className="text-sm text-gray-500 dark:text-gray-400">
                                       {employee.Department}
+                                    </p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                      {employee.StaffNumber}
                                     </p>
                                   </div>
                                 </div>

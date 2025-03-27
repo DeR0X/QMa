@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Lock, Unlock, ChevronDown, ChevronRight } from 'lucide-react';
 import type { Employee } from '../../types';
 import { departments, jobTitles, employees as allEmployees } from '../../data/mockData';
+import { useJobTitles } from '../../hooks/useJobTitles';
 
 interface Props {
   employees: Employee[];
@@ -20,6 +21,7 @@ export default function EmployeeList({
   currentEmployee
 }: Props) {
   const [expandedSupervisors, setExpandedSupervisors] = useState<string[]>([]);
+  const { data: jobTitlesData, isLoading: isLoadingJobTitles } = useJobTitles();
 
   const toggleSupervisor = (e: React.MouseEvent, supervisorId: string) => {
     e.stopPropagation();
@@ -32,13 +34,22 @@ export default function EmployeeList({
 
   const getDepartmentName = (departmentId: string) => {
     const department = departments.find(d => d.id === departmentId);
-    console.log(departmentId);
     return department ? department.department : 'Unbekannte Abteilung';
   };
 
-  const getJobTitle = (jobTitleId: string) => {
-    const jobTitle = jobTitles.find(jt => jt.id === jobTitleId);
-    return jobTitle ? jobTitle.jobTitle : 'Keine Position';
+  const getJobTitle = (jobTitleId: string | number | null) => {
+    if (!jobTitleId) return 'Keine Position';
+
+    // First try to get from API data
+    if (jobTitlesData) {
+      console.log(jobTitlesData);
+      const jobTitle = jobTitlesData.find(jt => jt.id === jobTitleId.toString());
+      if (jobTitle) return jobTitle.jobTitle;
+    }
+    
+    // Fallback to mock data
+    const jobTitle = jobTitles.find(jt => jt.id === jobTitleId.toString());
+    return jobTitle ? jobTitle.jobTitle : jobTitleId.toString();
   };
 
   // Filter supervisors and their direct reports
@@ -118,9 +129,11 @@ export default function EmployeeList({
                   <div className="text-xs text-gray-500">ID: {employee.DepartmentID}</div>
                 </td>
                 <td className="py-4 px-4 whitespace-nowrap">
-                <div className="text-sm text-gray-900 dark:text-white">{getJobTitle(employee.JobTitleID?.toString() || '')}</div>
-                {employee.JobTitleID && <div className="text-xs text-gray-500">ID: {employee.JobTitleID}</div>}
-              </td>
+                  <div className="text-sm text-gray-900 dark:text-white">
+                    {isLoadingJobTitles ? 'Laden...' : getJobTitle(employee.JobTitleID)}
+                  </div>
+                  {employee.JobTitleID && <div className="text-xs text-gray-500">ID: {employee.JobTitleID}</div>}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                     !employee.isActive
@@ -184,7 +197,7 @@ export default function EmployeeList({
                        {getDepartmentName(report.DepartmentID?.toString() || '')}
                      </td>
                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                       {getJobTitle(report.JobTitleID?.toString() || '')}
+                       {isLoadingJobTitles ? 'Laden...' : getJobTitle(report.JobTitleID)}
                      </td>
                      <td className="px-6 py-4 whitespace-nowrap">
                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${

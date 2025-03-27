@@ -38,7 +38,7 @@ export const departments: Department[] = [
 export const jobTitles: JobTitle[] = [
   {
     id: "1",
-    jobTitle: "Software Engineer",
+    jobTitle: "Software-Entwickler",
     description: "Entwickelt und wartet Softwaresysteme",
     qualificationIDs: ["1", "2"],
   },

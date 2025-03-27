@@ -4,8 +4,6 @@ import { departments, jobTitles, trainings, bookings, qualifications, employeeQu
 import { formatDate } from '../../lib/utils';
 import EmployeeDetails from '../employees/EmployeeDetails';
 
-const ITEMS_PER_PAGE = 10;
-
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -14,37 +12,25 @@ interface Props {
   type: 'all' | 'completed' | 'pending' | 'expiring';
 }
 
-const findSupervisorByStaffNumber = (employees: Array<any>, supervisorId: number | null) => {
-  if (!supervisorId) return 'Nicht zugewiesen';
-// Update this line in the employee mapping section:
-const supervisor = employees.find(e => e.StaffNumber?.toString() === employee.SupervisorID?.toString())?.FullName || employee.SupervisorID;
-
-
-  const superv = employees.find(e => e.StaffNumber === supervisor);
-  console.log("Super: " , supervisor);
-  return supervisor ? supervisor.FullName : supervisorId.toString();
-};
-
 export default function StatisticsModal({ isOpen, onClose, title, employees, type }: Props) {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
   const totalItems = employees.length;
-  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(totalItems / 10);
 
   const paginatedEmployees = employees.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+    (currentPage - 1) * 10,
+    currentPage * 10
   );
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      {/* Mobile-first: Standardmäßig klein, ab sm: breiter */}
-      <div className="bg-white dark:bg-[#121212] rounded-lg w-full max-w-md sm:max-w-6xl max-h-[90vh] flex flex-col">
-        {/* Header */}
+      <div className="bg-white dark:bg-[#121212] rounded-lg w-full max-w-6xl max-h-[90vh] flex flex-col">
+        {/* Header - Fixed */}
         <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
             {title}
           </h2>
           <button
@@ -55,8 +41,8 @@ export default function StatisticsModal({ isOpen, onClose, title, employees, typ
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-hidden p-4 sm:p-6">
+        {/* Content - Scrollable */}
+        <div className="flex-1 overflow-auto min-h-0 p-4 sm:p-6">
           {paginatedEmployees.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -95,8 +81,9 @@ export default function StatisticsModal({ isOpen, onClose, title, employees, typ
                           b.userId === employee.ID.toString() && 
                           b.status === 'abgeschlossen'
                         ).length;
-                  
-                        const supervisor = employees.find(e => e.StaffNumber?.toString() === e.SupervisorID?.toString()) || employee.SupervisorID;
+                        
+                        const supervisor = employee.Supervisor;
+                        //const supervisor = employees.find(e => e.StaffNumber?.toString() === e.SupervisorID?.toString()) || employee.SupervisorID;
                         const initials = employee.FullName
                           ? employee.FullName.split(' ').map((n: string) => n[0]).join('')
                           : '??';
@@ -173,15 +160,15 @@ export default function StatisticsModal({ isOpen, onClose, title, employees, typ
           )}
         </div>
 
-        {/* Footer with Pagination */}
+        {/* Footer - Fixed */}
         {!selectedEmployee && (
           <div className="border-t border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-3">
             <div className="flex items-center justify-between">
               <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                 Zeige{' '}
-                <span className="font-medium">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span>
+                <span className="font-medium">{(currentPage - 1) * 10 + 1}</span>
                 {' '}-{' '}
-                <span className="font-medium">{Math.min(currentPage * ITEMS_PER_PAGE, totalItems)}</span>
+                <span className="font-medium">{Math.min(currentPage * 10, totalItems)}</span>
                 {' '}von{' '}
                 <span className="font-medium">{totalItems}</span> Ergebnissen
               </p>

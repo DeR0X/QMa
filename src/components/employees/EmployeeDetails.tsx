@@ -15,6 +15,7 @@ import type { Employee, Qualification } from '../../types';
 import { qualifications, employeeQualifications, trainings, departments, jobTitles } from '../../data/mockData';
 import { toast } from 'sonner';
 import { formatDate } from '../../lib/utils';
+import { useJobTitles } from '../../hooks/useJobTitles';
 
 interface Props {
   employee: Employee;
@@ -42,6 +43,7 @@ export default function EmployeeDetails({
   const [localEmployee, setLocalEmployee] = useState(employee);
   const { employee: currentEmployee } = useSelector((state: RootState) => state.auth);
   const isHRAdmin = hasHRPermissions(currentEmployee);
+  const { data: jobTitlesData, isLoading: isLoadingJobTitles } = useJobTitles();
 
   const getDepartmentName = (departmentId: number | null) => {
     if (!departmentId) return 'Keine Abteilung';
@@ -51,6 +53,14 @@ export default function EmployeeDetails({
 
   const getJobTitle = (jobTitleId: number | null) => {
     if (!jobTitleId) return 'Keine Position';
+    
+    // First try to get from API data
+    if (jobTitlesData) {
+      const jobTitle = jobTitlesData.find(jt => jt.id === jobTitleId.toString());
+      if (jobTitle) return jobTitle.jobTitle;
+    }
+    
+    // Fallback to mock data
     const jobTitle = jobTitles.find(jt => jt.id === jobTitleId.toString());
     return jobTitle ? jobTitle.jobTitle : jobTitleId.toString();
   };
@@ -227,7 +237,7 @@ export default function EmployeeDetails({
                     {localEmployee.FullName}
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {getJobTitle(localEmployee.JobTitleID)} • {localEmployee.Department}
+                    {isLoadingJobTitles ? 'Laden...' : getJobTitle(localEmployee.JobTitleID)} • {localEmployee.Department}
                   </p>
                 </div>
               </div>
@@ -277,7 +287,7 @@ export default function EmployeeDetails({
                       <div className="flex items-center">
                         <Award className="h-5 w-5 text-gray-400" />
                         <span className="ml-2 text-sm text-gray-900 dark:text-white">
-                          Position: {getJobTitle(localEmployee.JobTitleID)}
+                          Position: {isLoadingJobTitles ? 'Laden...' : getJobTitle(localEmployee.JobTitleID)}
                         </span>
                       </div>
                     </div>
@@ -292,7 +302,7 @@ export default function EmployeeDetails({
                               <div className="flex items-center">
                                 <Award className="h-5 w-5 text-gray-400" />
                                 <span className="ml-2 text-sm text-gray-900 dark:text-white">
-                                  {getJobTitle(parseInt(posId))}
+                                  {isLoadingJobTitles ? 'Laden...' : getJobTitle(parseInt(posId))}
                                 </span>
                               </div>
                               {isHRAdmin && (

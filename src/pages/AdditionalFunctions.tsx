@@ -10,64 +10,31 @@ import {
   Info,
   Users,
   Building2,
-  Edit2
+  Edit2,
+  Trash2
 } from 'lucide-react';
 import { RootState } from '../store';
 import { hasHRPermissions } from '../store/slices/authSlice';
 import { toast } from 'sonner';
-import { qualifications } from '../data/mockData';
-import { itDepartments, manufacturingDepartments } from '../data/departments';
-
-const allDepartments = [...itDepartments, ...manufacturingDepartments];
-
-interface AdditionalFunction {
-  id: string;
-  name: string;
-  description: string;
-  validityPeriod: number;
-  departments: string[];
-  qualifications: string[];
-  createdAt: string;
-}
-
-// Mock-Daten für Zusatzfunktionen
-const mockAdditionalFunctions: AdditionalFunction[] = [
-  {
-    id: '1',
-    name: 'Ersthelfer',
-    description: 'Ausgebildeter Ersthelfer nach DGUV Vorschrift 1',
-    validityPeriod: 24,
-    departments: ['IT-Betrieb', 'Produktion'],
-    qualifications: ['5'],
-    createdAt: '2024-01-15'
-  },
-  {
-    id: '2',
-    name: 'Brandschutzhelfer',
-    description: 'Ausgebildeter Brandschutzhelfer gemäß ASR A2.2',
-    validityPeriod: 36,
-    departments: ['IT-Betrieb', 'Produktion', 'Qualitätsmanagement'],
-    qualifications: ['6'],
-    createdAt: '2024-02-01'
-  },
-  {
-    id: '3',
-    name: 'Sicherheitsbeauftragter',
-    description: 'Sicherheitsbeauftragter nach § 22 SGB VII',
-    validityPeriod: 24,
-    departments: ['Produktion'],
-    qualifications: ['5', '6', '7'],
-    createdAt: '2024-02-15'
-  }
-];
+import { 
+  useAdditionalFunctions, 
+  useCreateAdditionalFunction,
+  useUpdateAdditionalFunction,
+  useDeleteAdditionalFunction
+} from '../hooks/useAdditionalFunctions';
+import type { AdditionalSkill } from '../services/additionalFunctionsApi';
 
 export default function AdditionalFunctions() {
   const { employee } = useSelector((state: RootState) => state.auth);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedFunction, setSelectedFunction] = useState<AdditionalFunction | null>(null);
-  const [editingFunction, setEditingFunction] = useState<AdditionalFunction | null>(null);
-  const [additionalFunctions, setAdditionalFunctions] = useState(mockAdditionalFunctions);
+  const [selectedFunction, setSelectedFunction] = useState<AdditionalSkill | null>(null);
+  const [editingFunction, setEditingFunction] = useState<AdditionalSkill | null>(null);
+
+  const { data: additionalFunctions, isLoading, error } = useAdditionalFunctions();
+  const createMutation = useCreateAdditionalFunction();
+  const updateMutation = useUpdateAdditionalFunction();
+  const deleteMutation = useDeleteAdditionalFunction();
 
   const isHR = hasHRPermissions(employee);
   const isSupervisor = employee?.role === 'supervisor';
@@ -82,32 +49,61 @@ export default function AdditionalFunctions() {
     );
   }
 
-  const filteredFunctions = additionalFunctions.filter(func =>
-    func.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    func.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+        <p className="text-lg text-gray-500 dark:text-gray-400">Laden...</p>
+      </div>
+    );
+  }
 
-  const handleAddFunction = (newFunction: Partial<AdditionalFunction>) => {
-    const functionToAdd = {
-      ...newFunction,
-      id: (additionalFunctions.length + 1).toString(),
-      departments: newFunction.departments || [],
-      qualifications: newFunction.qualifications || [],
-      validityPeriod: newFunction.validityPeriod || 24,
-      createdAt: new Date().toISOString()
-    } as AdditionalFunction;
-    
-    setAdditionalFunctions([...additionalFunctions, functionToAdd]);
-    toast.success('Zusatzfunktion erfolgreich erstellt');
-    setShowAddModal(false);
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+        <p className="text-lg text-red-500">Fehler beim Laden der Zusatzfunktionen</p>
+      </div>
+    );
+  }
+
+  const filteredFunctions = additionalFunctions?.filter(func =>
+    func.Name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    func.Description.toLowerCase().includes(searchTerm.toLowerCase())
+  ) || [];
+
+  const handleAddFunction = async (data: Omit<AdditionalSkill, 'ID'>) => {
+    try {
+      await createMutation.mutateAsync(data);
+      setShowAddModal(false);
+    } catch (error) {
+      // Error handling is done in the mutation
+    }
   };
 
-  const handleEditFunction = (updatedFunction: AdditionalFunction) => {
-    setAdditionalFunctions(prev =>
-      prev.map(func => func.id === updatedFunction.id ? updatedFunction : func)
-    );
-    toast.success('Zusatzfunktion erfolgreich aktualisiert');
-    setEditingFunction(null);
+  const handleEditFunction = async (data: AdditionalSkill) => {
+    if (!data.ID) return;
+    
+    try {
+      await updateMutation.mutateAsync({
+        id: data.ID,
+        data: {
+          Name: data.Name,
+          Description: data.Description
+        }
+      });
+      setEditingFunction(null);
+    } catch (error) {
+      // Error handling is done in the mutation
+    }
+  };
+
+  const handleDeleteFunction = async (id: number) => {
+    if (window.confirm('Sind Sie sicher, dass Sie diese Zusatzfunktion löschen möchten?')) {
+      try {
+        await deleteMutation.mutateAsync(id);
+      } catch (error) {
+        // Error handling is done in the mutation
+      }
+    }
   };
 
   return (
@@ -155,17 +151,17 @@ export default function AdditionalFunctions() {
         <div className="grid grid-cols-1 gap-6 p-4 sm:p-6">
           {filteredFunctions.map((func) => (
             <div
-              key={func.id}
+              key={func.ID}
               className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow p-6"
             >
               <div className="flex flex-col gap-4">
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                      {func.name}
+                      {func.Name}
                     </h3>
                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      {func.description}
+                      {func.Description}
                     </p>
                   </div>
                   <div className="flex space-x-2">
@@ -176,10 +172,10 @@ export default function AdditionalFunctions() {
                       <Edit2 className="h-5 w-5" />
                     </button>
                     <button
-                      onClick={() => setSelectedFunction(func)}
-                      className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                      onClick={() => func.ID && handleDeleteFunction(func.ID)}
+                      className="text-red-400 hover:text-red-500 dark:hover:text-red-300"
                     >
-                      <Info className="h-5 w-5" />
+                      <Trash2 className="h-5 w-5" />
                     </button>
                   </div>
                 </div>
@@ -217,81 +213,29 @@ export default function AdditionalFunctions() {
           initialData={editingFunction}
         />
       )}
-
-      {/* Details Modal */}
-      {selectedFunction && (
-        <AdditionalFunctionDetails
-          func={selectedFunction}
-          onClose={() => setSelectedFunction(null)}
-        />
-      )}
     </div>
   );
 }
 
 interface AddModalProps {
   onClose: () => void;
-  onSubmit: (data: AdditionalFunction) => void;
-  initialData?: AdditionalFunction;
+  onSubmit: (data: Omit<AdditionalSkill, 'ID'>) => void;
+  initialData?: AdditionalSkill;
 }
 
 function AdditionalFunctionModal({ onClose, onSubmit, initialData }: AddModalProps) {
   const [formData, setFormData] = useState({
-    name: initialData?.name || '',
-    description: initialData?.description || '',
-    validityPeriod: initialData?.validityPeriod || 24,
-    departments: initialData?.departments || [],
-    qualifications: initialData?.qualifications || []
+    Name: initialData?.Name || '',
+    Description: initialData?.Description || '',
   });
-
-  const [selectedDepartment, setSelectedDepartment] = useState<string>('');
-  const [selectedQualification, setSelectedQualification] = useState<string>('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.description) {
+    if (!formData.Name || !formData.Description) {
       toast.error('Bitte füllen Sie alle Pflichtfelder aus');
       return;
     }
-    onSubmit({
-      ...formData,
-      id: initialData?.id || '',
-      createdAt: initialData?.createdAt || new Date().toISOString()
-    } as AdditionalFunction);
-  };
-
-  const handleAddDepartment = () => {
-    if (selectedDepartment && !formData.departments.includes(selectedDepartment)) {
-      setFormData(prev => ({
-        ...prev,
-        departments: [...prev.departments, selectedDepartment]
-      }));
-      setSelectedDepartment('');
-    }
-  };
-
-  const handleRemoveDepartment = (dept: string) => {
-    setFormData(prev => ({
-      ...prev,
-      departments: prev.departments.filter(d => d !== dept)
-    }));
-  };
-
-  const handleAddQualification = () => {
-    if (selectedQualification && !formData.qualifications.includes(selectedQualification)) {
-      setFormData(prev => ({
-        ...prev,
-        qualifications: [...prev.qualifications, selectedQualification]
-      }));
-      setSelectedQualification('');
-    }
-  };
-
-  const handleRemoveQualification = (qualId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      qualifications: prev.qualifications.filter(q => q !== qualId)
-    }));
+    onSubmit(formData);
   };
 
   return (
@@ -317,8 +261,8 @@ function AdditionalFunctionModal({ onClose, onSubmit, initialData }: AddModalPro
             <input
               type="text"
               required
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              value={formData.Name}
+              onChange={(e) => setFormData({ ...formData, Name: e.target.value })}
               className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
               placeholder="z.B. Ersthelfer"
             />
@@ -331,13 +275,12 @@ function AdditionalFunctionModal({ onClose, onSubmit, initialData }: AddModalPro
             <textarea
               required
               rows={4}
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              value={formData.Description}
+              onChange={(e) => setFormData({ ...formData, Description: e.target.value })}
               className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
               placeholder="Detaillierte Beschreibung der Zusatzfunktion..."
             />
           </div>
-            
 
           <div className="flex justify-end space-x-3">
             <button
@@ -355,84 +298,6 @@ function AdditionalFunctionModal({ onClose, onSubmit, initialData }: AddModalPro
             </button>
           </div>
         </form>
-      </div>
-    </div>
-  );
-}
-
-interface DetailsModalProps {
-  func: AdditionalFunction;
-  onClose: () => void;
-}
-
-function AdditionalFunctionDetails({ func, onClose }: DetailsModalProps) {
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-2xl w-full m-4">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            {func.name}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-          >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-              Beschreibung
-            </h3>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              {func.description}
-            </p>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-              Details
-            </h3>
-            <dl className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="flex items-center">
-                <dt className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
-                  <Clock className="h-4 w-4 mr-2" />
-                  Gültigkeitsdauer:
-                </dt>
-                <dd className="ml-2 text-sm text-gray-900 dark:text-white">
-                  {func.validityPeriod} Monate
-                </dd>
-              </div>
-              <div className="flex items-center">
-                <dt className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
-                  <Users className="h-4 w-4 mr-2" />
-                  Erstellt am:
-                </dt>
-                <dd className="ml-2 text-sm text-gray-900 dark:text-white">
-                  {new Date(func.createdAt).toLocaleDateString()}
-                </dd>
-              </div>
-            </dl>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-              Verfügbare Abteilungen
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {func.departments.map((dept) => (
-                <span
-                  key={dept}
-                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                >
-                  {dept}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -30,7 +30,41 @@ export interface EmployeeResponse {
 export function useEmployees(filters: EmployeeFilters = {}) {
   return useQuery<EmployeeResponse>({
     queryKey: ['employees', filters],
-    queryFn: () => employeeApi.getEmployees(filters),
+    queryFn: async () => {
+      try {
+        const response = await employeeApi.getEmployees(filters);
+        
+        // Client-side filtering for search
+        if (filters.search) {
+          const searchTerms = filters.search.toLowerCase().split(' ');
+          
+          const filteredData = response.data.filter((employee: Employee) => {
+            const fullName = employee.FullName?.toLowerCase() || '';
+            const staffNumber = employee.StaffNumber?.toString().toLowerCase() || '';
+            
+            // Check if ALL search terms match either the full name or staff number
+            return searchTerms.every(term => 
+              fullName.includes(term) || staffNumber.includes(term)
+            );
+          });
+
+          return {
+            ...response,
+            data: filteredData,
+            pagination: {
+              ...response.pagination,
+              total: filteredData.length,
+              totalPages: Math.ceil(filteredData.length / (filters.limit || 10))
+            }
+          };
+        }
+
+        return response;
+      } catch (error) {
+        console.error('Error fetching employees:', error);
+        throw error;
+      }
+    },
   });
 }
 
