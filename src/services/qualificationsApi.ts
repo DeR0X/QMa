@@ -46,6 +46,7 @@ export const qualificationsApi = {
       }
 
       const createdQualification = await response.json();
+      console.log('Created qualification:', createdQualification); // Debug log
 
       // Wenn JobTitles ausgewählt wurden, erstelle die Verknüpfungen
       if (data.AssignmentType === 'jobTitle' && data.JobTitleIDs && data.JobTitleIDs.length > 0) {
@@ -65,19 +66,33 @@ export const qualificationsApi = {
 
       // Wenn AdditionalFunctions ausgewählt wurden, erstelle die Verknüpfungen
       if (data.AssignmentType === 'additionalFunction' && data.AdditionalFunctionIDs && data.AdditionalFunctionIDs.length > 0) {
-        console.log(data);
-        await Promise.all(data.AdditionalFunctionIDs.map(additionalFunctionId =>
-          fetch(`${API_URL}/additional-skills-qualifications`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              AdditionalSkillID: additionalFunctionId,
-              QualificationID: createdQualification.ID
-            }),
-          })
-        ));
+        console.log('Creating additional function links for qualification:', createdQualification.ID);
+        
+        try {
+          await Promise.all(data.AdditionalFunctionIDs.map(async additionalFunctionId => {
+            const linkResponse = await fetch(`${API_URL}/additional-skills-qualifications`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                AdditionalSkillID: additionalFunctionId,
+                QualificationID: createdQualification.ID // Verwende die ID der erstellten Qualifikation
+              }),
+            });
+
+            if (!linkResponse.ok) {
+              const linkError = await linkResponse.text();
+              throw new Error(`Failed to create additional function link: ${linkError}`);
+            }
+
+            const linkResult = await linkResponse.json();
+            console.log('Created link:', linkResult); // Debug log
+          }));
+        } catch (linkError) {
+          console.error('Error creating additional function links:', linkError);
+          throw linkError;
+        }
       }
 
       return createdQualification;
