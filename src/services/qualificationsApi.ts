@@ -28,12 +28,16 @@ export const qualificationsApi = {
 
   async create(data: Omit<Qualification, 'ID'>): Promise<Qualification> {
     try {
+      // Erstelle zuerst die Qualifikation
       const response = await fetch(`${API_URL}/qualifications`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          IsMandatory: data.AssignmentType === 'mandatory' ? 1 : 0, // Setze IsMandatory als bit
+        }),
       });
 
       if (!response.ok) {
@@ -41,7 +45,42 @@ export const qualificationsApi = {
         throw new Error(error || 'Failed to create qualification');
       }
 
-      return response.json();
+      const createdQualification = await response.json();
+
+      // Wenn JobTitles ausgewählt wurden, erstelle die Verknüpfungen
+      if (data.AssignmentType === 'jobTitle' && data.JobTitleIDs && data.JobTitleIDs.length > 0) {
+        await Promise.all(data.JobTitleIDs.map(jobTitleId => 
+          fetch(`${API_URL}/job-titles-qualifications`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              JobTitleID: jobTitleId,
+              QualificationID: createdQualification.ID
+            }),
+          })
+        ));
+      }
+
+      // Wenn AdditionalFunctions ausgewählt wurden, erstelle die Verknüpfungen
+      if (data.AssignmentType === 'additionalFunction' && data.AdditionalFunctionIDs && data.AdditionalFunctionIDs.length > 0) {
+        console.log(data);
+        await Promise.all(data.AdditionalFunctionIDs.map(additionalFunctionId =>
+          fetch(`${API_URL}/additional-skills-qualifications`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              AdditionalSkillID: additionalFunctionId,
+              QualificationID: createdQualification.ID
+            }),
+          })
+        ));
+      }
+
+      return createdQualification;
     } catch (error) {
       console.error('Error creating qualification:', error);
       throw error;
@@ -50,12 +89,16 @@ export const qualificationsApi = {
 
   async update(id: number, data: Partial<Qualification>): Promise<Qualification> {
     try {
+      // Aktualisiere die Qualifikation
       const response = await fetch(`${API_URL}/qualifications/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          IsMandatory: data.AssignmentType === 'mandatory' ? 1 : 0, // Setze IsMandatory als bit
+        }),
       });
 
       if (!response.ok) {
@@ -63,7 +106,53 @@ export const qualificationsApi = {
         throw new Error(error || 'Failed to update qualification');
       }
 
-      return response.json();
+      const updatedQualification = await response.json();
+
+      // Aktualisiere JobTitle-Verknüpfungen
+      if (data.AssignmentType === 'jobTitle' && data.JobTitleIDs) {
+        // Lösche zuerst alle bestehenden Verknüpfungen
+        await fetch(`${API_URL}/job-titles-qualifications/qualification/${id}`, {
+          method: 'DELETE',
+        });
+
+        // Erstelle neue Verknüpfungen
+        await Promise.all(data.JobTitleIDs.map(jobTitleId =>
+          fetch(`${API_URL}/job-titles-qualifications`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              JobTitleID: jobTitleId,
+              QualificationID: id
+            }),
+          })
+        ));
+      }
+
+      // Aktualisiere AdditionalFunction-Verknüpfungen
+      if (data.AssignmentType === 'additionalFunction' && data.AdditionalFunctionIDs) {
+        // Lösche zuerst alle bestehenden Verknüpfungen
+        await fetch(`${API_URL}/additional-skills-qualifications/qualification/${id}`, {
+          method: 'DELETE',
+        });
+
+        // Erstelle neue Verknüpfungen
+        await Promise.all(data.AdditionalFunctionIDs.map(additionalFunctionId =>
+          fetch(`${API_URL}/additional-skills-qualifications`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              AdditionalSkillID: additionalFunctionId,
+              QualificationID: id
+            }),
+          })
+        ));
+      }
+
+      return updatedQualification;
     } catch (error) {
       console.error('Error updating qualification:', error);
       throw error;
@@ -72,6 +161,17 @@ export const qualificationsApi = {
 
   async delete(id: number): Promise<void> {
     try {
+      // Lösche zuerst alle Verknüpfungen
+      await Promise.all([
+        fetch(`${API_URL}/job-titles-qualifications/qualification/${id}`, {
+          method: 'DELETE',
+        }),
+        fetch(`${API_URL}/additional-skills-qualifications/qualification/${id}`, {
+          method: 'DELETE',
+        })
+      ]);
+
+      // Lösche dann die Qualifikation
       const response = await fetch(`${API_URL}/qualifications/${id}`, {
         method: 'DELETE',
       });
