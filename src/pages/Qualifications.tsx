@@ -1,26 +1,40 @@
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
-import { Plus, Search, Award, X, Edit2, Clock, AlertCircle, Info, Building2, Briefcase, Star, Users } from 'lucide-react';
+import { 
+  Plus, Search, Award, X, Edit2, Clock, AlertCircle, Info, Building2, 
+  Briefcase, Star, Users, Trash2 
+} from 'lucide-react';
 import { RootState } from '../store';
-import { qualifications, jobTitles } from '../data/mockData';
 import { hasHRPermissions } from '../store/slices/authSlice';
 import { toast } from 'sonner';
-import type { Qualification } from '../types';
-import { itDepartments, manufacturingDepartments } from '../data/departments';
-
-const allDepartments = [...itDepartments, ...manufacturingDepartments];
+import { 
+  useQualifications, 
+  useCreateQualification,
+  useUpdateQualification,
+  useDeleteQualification 
+} from '../hooks/useQualifications';
+import { useJobTitles } from '../hooks/useJobTitles';
+import { useAdditionalFunctions } from '../hooks/useAdditionalFunctions';
+import type { Qualification } from '../services/qualificationsApi';
 
 export default function Qualifications() {
   const { employee } = useSelector((state: RootState) => state.auth);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingQual, setEditingQual] = useState<Qualification | null>(null);
-  const [localQualifications, setLocalQualifications] = useState(qualifications);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
+
+  const { data: qualifications, isLoading, error } = useQualifications();
+  const { data: jobTitles, isLoading: isLoadingJobTitles } = useJobTitles();
+  const { data: additionalFunctions, isLoading: isLoadingAdditionalFunctions } = useAdditionalFunctions();
+  
+  const createMutation = useCreateQualification();
+  const updateMutation = useUpdateQualification();
+  const deleteMutation = useDeleteQualification();
 
   const isHRAdmin = hasHRPermissions(employee);
   const isSupervisor = employee?.role === 'supervisor';
 
-  // Nur für Supervisoren oder HR freigeben
   if (!isHRAdmin && !isSupervisor) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-4rem)] p-4">
@@ -31,30 +45,58 @@ export default function Qualifications() {
     );
   }
 
-  const [selectedJobTitle, setSelectedJobTitle] = useState<string | null>(null);
-
-  const handleAddQualification = (qualification: Omit<Qualification, 'id'>) => {
-    const newQual = {
-      ...qualification,
-      id: Date.now().toString(),
-    };
-    setLocalQualifications([...localQualifications, newQual]);
-    toast.success('Qualifikation erfolgreich erstellt');
-    setShowAddModal(false);
-  };
-
-  const handleEditQualification = (qualification: Qualification) => {
-    setLocalQualifications(prev =>
-      prev.map(q => (q.id === qualification.id ? qualification : q))
+  if (isLoading || isLoadingJobTitles || isLoadingAdditionalFunctions) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+        <p className="text-lg text-gray-500 dark:text-gray-400">Laden...</p>
+      </div>
     );
-    toast.success('Qualifikation erfolgreich aktualisiert');
-    setEditingQual(null);
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+        <p className="text-lg text-red-500">Fehler beim Laden der Qualifikationen</p>
+      </div>
+    );
+  }
+
+  const handleAddQualification = async (qualification: Omit<Qualification, 'ID'>) => {
+    try {
+      await createMutation.mutateAsync(qualification);
+      setShowAddModal(false);
+    } catch (error) {
+      // Error handling is done in the mutation
+    }
   };
 
-  const filteredQualifications = localQualifications.filter(qual =>
-    qual.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    qual.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleEditQualification = async (qualification: Qualification) => {
+    if (!qualification.ID) return;
+    
+    try {
+      await updateMutation.mutateAsync({
+        id: qualification.ID,
+        data: qualification
+      });
+      setEditingQual(null);
+    } catch (error) {
+      // Error handling is done in the mutation
+    }
+  };
+
+  const handleDeleteQualification = async (id: number) => {
+    try {
+      await deleteMutation.mutateAsync(id);
+      setShowDeleteConfirm(null);
+    } catch (error) {
+      // Error handling is done in the mutation
+    }
+  };
+
+  const filteredQualifications = qualifications?.filter(qual =>
+    qual.Name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    qual.Description.toLowerCase().includes(searchTerm.toLowerCase())
+  ) || [];
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
@@ -80,7 +122,7 @@ export default function Qualifications() {
         </div>
       </div>
 
-      {/* Suchbereich */}
+      {/* Search Area */}
       <div className="bg-white dark:bg-[#121212] shadow rounded-lg overflow-hidden">
         <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex flex-col gap-4">
@@ -97,11 +139,11 @@ export default function Qualifications() {
           </div>
         </div>
 
-        {/* Liste der Qualifikationen */}
+        {/* Qualifications List */}
         <div className="grid grid-cols-1 gap-6 p-4 sm:p-6">
           {filteredQualifications.map((qualification) => (
             <div
-              key={qualification.id}
+              key={qualification.ID}
               className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 p-6 group"
             >
               <div className="flex flex-col gap-4">
@@ -109,31 +151,39 @@ export default function Qualifications() {
                   <div className="flex-1">
                     <div className="flex items-start justify-between">
                       <h3 className="text-lg font-medium text-gray-900 dark:text-white break-words group-hover:text-primary transition-colors duration-200">
-                        {qualification.name}
+                        {qualification.Name}
                       </h3>
-                      <button
-                        onClick={() => setEditingQual(qualification)}
-                        className="ml-4 text-gray-400 hover:text-primary dark:hover:text-primary transition-colors duration-200"
-                      >
-                        <Edit2 className="h-5 w-5" />
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setEditingQual(qualification)}
+                          className="text-gray-400 hover:text-primary dark:hover:text-primary transition-colors duration-200"
+                        >
+                          <Edit2 className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => qualification.ID && setShowDeleteConfirm(qualification.ID)}
+                          className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors duration-200"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      </div>
                     </div>
                     <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 break-words">
-                      {qualification.description}
+                      {qualification.Description}
                     </p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Gültigkeitsdauer */}
+                  {/* Validity Period */}
                   <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
                     <Clock className="h-4 w-4 mr-2 text-primary" />
-                    <span>Gültigkeitsdauer: {qualification.validityInMonth} Monate</span>
+                    <span>Gültigkeitsdauer: {qualification.ValidityInMonth} Monate</span>
                   </div>
 
-                  {/* Pflichtqualifikation Status */}
+                  {/* Mandatory Status */}
                   <div className="flex items-center">
-                    {qualification.isMandatory && (
+                    {qualification.IsMandatory && (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
                         <AlertCircle className="h-4 w-4 mr-1" />
                         Pflichtqualifikation
@@ -141,52 +191,58 @@ export default function Qualifications() {
                     )}
                   </div>
 
-                  {/* Trainer */}
+                  {/* Required Qualifications */}
                   <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
                     <Users className="h-4 w-4 mr-2 text-primary" />
-                    <span>Trainer: {qualification.requiredQualifications.length}</span>
+                    <span>Trainer: {qualification.RequiredQualifications?.length || 0}</span>
                   </div>
                 </div>
 
-                {/* Erforderliche Schulungen */}
-                {qualification.requiredQualifications.length > 0 && (
+                {/* Job Titles */}
+                {qualification.JobTitleIDs && qualification.JobTitleIDs.length > 0 && (
                   <div className="mt-2">
                     <h4 className="text-sm font-medium text-gray-900 dark:text-white flex items-center mb-2">
-                      <Info className="h-4 w-4 mr-2 text-primary" />
-                      Erforderliche Schulungen:
+                      <Briefcase className="h-4 w-4 mr-2 text-primary" />
+                      Positionen:
                     </h4>
                     <div className="flex flex-wrap gap-2">
-                      {qualification.requiredQualifications.map((trainingId) => (
-                        <span
-                          key={trainingId}
-                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                        >
-                          Training #{trainingId}
-                        </span>
-                      ))}
+                      {qualification.JobTitleIDs.map((jobTitleId) => {
+                        const jobTitle = jobTitles?.find(jt => jt.id.toString() === jobTitleId);
+                        return jobTitle ? (
+                          <span
+                            key={jobTitleId}
+                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
+                          >
+                            {jobTitle.jobTitle}
+                          </span>
+                        ) : null;
+                      })}
                     </div>
                   </div>
                 )}
 
-                {/* Zielgruppe */}
-                <div className="mt-2">
-                  <h4 className="text-sm font-medium text-gray-900 dark:text-white flex items-center mb-2">
-                    <Users className="h-4 w-4 mr-2 text-primary" />
-                    Zielgruppe:
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {jobTitles
-                      .filter(job => job.qualificationIDs.includes(qualification.id))
-                      .map(job => (
-                        <span
-                          key={job.id}
-                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
-                        >
-                          {job.jobTitle}
-                        </span>
-                      ))}
+                {/* Additional Functions */}
+                {qualification.AdditionalFunctionIDs && qualification.AdditionalFunctionIDs.length > 0 && (
+                  <div className="mt-2">
+                    <h4 className="text-sm font-medium text-gray-900 dark:text-white flex items-center mb-2">
+                      <Star className="h-4 w-4 mr-2 text-primary" />
+                      Zusatzfunktionen:
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {qualification.AdditionalFunctionIDs.map((funcId) => {
+                        const func = additionalFunctions?.find(af => af?.ID?.toString() === funcId);
+                        return func ? (
+                          <span
+                            key={funcId}
+                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                          >
+                            {func.Name}
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           ))}
@@ -203,7 +259,7 @@ export default function Qualifications() {
         </div>
       </div>
 
-      {/* Modal für Hinzufügen / Bearbeiten */}
+      {/* Add/Edit Modal */}
       {(showAddModal || editingQual) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-2xl w-full my-8">
@@ -241,6 +297,34 @@ export default function Qualifications() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+              Qualifikation löschen
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Sind Sie sicher, dass Sie diese Qualifikation löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.
+            </p>
+            <div className="mt-6 flex justify-end gap-4">
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={() => handleDeleteQualification(showDeleteConfirm)}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+              >
+                Löschen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -252,81 +336,46 @@ interface QualificationFormProps {
 }
 
 function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFormProps) {
+  const { data: jobTitles } = useJobTitles();
+  const { data: additionalFunctions } = useAdditionalFunctions();
+  
   const [formData, setFormData] = useState({
-    name: initialData?.name || '',
-    description: initialData?.description || '',
-    validityPeriod: initialData?.validityInMonth || 12,
-    requiredQualifications: initialData?.requiredQualifications || [],
-    isMandatory: initialData?.isMandatory || false,
-    assignmentType: 'jobTitle',
-    selectedJobTitles: [] as string[],
-    selectedDepartment: '',
-    selectedAdditionalSkills: [] as string[]
+    Name: initialData?.Name || '',
+    Description: initialData?.Description || '',
+    ValidityInMonth: initialData?.ValidityInMonth || 12,
+    RequiredQualifications: initialData?.RequiredQualifications || [],
+    IsMandatory: initialData?.IsMandatory || false,
+    AssignmentType: initialData?.AssignmentType || 'jobTitle',
+    JobTitleIDs: initialData?.JobTitleIDs || [],
+    AdditionalFunctionIDs: initialData?.AdditionalFunctionIDs || []
   });
 
-  const [selectedJobTitle, setSelectedJobTitle] = useState<string | null>(null);
-
-  const [selectedQualifications, setSelectedQualifications] = useState<string[]>(
-    initialData?.requiredQualifications || []
-  );
-  const [searchTerm, setSearchTerm] = useState('');
   const [activeStep, setActiveStep] = useState(1);
-  const [showSummary, setShowSummary] = useState(false);
-
-  const filteredQualifications = qualifications.filter(qual => {
-    if (initialData && qual.id === initialData.id) return false;
-    if (selectedQualifications.includes(qual.id)) return false;
-    
-    return qual.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           qual.description.toLowerCase().includes(searchTerm.toLowerCase());
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!isStepComplete(activeStep)) {
-      return;
-    }
-
-    if (activeStep < 3) {
-      setActiveStep(activeStep + 1);
-      return;
-    }
-
-    const qualificationData = {
-      ...formData,
-      validityInMonth: formData.validityPeriod,
-      requiredQualifications: selectedQualifications,
-      isMandatory: formData.assignmentType === 'mandatory',
-    };
-
-    onSubmit(qualificationData);
-  };
 
   const isStepComplete = (step: number) => {
     const newErrors: Record<string, string> = {};
 
     switch (step) {
       case 1:
-        if (!formData.name.trim()) newErrors.name = 'Name ist erforderlich';
-        if (!formData.description.trim()) newErrors.description = 'Beschreibung ist erforderlich';
+        if (!formData.Name.trim()) newErrors.name = 'Name ist erforderlich';
+        if (!formData.Description.trim()) newErrors.description = 'Beschreibung ist erforderlich';
         break;
 
       case 2:
-        if (formData.validityPeriod <= 0) {
+        if (formData.ValidityInMonth <= 0) {
           newErrors.validityPeriod = 'Gültigkeitsdauer muss größer als 0 sein';
         }
         break;
 
       case 3:
-        switch (formData.assignmentType) {
+        switch (formData.AssignmentType) {
           case 'jobTitle':
-            if (formData.selectedJobTitles.length === 0) {
+            if (formData.JobTitleIDs.length === 0) {
               newErrors.jobTitles = 'Mindestens eine Position muss ausgewählt werden';
             }
             break;
           case 'additionalFunction':
-            if (!formData.selectedAdditionalSkills) {
+            if (formData.AdditionalFunctionIDs.length === 0) {
               newErrors.additionalFunction = 'Es muss eine Zusatzfunktion ausgewählt werden';
             }
             break;
@@ -339,7 +388,7 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
 
     return Object.keys(newErrors).length === 0;
   };
-  
+
   const canProceed = isStepComplete(activeStep);
 
   const renderStepContent = () => {
@@ -355,8 +404,8 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
                 type="text"
                 required
                 className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                value={formData.Name}
+                onChange={(e) => setFormData({ ...formData, Name: e.target.value })}
                 placeholder="z.B. IT-Sicherheitszertifizierung"
               />
             </div>
@@ -369,8 +418,8 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
                 required
                 rows={4}
                 className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                value={formData.Description}
+                onChange={(e) => setFormData({ ...formData, Description: e.target.value })}
                 placeholder="Detaillierte Beschreibung der Qualifikation und ihrer Anforderungen..."
               />
             </div>
@@ -390,13 +439,13 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
                   required
                   min="1"
                   className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-                  value={formData.validityPeriod}
+                  value={formData.ValidityInMonth}
                   onChange={(e) =>
-                    setFormData({ ...formData, validityPeriod: parseInt(e.target.value) })
+                    setFormData({ ...formData, ValidityInMonth: parseInt(e.target.value) })
                   }
                 />
                 <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                  Die Qualifikation muss nach {formData.validityPeriod} Monaten erneuert werden.
+                  Die Qualifikation muss nach {formData.ValidityInMonth} Monaten erneuert werden.
                 </div>
               </div>
             </div>
@@ -431,15 +480,15 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <button
                   type="button"
-                  onClick={() => setFormData({ ...formData, assignmentType: 'jobTitle' })}
+                  onClick={() => setFormData({ ...formData, AssignmentType: 'jobTitle' })}
                   className={`p-4 rounded-lg border ${
-                    formData.assignmentType === 'jobTitle'
+                    formData.AssignmentType === 'jobTitle'
                       ? 'border-primary bg-primary/5 dark:bg-primary/10'
                       : 'border-gray-200 dark:border-gray-700'
                   } text-left`}
                 >
                   <Briefcase className={`h-6 w-6 mb-2 ${
-                    formData.assignmentType === 'jobTitle' ? 'text-primary' : 'text-gray-400'
+                    formData.AssignmentType === 'jobTitle' ? 'text-primary' : 'text-gray-400'
                   }`} />
                   <h5 className="font-medium text-gray-900 dark:text-white">Jobtitel</h5>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -449,15 +498,15 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
 
                 <button
                   type="button"
-                  onClick={() => setFormData({ ...formData, assignmentType: 'additionalFunction' })}
+                  onClick={() => setFormData({ ...formData, AssignmentType: 'additionalFunction' })}
                   className={`p-4 rounded-lg border ${
-                    formData.assignmentType === 'additionalFunction'
+                    formData.AssignmentType === 'additionalFunction'
                       ? 'border-primary bg-primary/5 dark:bg-primary/10'
                       : 'border-gray-200 dark:border-gray-700'
                   } text-left`}
                 >
                   <Star className={`h-6 w-6 mb-2 ${
-                    formData.assignmentType === 'additionalFunction' ? 'text-primary' : 'text-gray-400'
+                    formData.AssignmentType === 'additionalFunction' ? 'text-primary' : 'text-gray-400'
                   }`} />
                   <h5 className="font-medium text-gray-900 dark:text-white">Zusatzfunktion</h5>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -467,15 +516,15 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
 
                 <button
                   type="button"
-                  onClick={() => setFormData({ ...formData, assignmentType: 'mandatory' })}
+                  onClick={() => setFormData({ ...formData, AssignmentType: 'mandatory' })}
                   className={`p-4 rounded-lg border ${
-                    formData.assignmentType === 'mandatory'
+                    formData.AssignmentType === 'mandatory'
                       ? 'border-primary bg-primary/5 dark:bg-primary/10'
                       : 'border-gray-200 dark:border-gray-700'
                   } text-left`}
                 >
                   <AlertCircle className={`h-6 w-6 mb-2 ${
-                    formData.assignmentType === 'mandatory' ? 'text-primary' : 'text-gray-400'
+                    formData.AssignmentType === 'mandatory' ? 'text-primary' : 'text-gray-400'
                   }`} />
                   <h5 className="font-medium text-gray-900 dark:text-white">Pflichtqualifikation</h5>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -485,8 +534,7 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
               </div>
             </div>
 
-            {/* Assignment Type Specific Content */}
-            {formData.assignmentType === 'jobTitle' && (
+            {formData.AssignmentType === 'jobTitle' && jobTitles && (
               <div className="space-y-4">
                 <h5 className="text-sm font-medium text-gray-900 dark:text-white">
                   Positionen auswählen
@@ -496,19 +544,19 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
                     <label
                       key={jobTitle.id}
                       className={`p-4 rounded-lg border ${
-                        formData.selectedJobTitles.includes(jobTitle.id)
+                        formData.JobTitleIDs.includes(jobTitle.id.toString())
                           ? 'border-primary bg-primary/5 dark:bg-primary/10'
                           : 'border-gray-200 dark:border-gray-700'
                       } flex items-start space-x-3 cursor-pointer`}
                     >
                       <input
                         type="checkbox"
-                        checked={formData.selectedJobTitles.includes(jobTitle.id)}
+                        checked={formData.JobTitleIDs.includes(jobTitle.id.toString())}
                         onChange={(e) => {
                           const newSelected = e.target.checked
-                            ? [...formData.selectedJobTitles, jobTitle.id]
-                            : formData.selectedJobTitles.filter(id => id !== jobTitle.id);
-                          setFormData({ ...formData, selectedJobTitles: newSelected });
+                            ? [...formData.JobTitleIDs, jobTitle.id.toString()]
+                            : formData.JobTitleIDs.filter(id => id !== jobTitle.id.toString());
+                          setFormData({ ...formData, JobTitleIDs: newSelected });
                         }}
                         className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
                       />
@@ -522,38 +570,42 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
               </div>
             )}
 
-            {formData.assignmentType === 'additionalFunction' && (
+            {formData.AssignmentType === 'additionalFunction' && additionalFunctions && (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Zusatzfunktion auswählen
-                  </label>
-                  {jobTitles.map(jobTitle => (
-                    <label
-                      key={jobTitle.id}
-                      className={`p-4 rounded-lg border ${
-                        formData.selectedJobTitles.includes(jobTitle.id)
-                          ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                          : 'border-gray-200 dark:border-gray-700'
-                      } flex items-start space-x-3 cursor-pointer`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedJobTitle === jobTitle.id}
-                        onChange={() => setSelectedJobTitle(jobTitle.id)}
-                        className="rounded border-gray-300 text-primary focus:ring-primary"
-                      />
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">{jobTitle.jobTitle}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{jobTitle.description}</p>
-                      </div>
-                    </label>
+                  {additionalFunctions.map(func => (
+                    func.ID && (
+                      <label
+                        key={func.ID}
+                        className={`p-4 rounded-lg border ${
+                          formData.AdditionalFunctionIDs.includes(func.ID.toString())
+                            ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                            : 'border-gray-200 dark:border-gray-700'
+                        } flex items-start space-x-3 cursor-pointer`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formData.AdditionalFunctionIDs.includes(func.ID.toString())}
+                          onChange={(e) => {
+                            const newSelected = e.target.checked
+                              ? [...formData.AdditionalFunctionIDs, (func.ID as number).toString()]
+                              : formData.AdditionalFunctionIDs.filter(id => id !== (func.ID as number).toString());
+                            setFormData({ ...formData, AdditionalFunctionIDs: newSelected });
+                          }}
+                          className="rounded border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white">{func.Name}</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">{func.Description}</p>
+                        </div>
+                      </label>
+                    )
                   ))}
                 </div>
               </div>
             )}
 
-            {formData.assignmentType === 'mandatory' && (
+            {formData.AssignmentType === 'mandatory' && (
               <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-900/50 rounded-lg p-4">
                 <div className="flex">
                   <AlertCircle className="h-5 w-5 text-yellow-400 mr-2" />
@@ -571,13 +623,22 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
             )}
           </div>
         );
+
       default:
         return null;
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={(e) => {
+      e.preventDefault();
+      if (activeStep === 3) {
+        onSubmit(formData);
+      } else {
+        setActiveStep(activeStep + 1);
+      }
+    }}
+      className="space-y-6">
       {/* Progress Steps */}
       <div className="relative">
         <div className="absolute top-4 w-full h-0.5 bg-gray-200 dark:bg-gray-700" />

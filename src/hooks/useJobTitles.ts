@@ -1,20 +1,19 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 import { jobTitles as mockJobTitles } from '../data/mockData';
 
 interface JobTitle {
   id: string;
   jobTitle: string;
   description: string;
-  qualificationIDs: string[];
 }
-
+const API_URL = 'http://localhost:5000/api/v2';
 const DEBUG = true;
 
 async function fetchJobTitles(): Promise<JobTitle[]> {
   if (DEBUG) console.log('Fetching job titles...');
   
   try {
-    const response = await fetch('http://localhost:5000/api/jobtitles', {
+    const response = await fetch(`${API_URL}api/jobtitles`, {
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -68,12 +67,11 @@ async function fetchJobTitles(): Promise<JobTitle[]> {
 }
 
 export function useJobTitles() {
-  return useQuery({
+  const options: UseQueryOptions<JobTitle[], Error> = {
     queryKey: ['jobTitles'],
     queryFn: fetchJobTitles,
-    retry: 1,
-    onError: (error) => {
-      console.error('Job titles query error:', error);
-    }
-  });
+    retry: 1
+  };
+
+  return useQuery(options);
 }
