@@ -44,22 +44,34 @@ export const additionalFunctionsApi = {
 
   async update(id: number, data: Partial<AdditionalSkill>): Promise<AdditionalSkill> {
     try {
+      // Log the request details for debugging
+      console.log('Updating additional skill:', { id, data });
+      
       const response = await fetch(`${API_URL}/additional-skills/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify(data),
       });
 
+      // Log the response status and headers
+      console.log('Update response status:', response.status);
+      console.log('Update response headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || 'Failed to update additional skill');
+        const errorText = await response.text();
+        console.error('Update error response:', errorText);
+        throw new Error(errorText || 'Failed to update additional skill');
       }
 
-      return response.json();
+      const updatedData = await response.json();
+      console.log('Update successful:', updatedData);
+      return updatedData;
     } catch (error) {
       console.error('Error updating additional skill:', error);
+      toast.error(`Fehler beim Aktualisieren: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`);
       throw error;
     }
   },

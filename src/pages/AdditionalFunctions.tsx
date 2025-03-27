@@ -11,7 +11,8 @@ import {
   Users,
   Building2,
   Edit2,
-  Trash2
+  Trash2,
+  AlertCircle
 } from 'lucide-react';
 import { RootState } from '../store';
 import { hasHRPermissions } from '../store/slices/authSlice';
@@ -30,6 +31,7 @@ export default function AdditionalFunctions() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedFunction, setSelectedFunction] = useState<AdditionalSkill | null>(null);
   const [editingFunction, setEditingFunction] = useState<AdditionalSkill | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
 
   const { data: additionalFunctions, isLoading, error } = useAdditionalFunctions();
   const createMutation = useCreateAdditionalFunction();
@@ -83,6 +85,7 @@ export default function AdditionalFunctions() {
     if (!data.ID) return;
     
     try {
+      console.log('Editing function:', data); // Debug log
       await updateMutation.mutateAsync({
         id: data.ID,
         data: {
@@ -97,12 +100,12 @@ export default function AdditionalFunctions() {
   };
 
   const handleDeleteFunction = async (id: number) => {
-    if (window.confirm('Sind Sie sicher, dass Sie diese Zusatzfunktion löschen möchten?')) {
-      try {
-        await deleteMutation.mutateAsync(id);
-      } catch (error) {
-        // Error handling is done in the mutation
-      }
+    try {
+      await deleteMutation.mutateAsync(id);
+      setShowDeleteConfirm(null);
+      toast.success('Zusatzfunktion erfolgreich gelöscht');
+    } catch (error) {
+      toast.error('Fehler beim Löschen der Zusatzfunktion');
     }
   };
 
@@ -172,7 +175,7 @@ export default function AdditionalFunctions() {
                       <Edit2 className="h-5 w-5" />
                     </button>
                     <button
-                      onClick={() => func.ID && handleDeleteFunction(func.ID)}
+                      onClick={() => func.ID && setShowDeleteConfirm(func.ID)}
                       className="text-red-400 hover:text-red-500 dark:hover:text-red-300"
                     >
                       <Trash2 className="h-5 w-5" />
@@ -213,18 +216,50 @@ export default function AdditionalFunctions() {
           initialData={editingFunction}
         />
       )}
+
+      {/* Lösch-Bestätigungsdialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-md w-full m-4">
+            <div className="flex items-center mb-4">
+              <AlertCircle className="h-6 w-6 text-red-500 mr-2" />
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                Zusatzfunktion löschen
+              </h3>
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              Sind Sie sicher, dass Sie diese Zusatzfunktion löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={() => handleDeleteFunction(showDeleteConfirm)}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800"
+              >
+                Löschen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 interface AddModalProps {
   onClose: () => void;
-  onSubmit: (data: Omit<AdditionalSkill, 'ID'>) => void;
+  onSubmit: (data: AdditionalSkill) => void;
   initialData?: AdditionalSkill;
 }
 
 function AdditionalFunctionModal({ onClose, onSubmit, initialData }: AddModalProps) {
   const [formData, setFormData] = useState({
+    ID: initialData?.ID,
     Name: initialData?.Name || '',
     Description: initialData?.Description || '',
   });
@@ -235,7 +270,8 @@ function AdditionalFunctionModal({ onClose, onSubmit, initialData }: AddModalPro
       toast.error('Bitte füllen Sie alle Pflichtfelder aus');
       return;
     }
-    onSubmit(formData);
+    console.log('Submitting form data:', formData); // Debug log
+    onSubmit(formData as AdditionalSkill);
   };
 
   return (
