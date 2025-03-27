@@ -45,10 +45,11 @@ export const qualificationsApi = {
         throw new Error(error || 'Failed to create qualification');
       }
 
-      const createdQualification = await response.json();
-      console.log('Created qualification:', createdQualification); // Debug log
+      const result = await response.json();
+      const qualificationId = result.qualificationId;
+      console.log('Created qualification with ID:', qualificationId);
 
-      // Wenn JobTitles ausgewählt wurden, erstelle die Verknüpfungen
+      // Wenn JobTitles ausgewählt wurden, erstelle die Verknüpfungen mit der neuen qualificationId
       if (data.AssignmentType === 'jobTitle' && data.JobTitleIDs && data.JobTitleIDs.length > 0) {
         await Promise.all(data.JobTitleIDs.map(jobTitleId => 
           fetch(`${API_URL}/job-titles-qualifications`, {
@@ -58,15 +59,15 @@ export const qualificationsApi = {
             },
             body: JSON.stringify({
               JobTitleID: jobTitleId,
-              QualificationID: createdQualification.ID
+              QualificationID: qualificationId
             }),
           })
         ));
       }
 
-      // Wenn AdditionalFunctions ausgewählt wurden, erstelle die Verknüpfungen
+      // Wenn AdditionalFunctions ausgewählt wurden, erstelle die Verknüpfungen mit der neuen qualificationId
       if (data.AssignmentType === 'additionalFunction' && data.AdditionalFunctionIDs && data.AdditionalFunctionIDs.length > 0) {
-        console.log('Creating additional function links for qualification:', createdQualification.ID);
+        console.log('Creating additional function links for qualification:', qualificationId);
         
         try {
           await Promise.all(data.AdditionalFunctionIDs.map(async additionalFunctionId => {
@@ -77,7 +78,7 @@ export const qualificationsApi = {
               },
               body: JSON.stringify({
                 AdditionalSkillID: additionalFunctionId,
-                QualificationID: createdQualification.ID // Verwende die ID der erstellten Qualifikation
+                QualificationID: qualificationId
               }),
             });
 
@@ -87,7 +88,7 @@ export const qualificationsApi = {
             }
 
             const linkResult = await linkResponse.json();
-            console.log('Created link:', linkResult); // Debug log
+            console.log('Created link:', linkResult);
           }));
         } catch (linkError) {
           console.error('Error creating additional function links:', linkError);
@@ -95,7 +96,11 @@ export const qualificationsApi = {
         }
       }
 
-      return createdQualification;
+      // Gib die vollständige Qualifikation zurück
+      return {
+        ...data,
+        ID: qualificationId
+      };
     } catch (error) {
       console.error('Error creating qualification:', error);
       throw error;
@@ -112,7 +117,7 @@ export const qualificationsApi = {
         },
         body: JSON.stringify({
           ...data,
-          IsMandatory: data.AssignmentType === 'mandatory' ? 1 : 0, // Setze IsMandatory als bit
+          IsMandatory: data.AssignmentType === 'mandatory' ? 1 : 0,
         }),
       });
 
