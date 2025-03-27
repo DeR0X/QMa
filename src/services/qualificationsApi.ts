@@ -36,7 +36,7 @@ export const qualificationsApi = {
         },
         body: JSON.stringify({
           ...data,
-          IsMandatory: data.AssignmentType === 'mandatory' ? 1 : 0, // Setze IsMandatory als bit
+          IsMandatory: data.AssignmentType === 'mandatory' ? 1 : 0,
         }),
       });
 

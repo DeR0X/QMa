@@ -339,6 +339,7 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
   const { data: jobTitles } = useJobTitles();
   const { data: additionalFunctions } = useAdditionalFunctions();
   
+  const [activeStep, setActiveStep] = useState(1);
   const [formData, setFormData] = useState({
     Name: initialData?.Name || '',
     Description: initialData?.Description || '',
@@ -346,11 +347,9 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
     RequiredQualifications: initialData?.RequiredQualifications || [],
     IsMandatory: initialData?.IsMandatory || false,
     AssignmentType: initialData?.AssignmentType || 'jobTitle',
-    JobTitleIDs: initialData?.JobTitleIDs || [],
-    AdditionalFunctionIDs: initialData?.AdditionalFunctionIDs || []
+    JobTitleID: initialData?.JobTitleIDs?.[0] || '',
+    AdditionalFunctionID: initialData?.AdditionalFunctionIDs?.[0] || ''
   });
-
-  const [activeStep, setActiveStep] = useState(1);
 
   const isStepComplete = (step: number) => {
     const newErrors: Record<string, string> = {};
@@ -370,17 +369,16 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
       case 3:
         switch (formData.AssignmentType) {
           case 'jobTitle':
-            if (formData.JobTitleIDs.length === 0) {
-              newErrors.jobTitles = 'Mindestens eine Position muss ausgewählt werden';
+            if (!formData.JobTitleID) {
+              newErrors.jobTitles = 'Eine Position muss ausgewählt werden';
             }
             break;
           case 'additionalFunction':
-            if (formData.AdditionalFunctionIDs.length === 0) {
-              newErrors.additionalFunction = 'Es muss eine Zusatzfunktion ausgewählt werden';
+            if (!formData.AdditionalFunctionID) {
+              newErrors.additionalFunction = 'Eine Zusatzfunktion muss ausgewählt werden';
             }
             break;
           case 'mandatory':
-            // No additional validation needed for mandatory qualifications
             break;
         }
         break;
@@ -390,6 +388,21 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
   };
 
   const canProceed = isStepComplete(activeStep);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (activeStep === 3) {
+      const submitData = {
+        ...formData,
+        // Convert single IDs to arrays for API compatibility
+        JobTitleIDs: formData.AssignmentType === 'jobTitle' && formData.JobTitleID ? [formData.JobTitleID] : [],
+        AdditionalFunctionIDs: formData.AssignmentType === 'additionalFunction' && formData.AdditionalFunctionID ? [formData.AdditionalFunctionID] : [],
+      };
+      onSubmit(submitData);
+    } else {
+      setActiveStep(activeStep + 1);
+    }
+  };
 
   const renderStepContent = () => {
     switch (activeStep) {
@@ -480,7 +493,11 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <button
                   type="button"
-                  onClick={() => setFormData({ ...formData, AssignmentType: 'jobTitle' })}
+                  onClick={() => setFormData({ 
+                    ...formData, 
+                    AssignmentType: 'jobTitle',
+                    AdditionalFunctionID: '' // Clear other selection
+                  })}
                   className={`p-4 rounded-lg border ${
                     formData.AssignmentType === 'jobTitle'
                       ? 'border-primary bg-primary/5 dark:bg-primary/10'
@@ -492,13 +509,17 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
                   }`} />
                   <h5 className="font-medium text-gray-900 dark:text-white">Jobtitel</h5>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    An bestimmte Positionen binden
+                    An eine Position binden
                   </p>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => setFormData({ ...formData, AssignmentType: 'additionalFunction' })}
+                  onClick={() => setFormData({ 
+                    ...formData, 
+                    AssignmentType: 'additionalFunction',
+                    JobTitleID: '' // Clear other selection
+                  })}
                   className={`p-4 rounded-lg border ${
                     formData.AssignmentType === 'additionalFunction'
                       ? 'border-primary bg-primary/5 dark:bg-primary/10'
@@ -516,7 +537,12 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
 
                 <button
                   type="button"
-                  onClick={() => setFormData({ ...formData, AssignmentType: 'mandatory' })}
+                  onClick={() => setFormData({ 
+                    ...formData, 
+                    AssignmentType: 'mandatory',
+                    JobTitleID: '', // Clear other selections
+                    AdditionalFunctionID: ''
+                  })}
                   className={`p-4 rounded-lg border ${
                     formData.AssignmentType === 'mandatory'
                       ? 'border-primary bg-primary/5 dark:bg-primary/10'
@@ -537,28 +563,24 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
             {formData.AssignmentType === 'jobTitle' && jobTitles && (
               <div className="space-y-4">
                 <h5 className="text-sm font-medium text-gray-900 dark:text-white">
-                  Positionen auswählen
+                  Position auswählen
                 </h5>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {jobTitles.map(jobTitle => (
                     <label
                       key={jobTitle.id}
                       className={`p-4 rounded-lg border ${
-                        formData.JobTitleIDs.includes(jobTitle.id.toString())
+                        formData.JobTitleID === jobTitle.id.toString()
                           ? 'border-primary bg-primary/5 dark:bg-primary/10'
                           : 'border-gray-200 dark:border-gray-700'
                       } flex items-start space-x-3 cursor-pointer`}
                     >
                       <input
-                        type="checkbox"
-                        checked={formData.JobTitleIDs.includes(jobTitle.id.toString())}
-                        onChange={(e) => {
-                          const newSelected = e.target.checked
-                            ? [...formData.JobTitleIDs, jobTitle.id.toString()]
-                            : formData.JobTitleIDs.filter(id => id !== jobTitle.id.toString());
-                          setFormData({ ...formData, JobTitleIDs: newSelected });
-                        }}
-                        className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
+                        type="radio"
+                        name="jobTitle"
+                        checked={formData.JobTitleID === jobTitle.id.toString()}
+                        onChange={() => setFormData({ ...formData, JobTitleID: jobTitle.id.toString() })}
+                        className="mt-1 rounded-full border-gray-300 text-primary focus:ring-primary"
                       />
                       <div>
                         <p className="font-medium text-gray-900 dark:text-white">{jobTitle.jobTitle}</p>
@@ -578,21 +600,17 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
                       <label
                         key={func.ID}
                         className={`p-4 rounded-lg border ${
-                          formData.AdditionalFunctionIDs.includes(func.ID.toString())
+                          formData.AdditionalFunctionID === func.ID.toString()
                             ? 'border-primary bg-primary/5 dark:bg-primary/10'
                             : 'border-gray-200 dark:border-gray-700'
                         } flex items-start space-x-3 cursor-pointer`}
                       >
                         <input
-                          type="checkbox"
-                          checked={formData.AdditionalFunctionIDs.includes(func.ID.toString())}
-                          onChange={(e) => {
-                            const newSelected = e.target.checked
-                              ? [...formData.AdditionalFunctionIDs, (func.ID as number).toString()]
-                              : formData.AdditionalFunctionIDs.filter(id => id !== (func.ID as number).toString());
-                            setFormData({ ...formData, AdditionalFunctionIDs: newSelected });
-                          }}
-                          className="rounded border-gray-300 text-primary focus:ring-primary"
+                          type="radio"
+                          name="additionalFunction"
+                          checked={formData.AdditionalFunctionID === func.ID.toString()}
+                          onChange={() => setFormData({ ...formData, AdditionalFunctionID: func.ID!.toString() })}
+                          className="rounded-full border-gray-300 text-primary focus:ring-primary"
                         />
                         <div>
                           <p className="font-medium text-gray-900 dark:text-white">{func.Name}</p>
@@ -630,16 +648,8 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
   };
 
   return (
-    <form onSubmit={(e) => {
-      e.preventDefault();
-      if (activeStep === 3) {
-        onSubmit(formData);
-      } else {
-        setActiveStep(activeStep + 1);
-      }
-    }}
-      className="space-y-6">
-      {/* Progress Steps */}
+    <form onSubmit={handleSubmit} className="space-y-6">
+     {/* Progress Steps */}
       <div className="relative">
         <div className="absolute top-4 w-full h-0.5 bg-gray-200 dark:bg-gray-700" />
         <div className="relative flex justify-between">
