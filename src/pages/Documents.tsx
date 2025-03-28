@@ -264,7 +264,7 @@ export default function Documents() {
       {showUploadModal && (
         <EnhancedDocumentUploader
           onClose={() => setShowUploadModal(false)}
-          onUpload={handleUpload}
+          onSubmit={handleUpload}
         />
       )}
     </div>

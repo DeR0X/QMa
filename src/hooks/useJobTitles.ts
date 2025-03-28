@@ -13,7 +13,7 @@ async function fetchJobTitles(): Promise<JobTitle[]> {
   if (DEBUG) console.log('Fetching job titles...');
   
   try {
-    const response = await fetch(`${API_URL}api/jobtitles`, {
+    const response = await fetch(`http://localhost:5000/api/job-titles`, {
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',

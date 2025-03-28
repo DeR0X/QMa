@@ -28,6 +28,10 @@ export const qualificationsApi = {
 
   async create(data: Omit<Qualification, 'ID'>): Promise<Qualification> {
     try {
+
+        // Set IsMandatory based on AssignmentType
+      const isMandatory = data.AssignmentType === 'mandatory';
+      
       // Erstelle zuerst die Qualifikation
       const response = await fetch(`${API_URL}/qualifications`, {
         method: 'POST',
@@ -35,9 +39,12 @@ export const qualificationsApi = {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...data,
-          IsMandatory: data.AssignmentType === 'mandatory' ? 1 : 0,
+            Name: data.Name,
+            Description: data.Description,
+            ValidityInMonth: data.ValidityInMonth,
+            IsMandatory: isMandatory ? 1 : 0,
         }),
+
       });
 
       if (!response.ok) {
