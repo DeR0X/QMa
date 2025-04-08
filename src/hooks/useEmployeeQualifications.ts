@@ -1,21 +1,60 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { employeeApi, EmployeeQualificationData } from '../services/api';
 import { toast } from 'sonner';
 
-export function useEmployeeQualifications(employeeId: string) {
-  return useQuery({
-    queryKey: ['employeeQualifications', employeeId],
-    queryFn: () => employeeApi.getEmployeeQualifications(employeeId),
-    enabled: !!employeeId,
-  });
+const API_URL = 'http://localhost:5000/api';
+
+interface EmployeeQualification {
+  ID: string;
+  EmployeeID: string;
+  QualificationID: string;
+  QualifiedFrom: string;
+  ToQualifyUntil: string;
+  IsQualifiedUntil: string;
 }
 
-export function useAddEmployeeQualification() {
+export const useEmployeeQualifications = (employeeId: string) => {
+  return useQuery({
+    queryKey: ['employeeQualifications', employeeId],
+    queryFn: async () => {
+      const response = await fetch(`${API_URL}/employee-qualifications/${employeeId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch employee qualifications');
+      }
+      return response.json() as Promise<EmployeeQualification[]>;
+    },
+    enabled: !!employeeId,
+  });
+};
+
+export const useAddEmployeeQualification = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ employeeId, data }: { employeeId: string; data: EmployeeQualificationData }) =>
-      employeeApi.addEmployeeQualification(employeeId, data),
+    mutationFn: async (data: {
+      employeeId: string;
+      qualificationId: string;
+      qualifiedFrom: string;
+      toQualifyUntil: string;
+    }) => {
+      const response = await fetch(`${API_URL}/employee-qualifications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          EmployeeID: data.employeeId,
+          QualificationID: data.qualificationId,
+          QualifiedFrom: data.qualifiedFrom,
+          ToQualifyUntil: data.toQualifyUntil,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add qualification');
+      }
+
+      return response.json();
+    },
     onSuccess: (_, { employeeId }) => {
       queryClient.invalidateQueries({ queryKey: ['employeeQualifications', employeeId] });
       toast.success('Qualifikation erfolgreich hinzugefügt');
@@ -24,4 +63,4 @@ export function useAddEmployeeQualification() {
       toast.error(`Fehler beim Hinzufügen der Qualifikation: ${error.message}`);
     },
   });
-}
+};
