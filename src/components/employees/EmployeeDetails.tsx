@@ -76,40 +76,30 @@ export default function EmployeeDetails({
     ] : []),
   ].filter(Boolean) as Array<{ id: 'info' | 'qualifications' | 'documents' | 'approvals' | 'trainer'; label: string }>;
 
-  const handleUpdatePosition = (jobTitleId: string, isAdditional: boolean = false) => {
-    let updatedEmployee;
-    
-    if (isAdditional) {
-      // Add as additional position
-      const additionalPositions = [...(localEmployee.additionalPositions || []), jobTitleId];
-      updatedEmployee = {
-        ...localEmployee,
-        additionalPositions
-      };
-      toast.success('Zusätzliche Position erfolgreich hinzugefügt');
-    } else {
-      // Update main position
-      updatedEmployee = {
-        ...localEmployee,
-        JobTitleID: parseInt(jobTitleId)
-      };
-      toast.success('Hauptposition erfolgreich aktualisiert');
-    }
-    
-    setLocalEmployee(updatedEmployee);
-    onUpdate(updatedEmployee);
-    setShowPositionModal(false);
-  };
+  const handleAddQualification = async (qualificationId: string) => {
+    try {
+      const today = new Date();
+      const qualification = qualificationsData?.find(q => q.ID === parseInt(qualificationId));
+      
+      if (!qualification) {
+        throw new Error('Qualifikation nicht gefunden');
+      }
 
-  const handleRemoveAdditionalPosition = (jobTitleId: string) => {
-    const additionalPositions = localEmployee.additionalPositions?.filter(id => id !== jobTitleId) || [];
-    const updatedEmployee = {
-      ...localEmployee,
-      additionalPositions
-    };
-    setLocalEmployee(updatedEmployee);
-    onUpdate(updatedEmployee);
-    toast.success('Zusätzliche Position erfolgreich entfernt');
+      const expirationDate = new Date();
+      expirationDate.setMonth(expirationDate.getMonth() + qualification.ValidityInMonth);
+
+      await addEmployeeQualification.mutateAsync({
+        employeeId: employee.ID.toString(),
+        qualificationId: qualificationId,
+        qualifiedFrom: today.toISOString(),
+        toQualifyUntil: expirationDate.toISOString()
+      });
+
+      toast.success('Qualifikation erfolgreich hinzugefügt');
+      setShowPositionModal(false);
+    } catch (error) {
+      toast.error('Fehler beim Hinzufügen der Qualifikation');
+    }
   };
 
   const employeeQualificationIds = getEmployeeQualifications();
@@ -189,11 +179,10 @@ export default function EmployeeDetails({
     qual.ID && employeeQualificationIds.includes(qual.ID.toString())
   ) || [];
 
-  // Get available job titles (excluding current and additional positions)
-  const availableJobTitles = jobTitles.filter(jt => 
-    jt.id !== localEmployee.JobTitleID?.toString() && 
-    !localEmployee.additionalPositions?.includes(jt.id)
-  );
+  // Get available qualifications (excluding already assigned ones)
+  const availableQualifications = qualificationsData?.filter(qual =>
+    qual.ID && !employeeQualificationIds.includes(qual.ID.toString())
+  ) || [];
 
   // Helper function to safely get initials from a name
   const getInitials = (name: string | undefined) => {
@@ -291,33 +280,6 @@ export default function EmployeeDetails({
                         </span>
                       </div>
                     </div>
-                    {localEmployee.additionalPositions && localEmployee.additionalPositions.length > 0 && (
-                      <div className="mt-6">
-                        <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                          Zusätzliche Positionen
-                        </h4>
-                        <div className="space-y-4">
-                          {localEmployee.additionalPositions.map((posId) => (
-                            <div key={posId} className="flex items-center justify-between">
-                              <div className="flex items-center">
-                                <Award className="h-5 w-5 text-gray-400" />
-                                <span className="ml-2 text-sm text-gray-900 dark:text-white">
-                                  {isLoadingJobTitles ? 'Laden...' : getJobTitle(posId)}
-                                </span>
-                              </div>
-                              {isHRAdmin && (
-                                <button
-                                  onClick={() => handleRemoveAdditionalPosition(posId)}
-                                  className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                                >
-                                  <X className="h-5 w-5" />
-                                </button>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </>
                 )}
 
@@ -525,7 +487,7 @@ export default function EmployeeDetails({
         </div>
       </div>
 
-      {/* Position Modal */}
+      {/* Qualifications Modal */}
       {showPositionModal && (
         <div className="fixed inset-0 z-[60] bg-black bg-opacity-50 flex items-end justify-center md:items-center">
           <div className="w-full md:max-w-md mx-4 transform transition-transform duration-300 ease-in-out">
@@ -550,34 +512,39 @@ export default function EmployeeDetails({
               </div>
 
               <div className="space-y-4">
-                {availableJobTitles.map((jobTitle) => (
+                {availableQualifications.map((qual) => (
                   <div
-                    key={jobTitle.id}
+                    key={qual.ID}
                     className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
                   >
                     <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-                      {jobTitle.jobTitle}
+                      {qual.Name}
                     </h3>
                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      {jobTitle.description}
+                      {qual.Description}
                     </p>
                     <div className="mt-4 space-y-2">
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Erforderliche Qualifikationen: {jobTitle.qualificationIDs.length}
-                      </p>
-                      <div className="flex flex-col gap-2">
-                        <button
-                          onClick={() => handleUpdatePosition(jobTitle.id, true)}
-                          className="w-full px-4 py-2 text-sm font-medium text-primary border border-primary rounded-md hover:bg-primary/10 dark:hover:bg-primary/5"
-                        >
-                          Als Zusatzfunktion
-                        </button>
+                      <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                        <Clock className="h-4 w-4 mr-2" />
+                        Gültigkeitsdauer: {qual.ValidityInMonth} Monate
                       </div>
+                      {qual.IsMandatory && (
+                        <div className="flex items-center text-sm text-red-500">
+                          <AlertCircle className="h-4 w-4 mr-2" />
+                          Pflichtqualifikation
+                        </div>
+                      )}
+                      <button
+                        onClick={() => handleAddQualification(qual.ID!.toString())}
+                        className="w-full px-4 py-2 text-sm font-medium text-primary border border-primary rounded-md hover:bg-primary/10 dark:hover:bg-primary/5"
+                      >
+                        Qualifikation hinzufügen
+                      </button>
                     </div>
                   </div>
                 ))}
 
-                {availableJobTitles.length === 0 && (
+                {availableQualifications.length === 0 && (
                   <p className="text-center text-gray-500 dark:text-gray-400 py-4">
                     Keine weiteren Qualifikationen verfügbar
                   </p>
