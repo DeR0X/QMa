@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { formatDate } from '../../lib/utils';
 import { useJobTitles } from '../../hooks/useJobTitles';
 import { useQualifications, useAddEmployeeQualification } from '../../hooks/useQualifications';
+import { useEmployeeQualifications } from '../../hooks/useEmployeeQualifications';
 
 interface Props {
   employee: Employee;
@@ -45,6 +46,9 @@ export default function EmployeeDetails({
   const { employee: currentEmployee } = useSelector((state: RootState) => state.auth);
   const isHRAdmin = hasHRPermissions(currentEmployee);
   const { data: jobTitlesData, isLoading: isLoadingJobTitles } = useJobTitles();
+  const { data: qualificationsData, isLoading: isLoadingQualifications } = useQualifications();
+  const { data: employeeQualificationsData, isLoading: isLoadingEmployeeQualifications } = useEmployeeQualifications(employee.ID.toString());
+  const addEmployeeQualification = useAddEmployeeQualification();
 
   const getDepartmentName = (departmentId: number | null) => {
     if (!departmentId) return 'Keine Abteilung';
@@ -52,29 +56,15 @@ export default function EmployeeDetails({
     return department ? department.department : departmentId.toString();
   };
 
-  const getJobTitle = (jobTitleId: number | null) => {
-    if (!jobTitleId) return 'Keine Position';
-    
-    // First try to get from API data
-    if (jobTitlesData) {
-      const jobTitle = jobTitlesData.find(jt => jt.id === jobTitleId.toString());
-      if (jobTitle) return jobTitle.jobTitle;
-    }
-    
-    // Fallback to mock data
-    const jobTitle = jobTitles.find(jt => jt.id === jobTitleId.toString());
-    return jobTitle ? jobTitle.jobTitle : jobTitleId.toString();
+  const getJobTitle = (jobTitleId: string) => {
+    const jobTitle = jobTitles.find(jt => jt.id === jobTitleId);
+    return jobTitle ? jobTitle.jobTitle : jobTitleId;
   };
 
   // Get all qualifications from current and additional positions
   const getEmployeeQualifications = () => {
-    const currentJobTitle = jobTitles.find(jt => jt.id === localEmployee.JobTitleID?.toString());
-    const additionalQuals = localEmployee.additionalPositions?.flatMap(posId => {
-      const jobTitle = jobTitles.find(jt => jt.id === posId);
-      return jobTitle ? jobTitle.qualificationIDs : [];
-    }) || [];
-    
-    return [...(currentJobTitle?.qualificationIDs || []), ...additionalQuals];
+    if (!employeeQualificationsData) return [];
+    return employeeQualificationsData.map(eq => eq.QualificationID);
   };
 
   const tabs = [
@@ -125,13 +115,12 @@ export default function EmployeeDetails({
   const employeeQualificationIds = getEmployeeQualifications();
 
   const getQualificationStatus = (qualId: string) => {
-    const employeeQual = employeeQualifications.find(
-      eq => eq.employeeID === localEmployee.ID.toString() && eq.qualificationID === qualId
-    );
+    if (!employeeQualificationsData) return 'inactive';
 
+    const employeeQual = employeeQualificationsData.find(eq => eq.QualificationID === qualId);
     if (!employeeQual) return 'inactive';
 
-    const expiryDate = new Date(employeeQual.isQualifiedUntil || Date.now());
+    const expiryDate = new Date(employeeQual.IsQualifiedUntil);
     const today = new Date();
     const twoMonthsFromNow = new Date();
     twoMonthsFromNow.setMonth(today.getMonth() + 2);
@@ -196,9 +185,9 @@ export default function EmployeeDetails({
   };
 
   // Get all qualifications
-  const userQualifications = qualifications.filter(qual => 
-    employeeQualificationIds.includes(qual.id)
-  );
+  const userQualifications = qualificationsData?.filter(qual => 
+    qual.ID && employeeQualificationIds.includes(qual.ID.toString())
+  ) || [];
 
   // Get available job titles (excluding current and additional positions)
   const availableJobTitles = jobTitles.filter(jt => 
@@ -212,6 +201,16 @@ export default function EmployeeDetails({
     return name.split(' ').map(n => n[0]).join('');
   };
 
+  if (isLoadingQualifications || isLoadingEmployeeQualifications) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white dark:bg-[#121212] rounded-lg p-6">
+          <p className="text-gray-500 dark:text-gray-400">Lade Qualifikationen...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-full items-center justify-center p-4 text-center">
@@ -223,7 +222,7 @@ export default function EmployeeDetails({
               onClick={onClose}
             >
               <span className="sr-only">Close</span>
-              <X className="h-6 w-6" />
+              <X className="h-6 w-6" aria-hidden="true" />
             </button>
           </div>
 
@@ -238,7 +237,7 @@ export default function EmployeeDetails({
                     {localEmployee.FullName}
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {isLoadingJobTitles ? 'Laden...' : getJobTitle(localEmployee.JobTitleID)} • {localEmployee.Department}
+                    {isLoadingJobTitles ? 'Laden...' : getJobTitle(localEmployee.JobTitleID?.toString() || '')} • {localEmployee.Department}
                   </p>
                 </div>
               </div>
@@ -288,7 +287,7 @@ export default function EmployeeDetails({
                       <div className="flex items-center">
                         <Award className="h-5 w-5 text-gray-400" />
                         <span className="ml-2 text-sm text-gray-900 dark:text-white">
-                          Position: {isLoadingJobTitles ? 'Laden...' : getJobTitle(localEmployee.JobTitleID)}
+                          Position: {isLoadingJobTitles ? 'Laden...' : getJobTitle(localEmployee.JobTitleID?.toString() || '')}
                         </span>
                       </div>
                     </div>
@@ -303,7 +302,7 @@ export default function EmployeeDetails({
                               <div className="flex items-center">
                                 <Award className="h-5 w-5 text-gray-400" />
                                 <span className="ml-2 text-sm text-gray-900 dark:text-white">
-                                  {isLoadingJobTitles ? 'Laden...' : getJobTitle(parseInt(posId))}
+                                  {isLoadingJobTitles ? 'Laden...' : getJobTitle(posId)}
                                 </span>
                               </div>
                               {isHRAdmin && (
@@ -341,32 +340,33 @@ export default function EmployeeDetails({
                     
                     <div className="space-y-4">
                       {userQualifications.map(qual => {
-                        const employeeQual = employeeQualifications.find(
-                          eq => eq.employeeID === localEmployee.ID.toString() && eq.qualificationID === qual.id
+                        if (!qual.ID) return null;
+                        const employeeQual = employeeQualificationsData?.find(
+                          eq => eq.QualificationID === String(qual.ID)
                         );
-                        const status = getQualificationStatus(qual.id);
+                        const status = getQualificationStatus(String(qual.ID));
 
                         return (
                           <div
-                            key={qual.id}
+                            key={qual.ID}
                             className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg"
                           >
                             <div className="flex-1">
                               <h5 className="text-sm font-medium text-gray-900 dark:text-white">
-                                {qual.name}
+                                {qual.Name}
                               </h5>
                               <p className="text-sm text-gray-500 dark:text-gray-400">
-                                {qual.description}
+                                {qual.Description}
                               </p>
                               {employeeQual && (
                                 <div className="mt-2 space-y-1">
                                   <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
                                     <Clock className="h-4 w-4 mr-1" />
-                                    Qualifiziert seit: {formatDate(employeeQual.qualifiedFrom)}
+                                    Qualifiziert seit: {formatDate(employeeQual.QualifiedFrom)}
                                   </p>
                                   <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
                                     <AlertCircle className="h-4 w-4 mr-1" />
-                                    Gültig bis: {employeeQual.isQualifiedUntil ? formatDate(employeeQual.isQualifiedUntil) : "Nicht verfügbar"}
+                                    Gültig bis: {employeeQual.IsQualifiedUntil ? formatDate(employeeQual.IsQualifiedUntil) : "Nicht verfügbar"}
                                   </p>
                                 </div>
                               )}
