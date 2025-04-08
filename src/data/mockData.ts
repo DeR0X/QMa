@@ -1,4 +1,4 @@
-// Mock data for Q-Matrix system
+/* // Mock data for Q-Matrix system
 
 import { Department, JobTitle, Employee, Qualification, Training, EmployeeQualification, QualificationTrainer, AdditionalSkill, TrainingBooking, TrainingDocument } from '../types';
 
@@ -564,4 +564,4 @@ export const trainingDocuments: TrainingDocument[] = [
     fileUrl: '/documents/training/2/Kranführerschein_Handbuch.pdf',
     description: 'Handbuch für Kranführerschein-Qualifikation'
   }
-];
+]; */

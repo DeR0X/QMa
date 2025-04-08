@@ -24,6 +24,47 @@ export function useCreateQualification() {
   });
 }
 
+const API_URL = 'http://localhost:5000/api';
+
+export function useAddEmployeeQualification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: { 
+      employeeId: string; 
+      qualificationId: string;
+      qualifiedFrom: string;
+      toQualifyUntil: string;
+    }) => {
+      const response = await fetch(`${API_URL}/employee-qualifications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          EmployeeID: data.employeeId,
+          QualificationID: data.qualificationId,
+          QualifiedFrom: data.qualifiedFrom,
+          ToQualifyUntil: data.toQualifyUntil,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add qualification');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employeeQualifications'] });
+      toast.success('Qualifikation erfolgreich hinzugefügt');
+    },
+    onError: (error: Error) => {
+      toast.error(`Fehler beim Hinzufügen der Qualifikation: ${error.message}`);
+    },
+  });
+}
+
 export function useUpdateQualification() {
   const queryClient = useQueryClient();
 

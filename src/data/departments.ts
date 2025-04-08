@@ -1,4 +1,4 @@
-// Departments and positions for both IT and Manufacturing companies
+/* // Departments and positions for both IT and Manufacturing companies
 
 interface DepartmentStructure {
     name: string;
@@ -173,4 +173,4 @@ interface DepartmentStructure {
         'Gehaltsbuchhalter',
       ],
     },
-  ];
+  ]; */

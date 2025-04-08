@@ -12,11 +12,11 @@ import {
 import { RootState } from '../../store';
 import { hasHRPermissions } from '../../store/slices/authSlice';
 import type { Employee, Qualification } from '../../types';
-import { trainings, departments, jobTitles } from '../../data/mockData';
+import { qualifications, employeeQualifications, trainings, departments, jobTitles } from '../../data/mockData';
 import { toast } from 'sonner';
 import { formatDate } from '../../lib/utils';
 import { useJobTitles } from '../../hooks/useJobTitles';
-import { useEmployeeQualifications } from '../../hooks/useEmployeeQualifications';
+import { useQualifications, useAddEmployeeQualification } from '../../hooks/useQualifications';
 
 interface Props {
   employee: Employee;
@@ -45,7 +45,6 @@ export default function EmployeeDetails({
   const { employee: currentEmployee } = useSelector((state: RootState) => state.auth);
   const isHRAdmin = hasHRPermissions(currentEmployee);
   const { data: jobTitlesData, isLoading: isLoadingJobTitles } = useJobTitles();
-  const { data: employeeQualifications, isLoading: isLoadingQualifications } = useEmployeeQualifications(employee.ID.toString());
 
   const getDepartmentName = (departmentId: number | null) => {
     if (!departmentId) return 'Keine Abteilung';
@@ -67,14 +66,72 @@ export default function EmployeeDetails({
     return jobTitle ? jobTitle.jobTitle : jobTitleId.toString();
   };
 
+  // Get all qualifications from current and additional positions
+  const getEmployeeQualifications = () => {
+    const currentJobTitle = jobTitles.find(jt => jt.id === localEmployee.JobTitleID?.toString());
+    const additionalQuals = localEmployee.additionalPositions?.flatMap(posId => {
+      const jobTitle = jobTitles.find(jt => jt.id === posId);
+      return jobTitle ? jobTitle.qualificationIDs : [];
+    }) || [];
+    
+    return [...(currentJobTitle?.qualificationIDs || []), ...additionalQuals];
+  };
+
+  const tabs = [
+    { id: 'info', label: 'Information' },
+    { id: 'qualifications', label: 'Qualifikationen' },
+    { id: 'documents', label: 'Dokumente' },
+    ...(isHRAdmin ? [
+      { id: 'trainer', label: 'Trainer-Status' }
+    ] : []),
+  ].filter(Boolean) as Array<{ id: 'info' | 'qualifications' | 'documents' | 'approvals' | 'trainer'; label: string }>;
+
+  const handleUpdatePosition = (jobTitleId: string, isAdditional: boolean = false) => {
+    let updatedEmployee;
+    
+    if (isAdditional) {
+      // Add as additional position
+      const additionalPositions = [...(localEmployee.additionalPositions || []), jobTitleId];
+      updatedEmployee = {
+        ...localEmployee,
+        additionalPositions
+      };
+      toast.success('Zusätzliche Position erfolgreich hinzugefügt');
+    } else {
+      // Update main position
+      updatedEmployee = {
+        ...localEmployee,
+        JobTitleID: parseInt(jobTitleId)
+      };
+      toast.success('Hauptposition erfolgreich aktualisiert');
+    }
+    
+    setLocalEmployee(updatedEmployee);
+    onUpdate(updatedEmployee);
+    setShowPositionModal(false);
+  };
+
+  const handleRemoveAdditionalPosition = (jobTitleId: string) => {
+    const additionalPositions = localEmployee.additionalPositions?.filter(id => id !== jobTitleId) || [];
+    const updatedEmployee = {
+      ...localEmployee,
+      additionalPositions
+    };
+    setLocalEmployee(updatedEmployee);
+    onUpdate(updatedEmployee);
+    toast.success('Zusätzliche Position erfolgreich entfernt');
+  };
+
+  const employeeQualificationIds = getEmployeeQualifications();
+
   const getQualificationStatus = (qualId: string) => {
-    const employeeQual = employeeQualifications?.find(
-      eq => eq.QualificationID === qualId
+    const employeeQual = employeeQualifications.find(
+      eq => eq.employeeID === localEmployee.ID.toString() && eq.qualificationID === qualId
     );
 
     if (!employeeQual) return 'inactive';
 
-    const expiryDate = new Date(employeeQual.IsQualifiedUntil || Date.now());
+    const expiryDate = new Date(employeeQual.isQualifiedUntil || Date.now());
     const today = new Date();
     const twoMonthsFromNow = new Date();
     twoMonthsFromNow.setMonth(today.getMonth() + 2);
@@ -139,7 +196,9 @@ export default function EmployeeDetails({
   };
 
   // Get all qualifications
-  const userQualifications = employeeQualifications || [];
+  const userQualifications = qualifications.filter(qual => 
+    employeeQualificationIds.includes(qual.id)
+  );
 
   // Get available job titles (excluding current and additional positions)
   const availableJobTitles = jobTitles.filter(jt => 
@@ -152,50 +211,6 @@ export default function EmployeeDetails({
     if (!name) return '??';
     return name.split(' ').map(n => n[0]).join('');
   };
-
-  const handleRemoveAdditionalPosition = (positionId: string) => {
-    const updatedPositions = localEmployee.additionalPositions?.filter(id => id !== positionId) || [];
-    const updatedEmployee = {
-      ...localEmployee,
-      additionalPositions: updatedPositions
-    };
-    setLocalEmployee(updatedEmployee);
-    onUpdate(updatedEmployee);
-  };
-
-  const handleUpdatePosition = (positionId: string, isAdditional: boolean) => {
-    const updatedEmployee = {
-      ...localEmployee,
-      additionalPositions: isAdditional 
-        ? [...(localEmployee.additionalPositions || []), positionId]
-        : localEmployee.additionalPositions
-    };
-    setLocalEmployee(updatedEmployee);
-    onUpdate(updatedEmployee);
-    setShowPositionModal(false);
-  };
-
-  const tabs = [
-    { id: 'info', label: 'Informationen' },
-    { id: 'qualifications', label: 'Qualifikationen' },
-    { id: 'documents', label: 'Dokumente' },
-    { id: 'approvals', label: 'Genehmigungen' },
-    { id: 'trainer', label: 'Trainer' }
-  ] as const;
-
-  if (isLoadingQualifications) {
-    return (
-      <div className="fixed inset-0 z-50 overflow-y-auto">
-        <div className="flex min-h-full items-center justify-center p-4 text-center">
-          <div className="relative transform overflow-hidden rounded-lg bg-white dark:bg-[#121212] px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl sm:p-6">
-            <p className="text-center text-gray-500 dark:text-gray-400">
-              Lade Qualifikationen...
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -326,27 +341,35 @@ export default function EmployeeDetails({
                     
                     <div className="space-y-4">
                       {userQualifications.map(qual => {
-                        const status = getQualificationStatus(qual.QualificationID);
+                        const employeeQual = employeeQualifications.find(
+                          eq => eq.employeeID === localEmployee.ID.toString() && eq.qualificationID === qual.id
+                        );
+                        const status = getQualificationStatus(qual.id);
 
                         return (
                           <div
-                            key={qual.QualificationID}
+                            key={qual.id}
                             className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg"
                           >
                             <div className="flex-1">
                               <h5 className="text-sm font-medium text-gray-900 dark:text-white">
-                                {qual.QualificationID}
+                                {qual.name}
                               </h5>
-                              <div className="mt-2 space-y-1">
-                                <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-                                  <Clock className="h-4 w-4 mr-1" />
-                                  Qualifiziert seit: {formatDate(qual.QualifiedFrom)}
-                                </p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-                                  <AlertCircle className="h-4 w-4 mr-1" />
-                                  Gültig bis: {qual.IsQualifiedUntil ? formatDate(qual.IsQualifiedUntil) : "Nicht verfügbar"}
-                                </p>
-                              </div>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                {qual.description}
+                              </p>
+                              {employeeQual && (
+                                <div className="mt-2 space-y-1">
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                    <Clock className="h-4 w-4 mr-1" />
+                                    Qualifiziert seit: {formatDate(employeeQual.qualifiedFrom)}
+                                  </p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                    <AlertCircle className="h-4 w-4 mr-1" />
+                                    Gültig bis: {employeeQual.isQualifiedUntil ? formatDate(employeeQual.isQualifiedUntil) : "Nicht verfügbar"}
+                                  </p>
+                                </div>
+                              )}
                             </div>
                             <div className="flex items-center space-x-4">
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles(status)}`}>
