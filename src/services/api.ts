@@ -19,6 +19,14 @@ function buildQueryString(params: Record<string, any>): string {
   return queryString ? `?${queryString}` : '';
 }
 
+export interface EmployeeQualificationData {
+  EmployeeID: string;
+  QualificationID: string;
+  qualifiedFrom: string;
+  toQualifyUntil: string;
+  isQualifiedUntil: string;
+}
+
 export const employeeApi = {
   async getEmployees(filters: EmployeeFilters = {}) {
     const queryString = buildQueryString(filters);
@@ -85,4 +93,30 @@ export const employeeApi = {
     
     return response.json();
   },
+
+  async addEmployeeQualification(employeeId: string, data: EmployeeQualificationData) {
+    const response = await fetch(`${API_BASE_URL}/employee-qualifications/${employeeId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to add employee qualification');
+    }
+
+    return response.json();
+  },
+
+  async getEmployeeQualifications(employeeId: string) {
+    const response = await fetch(`${API_BASE_URL}/employee-qualifications/${employeeId}`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch employee qualifications');
+    }
+    
+    return response.json();
+  }
 };

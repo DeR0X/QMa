@@ -537,7 +537,7 @@ export default function EmployeeDetails({
               <div className="pb-4 mb-4 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                    Position hinzufügen
+                    Qualifikation hinzufügen
                   </h2>
                   <button
                     onClick={() => setShowPositionModal(false)}
@@ -585,7 +585,7 @@ export default function EmployeeDetails({
 
                 {availableJobTitles.length === 0 && (
                   <p className="text-center text-gray-500 dark:text-gray-400 py-4">
-                    Keine weiteren Positionen verfügbar
+                    Keine weiteren Qualifikationen verfügbar
                   </p>
                 )}
               </div>
