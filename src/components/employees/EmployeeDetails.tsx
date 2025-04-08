@@ -7,7 +7,7 @@ import {
   Target, Plus, X, Clock, AlertCircle,
   GraduationCap, CheckCircle, Users as UsersIcon,
   Calendar, Timer, BookOpen as BookOpenIcon,
-  Tag, Building2
+  Tag, Building2, AlertTriangle, Briefcase
 } from 'lucide-react';
 import { RootState } from '../../store';
 import { hasHRPermissions } from '../../store/slices/authSlice';
@@ -174,6 +174,32 @@ export default function EmployeeDetails({
     onUpdate(updatedEmployee);
   };
 
+  // Gruppiere Qualifikationen nach Typ
+  const groupedQualifications = qualificationsData?.reduce((acc, qual) => {
+    if (!qual.ID) return acc;
+
+    const qualId = qual.ID.toString();
+    const hasQualification = employeeQualificationIds.includes(qualId);
+
+    if (!hasQualification) return acc;
+
+    // Bestimme den Typ der Qualifikation
+    let type = 'other';
+    if (qual.IsMandatory) {
+      type = 'mandatory';
+    } else if (jobTitlesData?.some(jt => jt.qualificationIDs?.includes(qualId))) {
+      type = 'jobTitle';
+    } else {
+      type = 'additional';
+    }
+
+    if (!acc[type]) {
+      acc[type] = [];
+    }
+    acc[type].push(qual);
+    return acc;
+  }, {} as Record<string, typeof qualificationsData>) || {};
+
   // Get all qualifications
   const userQualifications = qualificationsData?.filter(qual => 
     qual.ID && employeeQualificationIds.includes(qual.ID.toString())
@@ -218,8 +244,10 @@ export default function EmployeeDetails({
           <div className="sm:flex sm:items-start">
             <div className="w-full">
               <div className="flex items-center">
-                <div className="h-16 w-16 rounded-full bg-primary text-white flex items-center justify-center text-xl">
-                  {getInitials(localEmployee.FullName)}
+                <div className="h-16 w-16 rounded-full bg-primary text-white flex items-center justify-center">
+                  <span className="text-lg font-medium">
+                    {getInitials(localEmployee.FullName)}
+                  </span>
                 </div>
                 <div className="ml-4">
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white">
@@ -300,50 +328,153 @@ export default function EmployeeDetails({
                       )}
                     </div>
                     
-                    <div className="space-y-4">
-                      {userQualifications.map(qual => {
-                        if (!qual.ID) return null;
-                        const employeeQual = employeeQualificationsData?.find(
-                          eq => eq.QualificationID === String(qual.ID)
-                        );
-                        const status = getQualificationStatus(String(qual.ID));
+                    <div className="space-y-6">
+                      {/* Pflichtqualifikationen */}
+                      {groupedQualifications.mandatory?.length > 0 && (
+                        <div className="space-y-4">
+                          <h5 className="text-sm font-medium text-gray-900 dark:text-white flex items-center">
+                            <AlertTriangle className="h-4 w-4 mr-2 text-red-500" />
+                            Pflichtqualifikationen
+                          </h5>
+                          {groupedQualifications.mandatory.map(qual => {
+                            if (!qual.ID) return null;
+                            const employeeQual = employeeQualificationsData?.find(
+                              eq => eq.QualificationID === String(qual.ID)
+                            );
+                            const status = getQualificationStatus(String(qual.ID));
 
-                        return (
-                          <div
-                            key={qual.ID}
-                            className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg"
-                          >
-                            <div className="flex-1">
-                              <h5 className="text-sm font-medium text-gray-900 dark:text-white">
-                                {qual.Name}
-                              </h5>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">
-                                {qual.Description}
-                              </p>
-                              {employeeQual && (
-                                <div className="mt-2 space-y-1">
-                                  <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-                                    <Clock className="h-4 w-4 mr-1" />
-                                    Qualifiziert seit: {formatDate(employeeQual.QualifiedFrom)}
+                            return (
+                              <div
+                                key={qual.ID}
+                                className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg"
+                              >
+                                <div className="flex-1">
+                                  <h5 className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {qual.Name}
+                                  </h5>
+                                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    {qual.Description}
                                   </p>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-                                    <AlertCircle className="h-4 w-4 mr-1" />
-                                    Gültig bis: {employeeQual.IsQualifiedUntil ? formatDate(employeeQual.IsQualifiedUntil) : "Nicht verfügbar"}
-                                  </p>
+                                  {employeeQual && (
+                                    <div className="mt-2 space-y-1">
+                                      <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                        <Clock className="h-4 w-4 mr-1" />
+                                        Qualifiziert seit: {formatDate(employeeQual.QualifiedFrom)}
+                                      </p>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                        <AlertCircle className="h-4 w-4 mr-1" />
+                                        Gültig bis: {employeeQual.IsQualifiedUntil ? formatDate(employeeQual.IsQualifiedUntil) : "Nicht verfügbar"}
+                                      </p>
+                                    </div>
+                                  )}
                                 </div>
-                              )}
-                            </div>
-                            <div className="flex items-center space-x-4">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles(status)}`}>
-                                {getStatusText(status)}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles(status)}`}>
+                                  {getStatusText(status)}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
 
-                      {userQualifications.length === 0 && (
-                        <p className="text-center text-gray-500 dark:text-gray-400 py-4">
+                      {/* Positionsqualifikationen */}
+                      {groupedQualifications.jobTitle?.length > 0 && (
+                        <div className="space-y-4">
+                          <h5 className="text-sm font-medium text-gray-900 dark:text-white flex items-center">
+                            <Briefcase className="h-4 w-4 mr-2 text-blue-500" />
+                            Positionsqualifikationen
+                          </h5>
+                          {groupedQualifications.jobTitle.map(qual => {
+                            if (!qual.ID) return null;
+                            const employeeQual = employeeQualificationsData?.find(
+                              eq => eq.QualificationID === String(qual.ID)
+                            );
+                            const status = getQualificationStatus(String(qual.ID));
+
+                            return (
+                              <div
+                                key={qual.ID}
+                                className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg"
+                              >
+                                <div className="flex-1">
+                                  <h5 className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {qual.Name}
+                                  </h5>
+                                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    {qual.Description}
+                                  </p>
+                                  {employeeQual && (
+                                    <div className="mt-2 space-y-1">
+                                      <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                        <Clock className="h-4 w-4 mr-1" />
+                                        Qualifiziert seit: {formatDate(employeeQual.QualifiedFrom)}
+                                      </p>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                        <AlertCircle className="h-4 w-4 mr-1" />
+                                        Gültig bis: {employeeQual.IsQualifiedUntil ? formatDate(employeeQual.IsQualifiedUntil) : "Nicht verfügbar"}
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles(status)}`}>
+                                  {getStatusText(status)}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Zusatzqualifikationen */}
+                      {groupedQualifications.additional?.length > 0 && (
+                        <div className="space-y-4">
+                          <h5 className="text-sm font-medium text-gray-900 dark:text-white flex items-center">
+                            <Star className="h-4 w-4 mr-2 text-yellow-500" />
+                            Zusatzqualifikationen
+                          </h5>
+                          {groupedQualifications.additional.map(qual => {
+                            if (!qual.ID) return null;
+                            const employeeQual = employeeQualificationsData?.find(
+                              eq => eq.QualificationID === String(qual.ID)
+                            );
+                            const status = getQualificationStatus(String(qual.ID));
+
+                            return (
+                              <div
+                                key={qual.ID}
+                                className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg"
+                              >
+                                <div className="flex-1">
+                                  <h5 className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {qual.Name}
+                                  </h5>
+                                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    {qual.Description}
+                                  </p>
+                                  {employeeQual && (
+                                    <div className="mt-2 space-y-1">
+                                      <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                        <Clock className="h-4 w-4 mr-1" />
+                                        Qualifiziert seit: {formatDate(employeeQual.QualifiedFrom)}
+                                      </p>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                        <AlertCircle className="h-4 w-4 mr-1" />
+                                        Gültig bis: {employeeQual.IsQualifiedUntil ? formatDate(employeeQual.IsQualifiedUntil) : "Nicht verfügbar"}
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles(status)}`}>
+                                  {getStatusText(status)}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {Object.keys(groupedQualifications).length === 0 && (
+                        <p className="text-center text-gray-500 dark:text-gray-400">
                           Keine Qualifikationen vorhanden
                         </p>
                       )}
@@ -517,9 +648,28 @@ export default function EmployeeDetails({
                     key={qual.ID}
                     className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
                   >
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-                      {qual.Name}
-                    </h3>
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                        {qual.Name}
+                      </h3>
+                      {/* Qualifikationstyp-Badge */}
+                      {qual.IsMandatory ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                          <AlertTriangle className="h-3 w-3 mr-1" />
+                          Pflicht
+                        </span>
+                      ) : jobTitlesData?.some(jt => jt.qualificationIDs?.includes(qual.ID!.toString())) ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                          <Briefcase className="h-3 w-3 mr-1" />
+                          Position
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                          <Star className="h-3 w-3 mr-1" />
+                          Zusatz
+                        </span>
+                      )}
+                    </div>
                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                       {qual.Description}
                     </p>
@@ -528,12 +678,6 @@ export default function EmployeeDetails({
                         <Clock className="h-4 w-4 mr-2" />
                         Gültigkeitsdauer: {qual.ValidityInMonth} Monate
                       </div>
-                      {qual.IsMandatory && (
-                        <div className="flex items-center text-sm text-red-500">
-                          <AlertCircle className="h-4 w-4 mr-2" />
-                          Pflichtqualifikation
-                        </div>
-                      )}
                       <button
                         onClick={() => handleAddQualification(qual.ID!.toString())}
                         className="w-full px-4 py-2 text-sm font-medium text-primary border border-primary rounded-md hover:bg-primary/10 dark:hover:bg-primary/5"

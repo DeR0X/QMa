@@ -61,6 +61,48 @@ export default function Qualifications() {
     );
   }
 
+  const filteredQualifications = qualifications?.filter(qual =>
+    qual.Name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    qual.Description.toLowerCase().includes(searchTerm.toLowerCase())
+  ) || [];
+
+  const getAssignmentInfo = (qualification: Qualification) => {
+    if (qualification.IsMandatory) {
+      return {
+        type: 'mandatory',
+        label: 'Pflichtqualifikation',
+        icon: AlertCircle,
+        style: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'
+      };
+    }
+
+    if (qualification.JobTitleIDs?.length) {
+      const jobTitleNames = qualification.JobTitleIDs
+        .map(id => jobTitles?.find(jt => jt.id === id)?.jobTitle)
+        .filter(Boolean);
+      return {
+        type: 'jobTitle',
+        label: `Verknüpft mit Position${jobTitleNames.length > 1 ? 'en' : ''}: ${jobTitleNames.join(', ')}`,
+        icon: Briefcase,
+        style: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
+      };
+    }
+
+    if (qualification.AdditionalFunctionIDs?.length) {
+      const functionNames = qualification.AdditionalFunctionIDs
+        .map(id => additionalFunctions?.find(af => af.ID?.toString() === id)?.Name)
+        .filter(Boolean);
+      return {
+        type: 'additionalFunction',
+        label: `Zusatzfunktion${functionNames.length > 1 ? 'en' : ''}: ${functionNames.join(', ')}`,
+        icon: Star,
+        style: 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300'
+      };
+    }
+
+    return null;
+  };
+
   const handleAddQualification = async (qualification: Omit<Qualification, 'ID'>) => {
     try {
       await createMutation.mutateAsync(qualification);
@@ -92,11 +134,6 @@ export default function Qualifications() {
       // Error handling is done in the mutation
     }
   };
-
-  const filteredQualifications = qualifications?.filter(qual =>
-    qual.Name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    qual.Description.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
@@ -141,111 +178,63 @@ export default function Qualifications() {
 
         {/* Qualifications List */}
         <div className="grid grid-cols-1 gap-6 p-4 sm:p-6">
-          {filteredQualifications.map((qualification) => (
-            <div
-              key={qualification.ID}
-              className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 p-6 group"
-            >
-              <div className="flex flex-col gap-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between">
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-white break-words group-hover:text-primary transition-colors duration-200">
-                        {qualification.Name}
-                      </h3>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setEditingQual(qualification)}
-                          className="text-gray-400 hover:text-primary dark:hover:text-primary transition-colors duration-200"
-                        >
-                          <Edit2 className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => qualification.ID && setShowDeleteConfirm(qualification.ID)}
-                          className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors duration-200"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
+          {filteredQualifications.map((qualification) => {
+            const assignmentInfo = getAssignmentInfo(qualification);
+            
+            return (
+              <div
+                key={qualification.ID}
+                className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 p-6 group"
+              >
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between">
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white break-words group-hover:text-primary transition-colors duration-200">
+                          {qualification.Name}
+                        </h3>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setEditingQual(qualification)}
+                            className="text-gray-400 hover:text-primary dark:hover:text-primary transition-colors duration-200"
+                          >
+                            <Edit2 className="h-5 w-5" />
+                          </button>
+                          <button
+                            onClick={() => qualification.ID && setShowDeleteConfirm(qualification.ID)}
+                            className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors duration-200"
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </button>
+                        </div>
                       </div>
+                      <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 break-words">
+                        {qualification.Description}
+                      </p>
                     </div>
-                    <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 break-words">
-                      {qualification.Description}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Validity Period */}
-                  <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                    <Clock className="h-4 w-4 mr-2 text-primary" />
-                    <span>Gültigkeitsdauer: {qualification.ValidityInMonth} Monate</span>
                   </div>
 
-                  {/* Mandatory Status */}
-                  <div className="flex items-center">
-                    {qualification.IsMandatory && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                        <AlertCircle className="h-4 w-4 mr-1" />
-                        Pflichtqualifikation
-                      </span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Validity Period */}
+                    <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                      <Clock className="h-4 w-4 mr-2 text-primary" />
+                      <span>Gültigkeitsdauer: {qualification.ValidityInMonth} Monate</span>
+                    </div>
+
+                    {/* Assignment Info */}
+                    {assignmentInfo && (
+                      <div className="flex items-center">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${assignmentInfo.style}`}>
+                          <assignmentInfo.icon className="h-4 w-4 mr-1" />
+                          {assignmentInfo.label}
+                        </span>
+                      </div>
                     )}
                   </div>
-
-                  {/* Required Qualifications */}
-                  <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                    <Users className="h-4 w-4 mr-2 text-primary" />
-                    <span>Trainer: {qualification.RequiredQualifications?.length || 0}</span>
-                  </div>
                 </div>
-
-                {/* Job Titles */}
-                {qualification.JobTitleIDs && qualification.JobTitleIDs.length > 0 && (
-                  <div className="mt-2">
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-white flex items-center mb-2">
-                      <Briefcase className="h-4 w-4 mr-2 text-primary" />
-                      Positionen:
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {qualification.JobTitleIDs.map((jobTitleId) => {
-                        const jobTitle = jobTitles?.find(jt => jt.id.toString() === jobTitleId);
-                        return jobTitle ? (
-                          <span
-                            key={jobTitleId}
-                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
-                          >
-                            {jobTitle.jobTitle}
-                          </span>
-                        ) : null;
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Additional Functions */}
-                {qualification.AdditionalFunctionIDs && qualification.AdditionalFunctionIDs.length > 0 && (
-                  <div className="mt-2">
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-white flex items-center mb-2">
-                      <Star className="h-4 w-4 mr-2 text-primary" />
-                      Zusatzfunktionen:
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {qualification.AdditionalFunctionIDs.map((funcId) => {
-                        const func = additionalFunctions?.find(af => af?.ID?.toString() === funcId);
-                        return func ? (
-                          <span
-                            key={funcId}
-                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                          >
-                            {func.Name}
-                          </span>
-                        ) : null;
-                      })}
-                    </div>
-                  </div>
-                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {filteredQualifications.length === 0 && (
             <div className="text-center py-12">
