@@ -67,41 +67,81 @@ export default function Qualifications() {
   ) || [];
 
   const getAssignmentInfo = (qualification: Qualification) => {
+    console.log('Checking qualification:', qualification);
+    console.log('JobTitleIDs:', qualification.JobTitleIDs);
+    console.log('AdditionalFunctionIDs:', qualification.AdditionalFunctionIDs);
+    console.log('IsMandatory:', qualification.IsMandatory);
+  
+    // First check for mandatory qualification
     if (qualification.IsMandatory) {
+      console.log('Qualification is mandatory');
       return {
         type: 'mandatory',
         label: 'Pflichtqualifikation',
+        description: 'Erforderlich für alle Mitarbeiter',
         icon: AlertCircle,
         style: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'
       };
     }
-
-    if (qualification.JobTitleIDs?.length) {
+  
+    // Then check for position-based qualification
+    if (Array.isArray(qualification.JobTitleIDs) && qualification.JobTitleIDs.length > 0) {
+      console.log('Qualification has job titles:', qualification.JobTitleIDs);
+      console.log('Available job titles:', jobTitles);
+      
       const jobTitleNames = qualification.JobTitleIDs
-        .map(id => jobTitles?.find(jt => jt.id === id)?.jobTitle)
+        .map(id => {
+          const jobTitle = jobTitles?.find(jt => jt.id === id)?.jobTitle;
+          console.log('Looking for job title with id:', id, 'Found:', jobTitle);
+          return jobTitle;
+        })
         .filter(Boolean);
+  
+      console.log('Matched job title names:', jobTitleNames);
+  
       return {
         type: 'jobTitle',
-        label: `Verknüpft mit Position${jobTitleNames.length > 1 ? 'en' : ''}: ${jobTitleNames.join(', ')}`,
+        label: 'Positionsqualifikation',
+        description: `Erforderlich für: ${jobTitleNames.join(', ') || 'Keine Position gefunden'}`,
         icon: Briefcase,
         style: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
       };
     }
-
-    if (qualification.AdditionalFunctionIDs?.length) {
+  
+    // Check for additional function qualification
+    if (Array.isArray(qualification.AdditionalFunctionIDs) && qualification.AdditionalFunctionIDs.length > 0) {
+      console.log('Qualification has additional functions:', qualification.AdditionalFunctionIDs);
+      console.log('Available additional functions:', additionalFunctions);
+      
       const functionNames = qualification.AdditionalFunctionIDs
-        .map(id => additionalFunctions?.find(af => af.ID?.toString() === id)?.Name)
+        .map(id => {
+          const func = additionalFunctions?.find(af => af.ID?.toString() === id)?.Name;
+          console.log('Looking for function with id:', id, 'Found:', func);
+          return func;
+        })
         .filter(Boolean);
+  
+      console.log('Matched function names:', functionNames);
+  
       return {
         type: 'additionalFunction',
-        label: `Zusatzfunktion${functionNames.length > 1 ? 'en' : ''}: ${functionNames.join(', ')}`,
+        label: 'Zusatzqualifikation',
+        description: `Verknüpft mit: ${functionNames.join(', ') || 'Keine Funktion gefunden'}`,
         icon: Star,
         style: 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300'
       };
     }
-
-    return null;
+  
+    console.log('No assignment type matched - defaulting to unassigned');
+    return {
+      type: 'unassigned',
+      label: 'Nicht zugewiesen',
+      description: 'Keine spezifische Zuweisung',
+      icon: AlertCircle,
+      style: 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300'
+    };
   };
+  
 
   const handleAddQualification = async (qualification: Omit<Qualification, 'ID'>) => {
     try {
@@ -164,13 +204,13 @@ export default function Qualifications() {
         <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex flex-col gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
                 type="text"
                 placeholder="Qualifikationen durchsuchen..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-colors duration-200"
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
               />
             </div>
           </div>
@@ -211,25 +251,27 @@ export default function Qualifications() {
                       <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 break-words">
                         {qualification.Description}
                       </p>
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Validity Period */}
-                    <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                      <Clock className="h-4 w-4 mr-2 text-primary" />
-                      <span>Gültigkeitsdauer: {qualification.ValidityInMonth} Monate</span>
-                    </div>
-
-                    {/* Assignment Info */}
-                    {assignmentInfo && (
-                      <div className="flex items-center">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${assignmentInfo.style}`}>
-                          <assignmentInfo.icon className="h-4 w-4 mr-1" />
+                      <div className="mt-4 flex flex-wrap gap-4">
+                        {/* Type Badge */}
+                        <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${assignmentInfo.style}`}>
+                          <assignmentInfo.icon className="h-4 w-4 mr-2" />
                           {assignmentInfo.label}
-                        </span>
+                        </div>
+
+                        {/* Description Badge */}
+                        <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                          <Info className="h-4 w-4 mr-2" />
+                          {assignmentInfo.description}
+                        </div>
+
+                        {/* Validity Period Badge */}
+                        <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300">
+                          <Clock className="h-4 w-4 mr-2" />
+                          Gültig für {qualification.ValidityInMonth} Monate
+                        </div>
                       </div>
-                    )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -239,7 +281,9 @@ export default function Qualifications() {
           {filteredQualifications.length === 0 && (
             <div className="text-center py-12">
               <Award className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">Keine Qualifikationen gefunden</h3>
+              <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+                Keine Qualifikationen gefunden
+              </h3>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Beginnen Sie damit, eine neue Qualifikation zu erstellen.
               </p>
@@ -250,41 +294,14 @@ export default function Qualifications() {
 
       {/* Add/Edit Modal */}
       {(showAddModal || editingQual) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-2xl w-full my-8">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                {editingQual ? 'Qualifikation bearbeiten' : 'Neue Qualifikation erstellen'}
-              </h2>
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setEditingQual(null);
-                }}
-                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-
-            <div className="max-h-[calc(100vh-12rem)] overflow-y-auto pr-2
-              [&::-webkit-scrollbar]:w-2
-              [&::-webkit-scrollbar-track]:bg-gray-100
-              [&::-webkit-scrollbar-thumb]:bg-gray-300
-              dark:[&::-webkit-scrollbar-track]:bg-neutral-700
-              dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500
-            ">
-              <QualificationForm
-                onSubmit={editingQual ? handleEditQualification : handleAddQualification}
-                initialData={editingQual}
-                onCancel={() => {
-                  setShowAddModal(false);
-                  setEditingQual(null);
-                }}
-              />
-            </div>
-          </div>
-        </div>
+        <QualificationForm
+          onSubmit={editingQual ? handleEditQualification : handleAddQualification}
+          initialData={editingQual}
+          onCancel={() => {
+            setShowAddModal(false);
+            setEditingQual(null);
+          }}
+        />
       )}
 
       {/* Delete Confirmation Modal */}
@@ -637,59 +654,82 @@ function QualificationForm({ onSubmit, onCancel, initialData }: QualificationFor
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-     {/* Progress Steps */}
-      <div className="relative">
-        <div className="absolute top-4 w-full h-0.5 bg-gray-200 dark:bg-gray-700" />
-        <div className="relative flex justify-between">
-          {[1, 2, 3].map((step) => (
-            <button
-              key={step}
-              type="button"
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-2xl w-full my-8">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            {initialData ? 'Qualifikation bearbeiten' : 'Neue Qualifikation erstellen'}
+          </h2>
+          <button
+            onClick={onCancel}
+            className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        <div className="max-h-[calc(100vh-12rem)] overflow-y-auto pr-2
+          [&::-webkit-scrollbar]:w-2
+          [&::-webkit-scrollbar-track]:bg-gray-100
+          [&::-webkit-scrollbar-thumb]:bg-gray-300
+          dark:[&::-webkit-scrollbar-track]:bg-neutral-700
+          dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500
+        ">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Progress Steps */}
+            <div className="relative">
+              <div className="absolute top-4 w-full h-0.5 bg-gray-200 dark:bg-gray-700" />
+              <div className="relative flex justify-between">
+                {[1, 2, 3].map((step) => (
+                  <button
+                    key={step}
+                    type="button"
+                    onClick={() => {
+                      if (isStepComplete(step - 1)) {
+                        setActiveStep(step);
+                      }
+                    }}
+                    className={`w-9 h-9 rounded-full flex items-center justify-center relative bg-white dark:bg-[#121212] border-2 transition-colors ${
+                      activeStep >= step
+                        ? 'border-primary text-primary'
+                        : 'border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'
+                    }`}
+                  >
+                    <span className="text-sm font-medium">{step}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="flex justify-between mt-2">
+                <span className="text-xs text-gray-500 dark:text-gray-400">Grundinfo</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">Gültigkeit</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">Zuweisung</span>
+              </div>
+            </div>
+
+            {/* Step Content */}
+            {renderStepContent()}
+
+            {/* Navigation Buttons */}
+            <div className="flex justify-between pt-6">
+              <button
+                type="button"
+                onClick={() => activeStep > 1 ? setActiveStep(activeStep - 1) : onCancel()}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
+                {activeStep > 1 ? 'Zurück' : 'Abbrechen'}
+              </button>
               
-              onClick={() => {
-                if (isStepComplete(step - 1)) {
-                  setActiveStep(step);
-                }
-              }}
-              className={`w-9 h-9 rounded-full flex items-center justify-center relative bg-white dark:bg-[#121212] border-2 transition-colors ${
-                activeStep >= step
-                  ? 'border-primary text-primary'
-                  : 'border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'
-              }`}
-            >
-              <span className="text-sm font-medium">{step}</span>
-            </button>
-          ))}
-        </div>
-        <div className="flex justify-between mt-2">
-          <span className="text-xs text-gray-500 dark:text-gray-400">Grundinfo</span>
-          <span className="text-xs text-gray-500 dark:text-gray-400">Gültigkeit</span>
-          <span className="text-xs text-gray-500 dark:text-gray-400">Zuweisung</span>
+              <button
+                type="submit"
+                disabled={!canProceed}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {activeStep < 3 ? 'Weiter' : (initialData ? 'Aktualisieren' : 'Erstellen')}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
-
-      {/* Step Content */}
-      {renderStepContent()}
-
-      {/* Navigation Buttons */}
-      <div className="flex justify-between pt-6">
-        <button
-          type="button"
-          onClick={() => activeStep > 1 ? setActiveStep(activeStep - 1) : onCancel()}
-          className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-        >
-          {activeStep > 1 ? 'Zurück' : 'Abbrechen'}
-        </button>
-        
-        <button
-          type="submit"
-          disabled={!canProceed}
-          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {activeStep < 3 ? 'Weiter' : (initialData ? 'Aktualisieren' : 'Erstellen')}
-        </button>
-      </div>
-    </form>
+    </div>
   );
 }
