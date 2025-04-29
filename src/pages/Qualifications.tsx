@@ -68,80 +68,46 @@ export default function Qualifications() {
 
   const getAssignmentInfo = (qualification: Qualification) => {
     console.log('Checking qualification:', qualification);
-    console.log('JobTitleIDs:', qualification.JobTitleIDs);
-    console.log('AdditionalFunctionIDs:', qualification.AdditionalFunctionIDs);
-    console.log('IsMandatory:', qualification.IsMandatory);
-  
-    // First check for mandatory qualification
-    if (qualification.IsMandatory) {
-      console.log('Qualification is mandatory');
-      return {
-        type: 'mandatory',
-        label: 'Pflichtqualifikation',
-        description: 'Erforderlich für alle Mitarbeiter',
-        icon: AlertCircle,
-        style: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'
-      };
+
+    // Use the Herkunft field to determine the type
+    switch (qualification.Herkunft) {
+      case 'Mandatory':
+        return {
+          type: 'mandatory',
+          label: 'Pflichtqualifikation',
+          description: 'Erforderlich für alle Mitarbeiter',
+          icon: AlertCircle,
+          style: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'
+        };
+
+      case 'Job':
+        return {
+          type: 'jobTitle',
+          label: 'Positionsqualifikation',
+          description: 'An eine Position gebunden',
+          icon: Briefcase,
+          style: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
+        };
+
+      case 'Additional':
+        return {
+          type: 'additionalFunction',
+          label: 'Zusatzqualifikation',
+          description: 'Zusätzliche Qualifikation',
+          icon: Star,
+          style: 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300'
+        };
+
+      default:
+        return {
+          type: 'unassigned',
+          label: 'Nicht zugewiesen',
+          description: 'Keine spezifische Zuweisung',
+          icon: AlertCircle,
+          style: 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300'
+        };
     }
-  
-    // Then check for position-based qualification
-    if (Array.isArray(qualification.JobTitleIDs) && qualification.JobTitleIDs.length > 0) {
-      console.log('Qualification has job titles:', qualification.JobTitleIDs);
-      console.log('Available job titles:', jobTitles);
-      
-      const jobTitleNames = qualification.JobTitleIDs
-        .map(id => {
-          const jobTitle = jobTitles?.find(jt => jt.id === id)?.jobTitle;
-          console.log('Looking for job title with id:', id, 'Found:', jobTitle);
-          return jobTitle;
-        })
-        .filter(Boolean);
-  
-      console.log('Matched job title names:', jobTitleNames);
-  
-      return {
-        type: 'jobTitle',
-        label: 'Positionsqualifikation',
-        description: `Erforderlich für: ${jobTitleNames.join(', ') || 'Keine Position gefunden'}`,
-        icon: Briefcase,
-        style: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
-      };
-    }
-  
-    // Check for additional function qualification
-    if (Array.isArray(qualification.AdditionalFunctionIDs) && qualification.AdditionalFunctionIDs.length > 0) {
-      console.log('Qualification has additional functions:', qualification.AdditionalFunctionIDs);
-      console.log('Available additional functions:', additionalFunctions);
-      
-      const functionNames = qualification.AdditionalFunctionIDs
-        .map(id => {
-          const func = additionalFunctions?.find(af => af.ID?.toString() === id)?.Name;
-          console.log('Looking for function with id:', id, 'Found:', func);
-          return func;
-        })
-        .filter(Boolean);
-  
-      console.log('Matched function names:', functionNames);
-  
-      return {
-        type: 'additionalFunction',
-        label: 'Zusatzqualifikation',
-        description: `Verknüpft mit: ${functionNames.join(', ') || 'Keine Funktion gefunden'}`,
-        icon: Star,
-        style: 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300'
-      };
-    }
-  
-    console.log('No assignment type matched - defaulting to unassigned');
-    return {
-      type: 'unassigned',
-      label: 'Nicht zugewiesen',
-      description: 'Keine spezifische Zuweisung',
-      icon: AlertCircle,
-      style: 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300'
-    };
   };
-  
 
   const handleAddQualification = async (qualification: Omit<Qualification, 'ID'>) => {
     try {

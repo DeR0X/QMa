@@ -5,11 +5,8 @@ export interface Qualification {
   Name: string;
   Description: string;
   ValidityInMonth: number;
-  IsMandatory: boolean;
-  RequiredQualifications: string[];
-  AssignmentType: 'jobTitle' | 'additionalFunction' | 'mandatory';
-  JobTitleIDs?: string[];
-  AdditionalFunctionIDs?: string[];
+  AssignmentType: 'Job' | 'Zusatz' | 'Pflicht';
+  Herkunft: string;
 }
 
 const API_URL = 'http://localhost:5000/api';
@@ -17,7 +14,7 @@ const API_URL = 'http://localhost:5000/api';
 export const qualificationsApi = {
   async getAll(): Promise<Qualification[]> {
     try {
-      const response = await fetch(`${API_URL}/qualifications`);
+      const response = await fetch(`${API_URL}/v2/qualification-view`);
       if (!response.ok) throw new Error('Failed to fetch qualifications');
       return response.json();
     } catch (error) {
@@ -30,7 +27,7 @@ export const qualificationsApi = {
     try {
 
         // Set IsMandatory based on AssignmentType
-      const isMandatory = data.AssignmentType === 'mandatory';
+      const Herkunft = data.AssignmentType === 'Pflicht';
       
       // Erstelle zuerst die Qualifikation
       const response = await fetch(`${API_URL}/qualifications`, {
@@ -42,7 +39,7 @@ export const qualificationsApi = {
             Name: data.Name,
             Description: data.Description,
             ValidityInMonth: data.ValidityInMonth,
-            IsMandatory: isMandatory ? 1 : 0,
+            Herkunft: Herkunft,
         }),
 
       });
