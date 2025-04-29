@@ -147,6 +147,16 @@ export interface DocumentMetadata {
   expirationDate?: string;
   version: string;
   owner: string;
+
+export interface AdditionalSkillQualificationResponse {
+  ID: number;
+  AdditionalSkillID: number;
+  QualificationID: number;
+  AdditionalSkillName: string;
+  QualificationName: string;
+  QualificationDescription: string;
+}
+
   createdAt: string;
   updatedAt: string;
   tags: string[];
