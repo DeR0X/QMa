@@ -5,6 +5,7 @@ interface JobTitle {
   id: string;
   jobTitle: string;
   description: string;
+  qualificationIDs: string[];
 }
 const API_URL = 'http://localhost:5000/api/v2';
 const DEBUG = true;

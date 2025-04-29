@@ -13,7 +13,7 @@ async function fetchDepartments(): Promise<Department[]> {
   if (DEBUG) console.log('Fetching departments...');
   
   try {
-    const response = await fetch('http://localhost:5000/api/v2/departments', {
+    const response = await fetch('http://localhost:5000/api/departments', {
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -64,9 +64,6 @@ export function useDepartments() {
   return useQuery({
     queryKey: ['departments'],
     queryFn: fetchDepartments,
-    retry: 1,
-    onError: (error) => {
-      console.error('Department query error:', error);
-    }
+    retry: 1
   });
 }
