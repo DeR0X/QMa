@@ -11,6 +11,7 @@ import TrainingStatistics from '../components/dashboard/TrainingStatistics';
 import QualificationDetails from '../components/dashboard/QualificationDetails';
 import type { Qualification, Employee, EmployeeFilters } from '../types';
 import { useEmployees } from '../hooks/useEmployees';
+import { useEmployeeQualifications } from '../hooks/useEmployeeQualifications'; // Import the new hook
 
 interface DashboardStats {
   totalEmployees: number;
@@ -39,12 +40,13 @@ export default function Dashboard() {
     isLoading, 
     error 
   } = useEmployees(filters);
+  const { data: employeeQualificationsData, isLoading: isLoadingQualifications } = useEmployeeQualifications(employee?.ID ? employee.ID.toString() : ''); // Call the new hook
 
   useEffect(() => {
     if (employee) {
       const jobTitle = jobTitles.find(jt => jt.id === employee.JobTitleID?.toString());
       const userQuals = qualifications.filter(qual => jobTitle?.qualificationIDs.includes(qual.id));
-      
+
       userQuals.forEach(qual => {
         const lastTraining = bookings
           .filter(b => b.userId === employee.ID.toString() && b.status === 'abgeschlossen')
@@ -63,7 +65,7 @@ export default function Dashboard() {
 
   if (!employee) return null;
 
-  if (isLoading) {
+  if (isLoading || isLoadingQualifications) { // Check both loading states
     return (
       <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
         <p className="text-lg text-gray-500 dark:text-gray-400">Laden...</p>
@@ -79,9 +81,10 @@ export default function Dashboard() {
     );
   }
 
-  const userBookings = bookings.filter(booking => booking.userId === employee.ID);
+  const userBookings = bookings.filter(booking => Number(booking.userId) === employee.ID);
   const jobTitle = jobTitles.find(jt => jt.id === employee.JobTitleID?.toString());
-  const userQualifications = qualifications.filter(qual => jobTitle?.qualificationIDs.includes(qual.id));
+  const userQualifications = employeeQualificationsData || []; // Use the data from the new query
+
 
   const stats = [
     { 
@@ -102,15 +105,18 @@ export default function Dashboard() {
   ];
 
   const getQualificationStatus = (qualId: string) => {
-    const employeeQual = userQualifications.find((qual) => qual.id === qualId);
+    const employeeQual = userQualifications.find((qual) => qual.QualificationID === qualId);
     if (!employeeQual) return 'inactive';
+
+    const qualification = qualifications.find(q => q.id === qualId);
+    if (!qualification) return 'inactive';
 
     const lastTraining = userBookings
       .filter(b => b.status === 'abgeschlossen')
       .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())[0];
 
     const expiryDate = lastTraining && lastTraining.completedAt
-      ? calculateExpirationDate(lastTraining.completedAt, employeeQual.validityInMonth)
+      ? calculateExpirationDate(lastTraining.completedAt, qualification.validityInMonth)
       : new Date();
     const today = new Date();
     const twoMonthsFromNow = new Date(today.getFullYear(), today.getMonth() + 2, today.getDate());
@@ -149,7 +155,7 @@ export default function Dashboard() {
     <div className="space-y-6 p-4 sm:p-6">
       <div>
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-          {employee.fullName}
+          {employee.FullName}
         </h1>
       </div>
 
@@ -213,7 +219,7 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-        
+
         <div className="overflow-hidden rounded-lg bg-white dark:bg-[#181818] shadow">
           <div className="p-6">
             <div className="flex flex-col sm:flex-row items-start justify-between mb-4">
@@ -228,22 +234,25 @@ export default function Dashboard() {
             </div>
             <div className="mt-6 space-y-4">
               {userQualifications.map((qual) => {
+                const qualification = qualifications.find(q => q.id === qual.QualificationID);
+                if (!qualification) return null;
+
                 const lastTraining = userBookings
                   .filter(b => b.status === 'abgeschlossen' && trainings.find(t => t.id === b.trainingId)?.id)
                   .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())[0];
 
                 const expirationDate = lastTraining?.completedAt
-                  ? calculateExpirationDate(lastTraining.completedAt, qual.validityInMonth)
+                  ? calculateExpirationDate(lastTraining.completedAt, qualification.validityInMonth)
                   : null;
 
                 return (
-                  <div key={qual.id} className="flex flex-col sm:flex-row items-center justify-between">
+                  <div key={qual.ID} className="flex flex-col sm:flex-row items-center justify-between">
                     <div className="flex-1">
                       <h3 
                         className="text-sm font-medium text-gray-900 dark:text-white cursor-pointer hover:text-primary"
-                        onClick={() => setSelectedQual(qual)}
+                        onClick={() => setSelectedQual(qualification)}
                       >
-                        {qual.name}
+                        {qualification.name}
                       </h3>
                       {expirationDate && (
                         <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -252,8 +261,8 @@ export default function Dashboard() {
                       )}
                     </div>
                     <div className="ml-0 sm:ml-4 mt-2 sm:mt-0">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles(getQualificationStatus(qual.id))}`}>
-                        {getStatusText(getQualificationStatus(qual.id))}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles(getQualificationStatus(qual.QualificationID))}`}>
+                        {getStatusText(getQualificationStatus(qual.QualificationID))}
                       </span>
                     </div>
                   </div>

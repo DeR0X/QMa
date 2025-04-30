@@ -1,15 +1,15 @@
-import { useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
-import { Lock, UserCircle, Moon, Sun } from 'lucide-react';
-import { login } from '../../store/slices/authSlice';
-import { toast } from 'sonner';
-import { RootState } from '../../store';
-import { useTheme } from '../../components/theme-provider';
+import { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { Lock, UserCircle, Moon, Sun } from "lucide-react";
+import { login } from "../../store/slices/authSlice";
+import { toast } from "sonner";
+import { RootState } from "../../store";
+import { useTheme } from "../../components/theme-provider";
 
 export default function LoginForm() {
-  const [personalNumber, setPersonalNumber] = useState('');
-  const [password, setPassword] = useState('');
+  const [staffNumber, setStaffNumber] = useState("");
+  const [password, setPassword] = useState("");
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { loading, error } = useSelector((state: RootState) => state.auth);
@@ -17,11 +17,11 @@ export default function LoginForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
-      await dispatch(login(personalNumber, password) as any);
+      await dispatch(login(staffNumber, password) as any);
       if (!error) {
-        navigate('/');
+        navigate("/");
         //toast.success('Willkommen zurück!');
       }
     } catch (error) {
@@ -39,7 +39,7 @@ export default function LoginForm() {
             onClick={toggleTheme}
           >
             <span className="sr-only">Toggle theme</span>
-            {theme === 'dark' ? (
+            {theme === "dark" ? (
               <Sun className="h-6 w-6" aria-hidden="true" />
             ) : (
               <Moon className="h-6 w-6" aria-hidden="true" />
@@ -55,7 +55,8 @@ export default function LoginForm() {
               Melden Sie sich mit Ihrem Konto an
             </h2>
             <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-              Verwenden Sie Ihre Personal Nummer, um auf die Q-Matrix zuzugreifen
+              Verwenden Sie Ihre Personal Nummer, um auf die Q-Matrix
+              zuzugreifen
             </p>
           </div>
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -71,13 +72,12 @@ export default function LoginForm() {
                     </h3>
                     <div className="mt-2 text-sm text-red-700 dark:text-red-300">
                       <p>{error}</p>
-                      {error.includes('gesperrt') && (
+                      {error.includes("gesperrt") && (
                         <p className="mt-2">
                           Bitte wenden Sie sich an:
                           <br />
                           - Ihren Vorgesetzten
-                          <br />
-                          - Die IT-Abteilung (it@beistahl.de)
+                          <br />- Die IT-Abteilung (it@beistahl.de)
                         </p>
                       )}
                     </div>
@@ -85,10 +85,10 @@ export default function LoginForm() {
                 </div>
               </div>
             )}
-            
+
             <div className="rounded-md shadow-sm -space-y-px">
               <div>
-                <label htmlFor="personal-number" className="sr-only">
+                <label htmlFor="staff-number" className="sr-only">
                   Personal Nummer
                 </label>
                 <div className="relative">
@@ -96,14 +96,14 @@ export default function LoginForm() {
                     <UserCircle className="h-5 w-5 text-gray-400" />
                   </div>
                   <input
-                    id="personal-number"
-                    name="personal-number"
+                    id="staff-number"
+                    name="staff-number"
                     type="text"
                     required
                     className="appearance-none rounded-none relative block w-full px-3 py-2 pl-10 border border-gray-300 dark:border-gray-800 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-t-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm bg-white dark:bg-[#121212]"
                     placeholder="Personal Nummer"
-                    value={personalNumber}
-                    onChange={(e) => setPersonalNumber(e.target.value)}
+                    value={staffNumber}
+                    onChange={(e) => setStaffNumber(e.target.value)}
                   />
                 </div>
               </div>
@@ -136,7 +136,7 @@ export default function LoginForm() {
                 disabled={loading}
                 className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md bg-primary text-white hover:bg-primary/90 dark:bg-[#121212] dark:text-white dark:hover:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed dark:ring-offset-[#121212] dark:border-gray-800"
               >
-                {loading ? 'Anmeldung läuft...' : 'Anmelden'}
+                {loading ? "Anmeldung läuft..." : "Anmelden"}
               </button>
             </div>
           </form>

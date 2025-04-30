@@ -47,6 +47,11 @@ import {
   useAddEmployeeQualification,
 } from "../../hooks/useQualifications";
 import { useEmployeeQualifications } from "../../hooks/useEmployeeQualifications";
+import {
+  useAddEmployeeSkill,
+  useDeleteEmployeeSkill,
+} from "../../hooks/useEmployeeSkills";
+import { useGetEmployeeSkills } from "../../hooks/useEmployeeSkills";
 
 interface Props {
   employee: Employee;
@@ -88,6 +93,9 @@ export default function EmployeeDetails({
     isLoading: isLoadingEmployeeQualifications,
   } = useEmployeeQualifications(employee.ID.toString());
   const addEmployeeQualification = useAddEmployeeQualification();
+  const addEmployeeSkill = useAddEmployeeSkill();
+  const deleteEmployeeSkill = useDeleteEmployeeSkill();
+  const { data: employeeSkills, isLoading: isLoadingSkills } = useGetEmployeeSkills(employee.ID.toString());
 
   const getDepartmentName = (departmentId: number | null) => {
     if (!departmentId) return "Keine Abteilung";
@@ -117,6 +125,29 @@ export default function EmployeeDetails({
     id: "info" | "qualifications" | "documents" | "approvals" | "trainer";
     label: string;
   }>;
+
+  const handleAddSkill = async (skillId: number) => {
+    try {
+      await addEmployeeSkill.mutateAsync({
+        employeeId: employee.ID.toString(),
+        skillId: skillId,
+      });
+      setShowPositionModal(false);
+    } catch (error) {
+      console.error("Error adding skill:", error);
+    }
+  };
+
+  const handleDeleteSkill = async (skillId: number) => {
+    try {
+      await deleteEmployeeSkill.mutateAsync({
+        employeeId: employee.ID.toString(),
+        skillId: skillId,
+      });
+    } catch (error) {
+      console.error("Error deleting skill:", error);
+    }
+  };
 
   const handleAddQualification = async (qualificationId: string) => {
     try {
@@ -154,7 +185,9 @@ export default function EmployeeDetails({
     }
   };
 
-  const employeeQualificationIds = getEmployeeQualifications();
+  const employeeQualifications = employeeQualificationsData || [];
+  console.log("Mitarbeiter-Qualifikationen:", employeeQualifications);
+  console.log("Verfügbare Qualifikationen:", qualificationsData);
 
   const getQualificationStatus = (qualId: string) => {
     if (!employeeQualificationsData) return "inactive";
@@ -163,6 +196,8 @@ export default function EmployeeDetails({
       (eq) => eq.QualificationID === qualId,
     );
     if (!employeeQual) return "inactive";
+
+    if (!employeeQual.IsQualifiedUntil) return "inactive";
 
     const expiryDate = new Date(employeeQual.IsQualifiedUntil);
     const today = new Date();
@@ -173,34 +208,6 @@ export default function EmployeeDetails({
     if (expiryDate <= twoMonthsFromNow) return "expiring";
     return "active";
   };
-
-  // Add this helper function at the top of the file
-  /* const getQualificationType = (qualification: Qualification) => {
-  if (qualification.isMandatory) {
-    return {
-      type: 'mandatory',
-      label: 'Pflichtqualifikation',
-      icon: AlertTriangle,
-      style: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'
-    };
-  }
-
-  if (qualification.JobTitleIDs?.length) {
-    return {
-      type: 'jobTitle',
-      label: 'Positionsqualifikation', 
-      icon: Briefcase,
-      style: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
-    };
-  }
-
-  return {
-    type: 'additional',
-    label: 'Zusatzqualifikation',
-    icon: Star, 
-    style: 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300'
-  };
-}; */
 
   const getStatusStyles = (status: string) => {
     switch (status) {
@@ -223,6 +230,8 @@ export default function EmployeeDetails({
         return "Läuft bald ab";
       case "expired":
         return "Abgelaufen";
+      case "inactive":
+        return "Noch nicht vergeben";
       default:
         return "Inaktiv";
     }
@@ -256,23 +265,32 @@ export default function EmployeeDetails({
     onUpdate(updatedEmployee);
   };
 
-  // Get all qualifications
-  const userQualifications =
-    qualificationsData?.filter(
-      (qual) =>
-        qual.ID && employeeQualificationIds.includes(qual.ID.toString()),
-    ) || [];
+  const userQualifications = employeeQualificationsData || [];
+/*     console.log("Mitarbeiter-Qualifikationen:", userQualifications);  */
+  /* console.log("Verfügbare Qualifikationen:", qualificationsData);  */
 
-  // Get available qualifications (excluding already assigned ones)
+  const getQualificationName = (qualId: string) => {
+    if (!qualificationsData) return "Unbekannte Qualifikation";
+    let qualification;
+    for (let i = 0; i < qualificationsData.length; i++) {
+      if (qualificationsData[i].ID?.toString() === qualId.toString()) {
+        qualification = qualificationsData[i];
+        break;
+      }
+    }
+    if (!qualification) return "Unbekannte Qualifikation";
+
+    return qualification.Name;
+  };
+
   const availableQualifications =
     qualificationsData?.filter(
       (qual) =>
         qual.ID &&
-        !employeeQualificationIds.includes(qual.ID.toString()) &&
+        !employeeQualifications.some(eq => eq.QualificationID === String(qual.ID)) &&
         (qual.Herkunft === "Zusatz" || qual.AdditionalSkillID), // Show Zusatz qualifications and those with AdditionalSkillID
     ) || [];
 
-  // Helper function to safely get initials from a name
   const getInitials = (name: string | undefined) => {
     if (!name) return "??";
     return name
@@ -281,12 +299,12 @@ export default function EmployeeDetails({
       .join("");
   };
 
-  if (isLoadingQualifications || isLoadingEmployeeQualifications) {
+  if (isLoadingQualifications || isLoadingEmployeeQualifications || isLoadingSkills) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white dark:bg-[#121212] rounded-lg p-6">
           <p className="text-gray-500 dark:text-gray-400">
-            Lade Qualifikationen...
+            Lade Daten...
           </p>
         </div>
       </div>
@@ -407,185 +425,40 @@ export default function EmployeeDetails({
                     </div>
 
                     <div className="space-y-6">
-                      {/* Pflichtqualifikationen */}
-                      {userQualifications
-                        .filter((qual) => qual.IsMandatory)
-                        .map((qual) => {
-                          if (!qual.ID) return null;
-                          const employeeQual = employeeQualificationsData?.find(
-                            (eq) => eq.QualificationID === String(qual.ID),
-                          );
-                          const status = getQualificationStatus(
-                            String(qual.ID),
-                          );
+                      {userQualifications.map((qual) => {
+                        if (!qual.QualificationID) return null;
+                        const status = getQualificationStatus(qual.QualificationID);
 
-                          return (
-                            <div
-                              key={qual.ID}
-                              className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg"
-                            >
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <h5 className="text-sm font-medium text-gray-900 dark:text-white">
-                                    {qual.Name}
-                                  </h5>
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300">
-                                    <AlertTriangle className="h-3 w-3 mr-1" />
-                                    Pflichtqualifikation
-                                  </span>
-                                </div>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                  {qual.Description}
-                                </p>
-                                {employeeQual && (
-                                  <div className="mt-2 space-y-1">
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-                                      <Clock className="h-4 w-4 mr-1" />
-                                      Qualifiziert seit:{" "}
-                                      {formatDate(employeeQual.QualifiedFrom)}
-                                    </p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-                                      <AlertCircle className="h-4 w-4 mr-1" />
-                                      Gültig bis:{" "}
-                                      {employeeQual.IsQualifiedUntil
-                                        ? formatDate(
-                                            employeeQual.IsQualifiedUntil,
-                                          )
-                                        : "Nicht verfügbar"}
-                                    </p>
-                                  </div>
-                                )}
+                        return (
+                          <div
+                            key={qual.QualificationID}
+                            className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg"
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h5 className="text-sm font-medium text-gray-900 dark:text-white">
+                                  {getQualificationName(qual.QualificationID[0])}
+                                </h5>
                               </div>
-                              <span
-                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles(status)}`}
-                              >
-                                {getStatusText(status)}
-                              </span>
-                            </div>
-                          );
-                        })}
-
-                      {/* Positionsqualifikationen */}
-                      {userQualifications
-                        .filter(
-                          (qual) =>
-                            qual.JobTitleID?.length && !qual.IsMandatory,
-                        )
-                        .map((qual) => {
-                          if (!qual.ID) return null;
-                          const employeeQual = employeeQualificationsData?.find(
-                            (eq) => eq.QualificationID === String(qual.ID),
-                          );
-                          const status = getQualificationStatus(
-                            String(qual.ID),
-                          );
-
-                          return (
-                            <div
-                              key={qual.ID}
-                              className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg"
-                            >
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <h5 className="text-sm font-medium text-gray-900 dark:text-white">
-                                    {qual.Name}
-                                  </h5>
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
-                                    <Briefcase className="h-3 w-3 mr-1" />
-                                    Positionsqualifikation
-                                  </span>
-                                </div>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                  {qual.Description}
+                              <div className="mt-2 space-y-1">
+                                <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                  <Clock className="h-4 w-4 mr-1" />
+                                  Qualifiziert seit: {qual.QualifiedFrom ? formatDate(qual.QualifiedFrom) : "noch nicht vergeben"}
                                 </p>
-                                {employeeQual && (
-                                  <div className="mt-2 space-y-1">
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-                                      <Clock className="h-4 w-4 mr-1" />
-                                      Qualifiziert seit:{" "}
-                                      {formatDate(employeeQual.QualifiedFrom)}
-                                    </p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-                                      <AlertCircle className="h-4 w-4 mr-1" />
-                                      Gültig bis:{" "}
-                                      {employeeQual.IsQualifiedUntil
-                                        ? formatDate(
-                                            employeeQual.IsQualifiedUntil,
-                                          )
-                                        : "Nicht verfügbar"}
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                              <span
-                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles(status)}`}
-                              >
-                                {getStatusText(status)}
-                              </span>
-                            </div>
-                          );
-                        })}
-
-                      {/* Zusatzqualifikationen */}
-                      {userQualifications
-                        .filter(
-                          (qual) =>
-                            !qual.IsMandatory && !qual.JobTitleID?.length,
-                        )
-                        .map((qual) => {
-                          if (!qual.ID) return null;
-                          const employeeQual = employeeQualificationsData?.find(
-                            (eq) => eq.QualificationID === String(qual.ID),
-                          );
-                          const status = getQualificationStatus(
-                            String(qual.ID),
-                          );
-
-                          return (
-                            <div
-                              key={qual.ID}
-                              className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg"
-                            >
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <h5 className="text-sm font-medium text-gray-900 dark:text-white">
-                                    {qual.Name}
-                                  </h5>
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300">
-                                    <Star className="h-3 w-3 mr-1" />
-                                    Zusatzqualifikation
-                                  </span>
-                                </div>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                  {qual.Description}
+                                <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                  <AlertCircle className="h-4 w-4 mr-1" />
+                                  Gültig bis: {qual.ToQualifyUntil ? formatDate(qual.ToQualifyUntil) : "noch nicht vergeben"}
                                 </p>
-                                {employeeQual && (
-                                  <div className="mt-2 space-y-1">
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-                                      <Clock className="h-4 w-4 mr-1" />
-                                      Qualifiziert seit:{" "}
-                                      {formatDate(employeeQual.QualifiedFrom)}
-                                    </p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-                                      <AlertCircle className="h-4 w-4 mr-1" />
-                                      Gültig bis:{" "}
-                                      {employeeQual.IsQualifiedUntil
-                                        ? formatDate(
-                                            employeeQual.IsQualifiedUntil,
-                                          )
-                                        : "Nicht verfügbar"}
-                                    </p>
-                                  </div>
-                                )}
                               </div>
-                              <span
-                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles(status)}`}
-                              >
-                                {getStatusText(status)}
-                              </span>
                             </div>
-                          );
-                        })}
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles(status)}`}
+                            >
+                              {getStatusText(status)}
+                            </span>
+                          </div>
+                        );
+                      })}
 
                       {userQualifications.length === 0 && (
                         <p className="text-center text-gray-500 dark:text-gray-400">
@@ -804,12 +677,10 @@ export default function EmployeeDetails({
                         Gültigkeitsdauer: {qual.ValidityInMonth} Monate
                       </div>
                       <button
-                        onClick={() =>
-                          handleAddQualification(qual.ID!.toString())
-                        }
+                        onClick={() => handleAddSkill(qual.ID!)}
                         className="w-full px-4 py-2 text-sm font-medium text-primary border border-primary rounded-md hover:bg-primary/10 dark:hover:bg-primary/5"
                       >
-                        Qualifikation hinzufügen
+                        Zusatzqualifikation hinzufügen
                       </button>
                     </div>
                   </div>

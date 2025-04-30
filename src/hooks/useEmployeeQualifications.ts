@@ -35,6 +35,7 @@ export const useAddEmployeeQualification = () => {
       qualificationId: string;
       qualifiedFrom: string;
       toQualifyUntil: string;
+      isQualifiedUntil: boolean;
     }) => {
       const response = await fetch(`${API_URL}/employee-qualifications`, {
         method: 'POST',
@@ -46,6 +47,7 @@ export const useAddEmployeeQualification = () => {
           QualificationID: data.qualificationId,
           QualifiedFrom: data.qualifiedFrom,
           ToQualifyUntil: data.toQualifyUntil,
+          IsQualifiedUntil: data.isQualifiedUntil
         }),
       });
 

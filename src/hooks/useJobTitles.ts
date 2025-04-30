@@ -7,7 +7,6 @@ interface JobTitle {
   description: string;
 }
 
-const API_URL = 'http://localhost:5000/api/v2';
 const DEBUG = true;
 
 async function fetchJobTitles(): Promise<JobTitle[]> {
