@@ -39,8 +39,8 @@ export function useEmployees(filters: EmployeeFilters = {}) {
           const searchTerms = filters.search.toLowerCase().split(' ');
           
           const filteredData = response.data.filter((employee: Employee) => {
-            const fullName = employee.FullName?.toLowerCase() || '';
-            const staffNumber = employee.StaffNumber?.toString().toLowerCase() || '';
+            const fullName = employee.fullName?.toLowerCase() || '';
+            const staffNumber = employee.staffNumber?.toString().toLowerCase() || '';
             
             // Check if ALL search terms match either the full name or staff number
             return searchTerms.every(term => 

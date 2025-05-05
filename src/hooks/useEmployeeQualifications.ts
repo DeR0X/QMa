@@ -4,12 +4,12 @@ import { toast } from 'sonner';
 const API_URL = 'http://localhost:5000/api';
 
 interface EmployeeQualification {
-  ID: string;
-  EmployeeID: string;
-  QualificationID: string;
-  QualifiedFrom: string;
-  ToQualifyUntil: string;
-  IsQualifiedUntil: string;
+  id: string;
+  employeeID: string;
+  qualificationID: string;
+  qualifiedFrom: string;
+  toQualifyUntil: string;
+  isQualifiedUntil: string;
 }
 
 export const useEmployeeQualifications = (employeeId: string) => {
@@ -43,11 +43,11 @@ export const useAddEmployeeQualification = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          EmployeeID: data.employeeId,
-          QualificationID: data.qualificationId,
-          QualifiedFrom: data.qualifiedFrom,
-          ToQualifyUntil: data.toQualifyUntil,
-          IsQualifiedUntil: data.isQualifiedUntil
+          employeeID: data.employeeId,
+          qualificationID: data.qualificationId,
+          qualifiedFrom: data.qualifiedFrom,
+          toQualifyUntil: data.toQualifyUntil,
+          isQualifiedUntil: data.isQualifiedUntil
         }),
       });
 

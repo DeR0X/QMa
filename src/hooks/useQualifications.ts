@@ -42,10 +42,10 @@ export function useAddEmployeeQualification() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          EmployeeID: data.employeeId,
-          QualificationID: data.qualificationId,
-          QualifiedFrom: data.qualifiedFrom,
-          ToQualifyUntil: data.toQualifyUntil,
+          employeeID: data.employeeId,
+          qualificationID: data.qualificationId,
+          qualifiedFrom: data.qualifiedFrom,
+          toQualifyUntil: data.toQualifyUntil,
         }),
       });
 

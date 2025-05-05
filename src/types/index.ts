@@ -15,23 +15,24 @@ export interface JobTitle {
 }
 
 export interface Employee {
-  ID?: number;
-  StaffNumber: string;
-  SurName: string;
-  FirstName: string;
-  FullName: string;
+  id?: number;
+  staffNumber: string;
+  surName: string;
+  firstName: string;
+  fullName: string;
   role: Role;
   eMail: string;
-  DepartmentID: number | string;
-  Department: string | null;
-  JobTitleID: number | string;
-  SupervisorID: number | string;
+  departmentID: number | string;
+  department: string | null;
+  jobTitleID: number | string;
+  jobTitle: string | null;
+  supervisorID: number | string;
   additionalSkillIDs?: string[];
   additionalPositions?: string[];
   isActive: boolean;
   isTrainer?: boolean;
   trainerFor?: string[];
-  PasswordHash: string | null;
+  passwordHash: string | null;
 }
 
 export interface Qualification {

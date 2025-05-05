@@ -21,40 +21,40 @@ export default function Departments() {
   const { data: jobTitles } = useJobTitles();
   const { data: departments } = useDepartments();
 
-  const getJobTitle = (jobTitleId: string) => {
+  const getJobTitle = (jobTitleID: string) => {
     if (!jobTitles) return 'Laden...';
-    const jobTitle = jobTitles.find(jt => jt.id === jobTitleId);
-    return jobTitle ? jobTitle.jobTitle : jobTitleId;
+    const jobTitle = jobTitles.find(jt => jt.id === jobTitleID);
+    return jobTitle ? jobTitle.jobTitle : jobTitleID;
   };
 
   const getEmployeeQualifications = (employee: Employee) => {
     if (!jobTitles) return [];
-    const jobTitle = jobTitles.find(jt => jt.id === employee.JobTitleID?.toString());
+    const jobTitle = jobTitles.find(jt => jt.id === employee.jobTitleID?.toString());
     return jobTitle ? jobTitle.qualificationIDs : [];
   };
 
   // Filtere Abteilungen anhand der Suchanfrage und Benutzerrolle
   const filteredDepartments = departments ? departments.filter(dept => {
     const matchesSearch = dept.Department.toLowerCase().includes(searchTerm.toLowerCase());
-    const employeeCount = employees!.data.filter((user : any) => user.DepartmentID?.toString() === dept.ID).length;
+    const employeeCount = employees!.data.filter((user : any) => user.Departmentid?.toString() === dept.ID).length;
     const passesEmptyFilter = !hideEmptyDepartments || employeeCount > 0;
     
     if (isHR) {
       return matchesSearch && passesEmptyFilter;
     } else if (isSupervisor) {
-      return dept.ID.toString() === currentUser?.DepartmentID?.toString() && matchesSearch && passesEmptyFilter;
+      return dept.ID.toString() === currentUser?.departmentID?.toString() && matchesSearch && passesEmptyFilter;
     }
     return false;
   }) : [];
 
   // Hole Mitarbeiter der ausgewählten Abteilung
   const departmentEmployees = selectedDepartment
-    ? employees!.data.filter((user : any) => user.DepartmentID?.toString() === selectedDepartment)
+    ? employees!.data.filter((user : any) => user.Departmentid?.toString() === selectedDepartment)
     : [];
 
   // Ermittel die Mitarbeiterzahl für eine Abteilung
-  const getDepartmentEmployeeCount = (departmentId: string) => {
-    return employees!.data.filter((user : any) => user.DepartmentID?.toString() === departmentId).length;
+  const getDepartmentEmployeeCount = (departmentid: string) => {
+    return employees!.data.filter((user : any) => user.Departmentid?.toString() === departmentid).length;
   };
 
   // Zugriff nur erlauben, wenn der Benutzer HR oder Supervisor ist
@@ -128,7 +128,7 @@ export default function Departments() {
                       {employeeCount} Mitarbeiter
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      ID: {dept.DepartmentID_Atoss}
+                      id: {dept.DepartmentID_Atoss}
                     </p>
                   </div>
                 </div>
@@ -193,22 +193,22 @@ export default function Departments() {
               <div className="space-y-6">
                 {departmentEmployees.map((employee) => (
                   <div
-                    key={employee.ID}
+                    key={employee.id}
                     className="bg-gray-50 dark:bg-[#181818] rounded-lg p-4"
                   >
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
                       <div className="flex items-center">
                         <div className="h-12 w-12 rounded-full bg-primary text-white flex items-center justify-center">
                           <span className="text-lg font-medium">
-                            {employee.FullName.split(' ').map((n) => n[0]).join('')}
+                            {employee.fullName.split(' ').map((n) => n[0]).join('')}
                           </span>
                         </div>
                         <div className="ml-0 mt-2 sm:ml-4 sm:mt-0">
                           <h3 className="text-lg font-medium text-gray-900 dark:text-white break-words">
-                            {employee.FullName}
+                            {employee.fullName}
                           </h3>
                           <p className="text-sm text-gray-500 dark:text-gray-400 break-words">
-                            {getJobTitle(employee.JobTitleID?.toString() || '')}
+                            {getJobTitle(employee.jobTitleID?.toString() || '')}
                           </p>
                         </div>
                       </div>
@@ -235,7 +235,7 @@ export default function Departments() {
                           </p>
                           <p className="text-sm flex items-center text-gray-500 dark:text-gray-400 break-words">
                             <Users className="h-4 w-4 mr-2" />
-                            Personalnummer: {employee.StaffNumber}
+                            Personalnummer: {employee.staffNumber}
                           </p>
                         </div>
                       </div>

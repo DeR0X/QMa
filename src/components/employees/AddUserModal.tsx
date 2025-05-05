@@ -55,15 +55,15 @@ export default function AddUserModal({ onClose, onAdd }: Props) {
     const newEmployee: Omit<Employee, "id" | "isActive" | "failedLoginAttempts"> = {
       eMail: formData.email,
       role: formData.role,
-      StaffNumber: formData.personalNumber,
-      FirstName: formData.name,
-      SurName: '',
-      FullName: formData.name,
-      DepartmentID: formData.department,
-      Department: formData.department,
-      JobTitleID: formData.position,
-      SupervisorID: '',
-      PasswordHash: ''
+      staffNumber: formData.personalNumber,
+      firstName: formData.name,
+      surName: '',
+      fullName: formData.name,
+      departmentID: formData.department,
+      department: formData.department,
+      jobTitleID: formData.position,
+      supervisorID: '',
+      passwordHash: ''
     };
 
     onAdd(newEmployee);
