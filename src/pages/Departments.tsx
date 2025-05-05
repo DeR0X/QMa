@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Building2, Plus, Users, Mail, Phone, CheckCircle, XCircle, GraduationCap, X } from 'lucide-react';
 import { RootState } from '../store';
-import { employees, departments, jobTitles } from '../data/mockData';
+import { useEmployees } from '../hooks/useEmployees';
+import { useJobTitles } from '../hooks/useJobTitles';
+import { useDepartments } from '../hooks/useDepartments';
 import type { Employee } from '../types';
 import { hasHRPermissions } from '../store/slices/authSlice';
 
@@ -15,38 +17,44 @@ export default function Departments() {
   const isHR = hasHRPermissions(currentUser);
   const isSupervisor = currentUser?.role === 'supervisor';
 
+  const { data: employees } = useEmployees();
+  const { data: jobTitles } = useJobTitles();
+  const { data: departments } = useDepartments();
+
   const getJobTitle = (jobTitleId: string) => {
+    if (!jobTitles) return 'Laden...';
     const jobTitle = jobTitles.find(jt => jt.id === jobTitleId);
     return jobTitle ? jobTitle.jobTitle : jobTitleId;
   };
 
   const getEmployeeQualifications = (employee: Employee) => {
+    if (!jobTitles) return [];
     const jobTitle = jobTitles.find(jt => jt.id === employee.JobTitleID?.toString());
     return jobTitle ? jobTitle.qualificationIDs : [];
   };
 
   // Filtere Abteilungen anhand der Suchanfrage und Benutzerrolle
-  const filteredDepartments = departments.filter(dept => {
-    const matchesSearch = dept.department.toLowerCase().includes(searchTerm.toLowerCase());
-    const employeeCount = employees.filter(user => user.DepartmentID?.toString() === dept.id).length;
+  const filteredDepartments = departments ? departments.filter(dept => {
+    const matchesSearch = dept.Department.toLowerCase().includes(searchTerm.toLowerCase());
+    const employeeCount = employees!.data.filter((user : any) => user.DepartmentID?.toString() === dept.ID).length;
     const passesEmptyFilter = !hideEmptyDepartments || employeeCount > 0;
     
     if (isHR) {
       return matchesSearch && passesEmptyFilter;
     } else if (isSupervisor) {
-      return dept.id === currentUser?.DepartmentID?.toString() && matchesSearch && passesEmptyFilter;
+      return dept.ID.toString() === currentUser?.DepartmentID?.toString() && matchesSearch && passesEmptyFilter;
     }
     return false;
-  });
+  }) : [];
 
   // Hole Mitarbeiter der ausgewählten Abteilung
   const departmentEmployees = selectedDepartment
-    ? employees.filter(user => user.DepartmentID?.toString() === selectedDepartment)
+    ? employees!.data.filter((user : any) => user.DepartmentID?.toString() === selectedDepartment)
     : [];
 
   // Ermittel die Mitarbeiterzahl für eine Abteilung
   const getDepartmentEmployeeCount = (departmentId: string) => {
-    return employees.filter(user => user.DepartmentID?.toString() === departmentId).length;
+    return employees!.data.filter((user : any) => user.DepartmentID?.toString() === departmentId).length;
   };
 
   // Zugriff nur erlauben, wenn der Benutzer HR oder Supervisor ist
@@ -103,24 +111,24 @@ export default function Departments() {
         {/* Grid: mobile 1 Spalte, ab md 2 Spalten, ab lg 3 Spalten */}
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredDepartments.map((dept) => {
-            const employeeCount = getDepartmentEmployeeCount(dept.id);
+            const employeeCount = getDepartmentEmployeeCount(dept.ID.toString());
             return (
               <div
-                key={dept.id}
-                onClick={() => setSelectedDepartment(dept.id)}
+                key={dept.ID}
+                onClick={() => setSelectedDepartment(dept.ID.toString())}
                 className="bg-white dark:bg-[#181818] shadow rounded-lg p-6 cursor-pointer hover:shadow-lg transition-shadow border border-gray-200 dark:border-gray-700"
               >
                 <div className="flex items-center">
                   <Building2 className="h-8 w-8 text-primary" />
                   <div className="ml-4">
                     <h2 className="text-lg font-medium text-gray-900 dark:text-white">
-                      {dept.department}
+                      {dept.Department}
                     </h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                       {employeeCount} Mitarbeiter
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      ID: {dept.departmentID_Atoss}
+                      ID: {dept.DepartmentID_Atoss}
                     </p>
                   </div>
                 </div>
@@ -130,7 +138,7 @@ export default function Departments() {
                     Positionen:
                   </h3>
                   <div className="flex flex-wrap gap-2">
-                    {dept.positions.slice(0, 5).map((position) => (
+                    {dept.positions!.slice(0, 5).map((position) => (
                       <span
                         key={position}
                         className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
@@ -138,9 +146,9 @@ export default function Departments() {
                         {position}
                       </span>
                     ))}
-                    {dept.positions.length > 5 && (
+                    {dept.positions!.length > 5 && (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 dark:bg-primary/20 text-primary">
-                        +{dept.positions.length - 5} weitere
+                        +{dept.positions!.length - 5} weitere
                       </span>
                     )}
                   </div>
@@ -171,7 +179,7 @@ export default function Departments() {
           <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-4xl w-full m-4 max-h-[90vh] overflow-y-auto">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                {departments.find(d => d.id === selectedDepartment)?.department} – Mitarbeiterübersicht
+                {departments!.find(d => d.ID.toString() === selectedDepartment)?.Department} – Mitarbeiterübersicht
               </h2>
               <button
                 onClick={() => setSelectedDepartment(null)}

@@ -1,3 +1,4 @@
+
 import { useSelector, useDispatch } from 'react-redux';
 import { NavLink } from 'react-router-dom';
 import { 
@@ -14,16 +15,17 @@ import {
 } from 'lucide-react';
 import { RootState } from '../../store';
 import { toggleSidebar } from '../../store/slices/uiSlice';
+import { hasPermission } from '../../store/slices/authSlice';
 import { cn } from '../../lib/utils';
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Schulungen', href: '/schulungen', icon: GraduationCap },
-  { name: 'Schulungshistorie', href: '/training-history', icon: HistoryIcon },
-  { name: 'Qualifikationen', href: '/qualifikationen', icon: Award },
-  { name: 'Zusatzfunktionen', href: '/zusatzfunktionen', icon: Star },
-  { name: 'Mitarbeiter', href: '/mitarbeiter', icon: Users },
-  { name: 'Dokumente', href: '/dokumente', icon: FileText },
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard, permission: 'trainings' },
+  { name: 'Schulungen', href: '/schulungen', icon: GraduationCap, permission: 'trainings' },
+  { name: 'Schulungshistorie', href: '/training-history', icon: HistoryIcon, permission: 'trainings' },
+  { name: 'Qualifikationen', href: '/qualifikationen', icon: Award, permission: 'qualifications' },
+  { name: 'Zusatzfunktionen', href: '/zusatzfunktionen', icon: Star, permission: 'additional' },
+  { name: 'Mitarbeiter', href: '/mitarbeiter', icon: Users, permission: 'employees' },
+  { name: 'Dokumente', href: '/dokumente', icon: FileText, permission: 'documents' },
 ];
 
 export default function Sidebar() {
@@ -31,13 +33,10 @@ export default function Sidebar() {
   const { sidebarOpen } = useSelector((state: RootState) => state.ui);
   const { employee } = useSelector((state: RootState) => state.auth);
 
-  // Filter navigation items based on user role
-  const filteredNavigation = navigation.filter(item => {
-    if (employee?.role === 'employee') {
-      return !['Mitarbeiter', 'Abteilungen', 'Qualifikationen', 'Zusatzfunktionen'].includes(item.name);
-    }
-    return true;
-  });
+  // Filter navigation items based on user permissions
+  const filteredNavigation = navigation.filter(item => 
+    hasPermission(employee, item.permission)
+  );
 
   return (
     <>

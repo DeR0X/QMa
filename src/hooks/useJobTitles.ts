@@ -1,44 +1,46 @@
-import { useQuery, UseQueryOptions } from '@tanstack/react-query';
-//import { jobTitles as mockJobTitles } from '../data/mockData'; // Removed mock data import
 
-interface JobTitle {
-  id: string;
-  jobTitle: string;
-  description: string;
+import { useQuery } from '@tanstack/react-query';
+import type { JobTitle } from '../types';
+
+interface JobTitlesParams {
+  sortBy?: 'id' | 'jobTitle' | 'description';
+  sortOrder?: 'asc' | 'desc';
 }
 
-const DEBUG = true;
+const API_BASE_URL = 'http://localhost:5000/api';
 
-async function fetchJobTitles(): Promise<JobTitle[]> {
-  if (DEBUG) console.log('Fetching job titles...');
+async function fetchJobTitles(params: JobTitlesParams = {}): Promise<JobTitle[]> {
+  const queryParams = new URLSearchParams();
+  if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+  if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+
+  const queryString = queryParams.toString();
+  const url = `${API_BASE_URL}/job-titles${queryString ? `?${queryString}` : ''}`;
 
   try {
-    const response = await fetch('http://localhost:5000/api/job-titles'); //Simplified URL
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+    });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch job titles: ${response.status}`);
+      throw new Error(`Failed to fetch job titles: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
-
-    // Transform the data to match our interface
-    return data.map((job: any) => ({
-      id: job.ID?.toString() || job.id?.toString(),
-      jobTitle: job.JobTitle || job.jobTitle,
-      description: job.Description || job.description
-    }));
+    return Array.isArray(data) ? data : [data];
   } catch (error) {
     console.error('Error fetching job titles:', error);
-    throw error; // Re-throwing the error for better error handling in useQuery
+    throw error;
   }
 }
 
-export function useJobTitles() {
-  const options: UseQueryOptions<JobTitle[], Error> = {
-    queryKey: ['jobTitles'],
-    queryFn: fetchJobTitles,
-    retry: 1 // Preserving the retry mechanism
-  };
-
-  return useQuery(options);
+export function useJobTitles(params: JobTitlesParams = {}) {
+  return useQuery({
+    queryKey: ['jobTitles', params],
+    queryFn: () => fetchJobTitles(params),
+    retry: 1
+  });
 }

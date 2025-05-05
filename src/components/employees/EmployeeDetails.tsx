@@ -30,18 +30,12 @@ import {
   Briefcase,
 } from "lucide-react";
 import { RootState } from "../../store";
-import { hasHRPermissions } from "../../store/slices/authSlice";
-import type { Employee, Qualification } from "../../types";
-import {
-  qualifications,
-  employeeQualifications,
-  trainings,
-  departments,
-  jobTitles,
-} from "../../data/mockData";
+import { hasPermission } from "../../store/slices/authSlice";
+import type { Employee, Qualification, Training } from "../../types";
 import { toast } from "sonner";
 import { formatDate } from "../../lib/utils";
 import { useJobTitles } from "../../hooks/useJobTitles";
+import { useDepartments } from "../../hooks/useDepartments";
 import {
   useQualifications,
   useAddEmployeeQualification,
@@ -52,6 +46,7 @@ import {
   useDeleteEmployeeSkill,
 } from "../../hooks/useEmployeeSkills";
 import { useGetEmployeeSkills } from "../../hooks/useEmployeeSkills";
+import { useTrainings } from "../../hooks/useTrainings";
 
 interface Props {
   employee: Employee;
@@ -84,8 +79,10 @@ export default function EmployeeDetails({
   const { employee: currentEmployee } = useSelector(
     (state: RootState) => state.auth,
   );
-  const isHRAdmin = hasHRPermissions(currentEmployee);
+  const isHRAdmin = hasPermission(currentEmployee, 'hr');
   const { data: jobTitlesData, isLoading: isLoadingJobTitles } = useJobTitles();
+  const { data: departmentsData, isLoading: isLoadingDepartments } = useDepartments();
+  const { data: trainingsData, isLoading: isLoadingTrainings } = useTrainings();
   const { data: qualificationsData, isLoading: isLoadingQualifications } =
     useQualifications();
   const {
@@ -99,14 +96,14 @@ export default function EmployeeDetails({
 
   const getDepartmentName = (departmentId: number | null) => {
     if (!departmentId) return "Keine Abteilung";
-    const department = departments.find(
-      (d) => d.id === departmentId.toString(),
+    const department = departmentsData?.find(
+      (d) => d.ID === departmentId,
     );
-    return department ? department.department : departmentId.toString();
+    return department ? department.Department : departmentId.toString();
   };
 
   const getJobTitle = (jobTitleId: string) => {
-    const jobTitle = jobTitles.find((jt) => jt.id === jobTitleId);
+    const jobTitle = jobTitlesData?.find((jt) => jt.id === jobTitleId);
     return jobTitle ? jobTitle.jobTitle : jobTitleId;
   };
 
@@ -480,8 +477,8 @@ export default function EmployeeDetails({
                   localEmployee.role === "supervisor" && (
                     <div className="space-y-4">
                       {approvals.map((approval) => {
-                        const training = trainings.find(
-                          (t) => t.id === approval.trainingId,
+                        const training = trainingsData?.find(
+                          (t: Training) => t.id === approval.trainingId,
                         );
                         return (
                           <div
@@ -564,7 +561,7 @@ export default function EmployeeDetails({
                         </h5>
 
                         <div className="grid grid-cols-1 gap-4">
-                          {trainings.map((training) => (
+                          {trainingsData?.map((training: Training) => (
                             <div
                               key={training.id}
                               className={`p-4 rounded-lg border transition-all ${

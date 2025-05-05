@@ -1,4 +1,4 @@
-export type Role = 'employee' | 'supervisor' | 'hr';
+export type Role = "employee" | "supervisor" | "hr" | "admin";
 
 export interface Department {
   id: string;
@@ -15,17 +15,17 @@ export interface JobTitle {
 }
 
 export interface Employee {
-  ID: number;
-  StaffNumber: number;
+  ID?: number;
+  StaffNumber: string;
   SurName: string;
   FirstName: string;
   FullName: string;
   role: Role;
   eMail: string;
-  DepartmentID: number | null;
+  DepartmentID: number | string;
   Department: string | null;
-  JobTitleID: number | null;
-  SupervisorID: number | null;
+  JobTitleID: number | string;
+  SupervisorID: number | string;
   additionalSkillIDs?: string[];
   additionalPositions?: string[];
   isActive: boolean;
@@ -53,7 +53,6 @@ export interface QualificationHistory {
   approvedBy: string;
 }
 
-
 export interface Training {
   id: string;
   title: string;
@@ -74,7 +73,7 @@ export interface TrainingBooking {
   userId: string;
   trainingId: string;
   sessionId: string;
-  status: 'ausstehend' | 'genehmigt' | 'abgelehnt' | 'abgeschlossen';
+  status: "ausstehend" | "genehmigt" | "abgelehnt" | "abgeschlossen";
   completedAt?: string;
   approvedBy?: string;
   createdAt: string;
@@ -143,30 +142,20 @@ export interface DocumentMetadata {
   type: string;
   category: string;
   department: string;
-  classification: 'employee' | 'training' | 'policy' | 'procedure';
+  classification: "employee" | "training" | "policy" | "procedure";
   expirationDate?: string;
   version: string;
   owner: string;
-
-export interface AdditionalSkillQualificationResponse {
-  ID: number;
-  AdditionalSkillID: number;
-  QualificationID: number;
-  AdditionalSkillName: string;
-  QualificationName: string;
-  QualificationDescription: string;
-}
-
   createdAt: string;
   updatedAt: string;
   tags: string[];
   description: string;
   relatedDocuments: string[];
-  approvalStatus: 'pending' | 'approved' | 'rejected';
+  approvalStatus: "pending" | "approved" | "rejected";
   retentionPeriod: number; // in months
   language: string;
   accessControl: {
-    visibility: 'public' | 'department' | 'role' | 'private';
+    visibility: "public" | "department" | "role" | "private";
     allowedDepartments: string[];
     allowedRoles: string[];
     allowedUsers: string[];
@@ -185,17 +174,29 @@ export interface AdditionalSkillQualificationResponse {
   }[];
 }
 
+export interface AdditionalSkillQualificationResponse {
+  ID: number;
+  AdditionalSkillID: number;
+  QualificationID: number;
+  AdditionalSkillName: string;
+  QualificationName: string;
+  QualificationDescription: string;
+}
+
 export interface DocumentUploadFormData {
   file: File | null;
   url: string;
-  metadata: Omit<DocumentMetadata, 'id' | 'createdAt' | 'updatedAt' | 'auditTrail'>;
+  metadata: Omit<
+    DocumentMetadata,
+    "id" | "createdAt" | "updatedAt" | "auditTrail"
+  >;
 }
 
 export interface EmployeeFilters {
   page?: number;
   limit?: number;
   sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+  sortOrder?: "asc" | "desc";
   department?: string;
   role?: string;
   isActive?: boolean;

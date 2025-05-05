@@ -7,9 +7,16 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 
 export default function AppLayout() {
-  const { isAuthenticated, sessionExpiry } = useSelector((state: RootState) => state.auth);
+  const { isAuthenticated, sessionExpiry, employee } = useSelector((state: RootState) => state.auth);
+  const { sidebarOpen } = useSelector((state: RootState) => state.ui);
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isAuthenticated || !employee) {
+      navigate('/login');
+    }
+  }, [isAuthenticated, employee, navigate]);
 
   // Memoize the resetTimer function
   const resetTimer = useCallback(() => {

@@ -56,14 +56,6 @@ const authSlice = createSlice({
       state.sessionExpiry = null;
       localStorage.removeItem("auth");
     },
-    updateUserActiveStatus: (
-      state,
-      action: PayloadAction<{ userId: string; isActive: boolean }>,
-    ) => {
-      if (state.employee?.ID === Number(action.payload.userId)) {
-        state.employee.isActive = action.payload.isActive;
-      }
-    },
     refreshSession: (state) => {
       if (state.isAuthenticated) {
         state.sessionExpiry = Date.now() + 30 * 60 * 1000;
@@ -78,69 +70,102 @@ export const {
   loginSuccess,
   loginFailure,
   logout,
-  updateUserActiveStatus,
   refreshSession,
 } = authSlice.actions;
 
+export const toggleUserActive = (userId: string, isActive: boolean) => ({
+  type: 'auth/toggleUserActive',
+  payload: { userId, isActive },
+});
+
 export const hasHRPermissions = (employee: Employee | null) => {
-  return employee?.role === "hr";
+  return employee?.role === 'admin' || employee?.role === 'hr';
 };
 
-export const canManageEmployees = (employee: Employee | null) => {
-  return employee?.role === "hr" || employee?.role === "supervisor";
-};
+export const hasPermission = (
+  employee: Employee | null,
+  permission: string,
+) => {
+  if (!employee) return false;
 
-export const canAccessAnalytics = (employee: Employee | null) => {
-  return employee?.role === "hr";
-};
-
-export const login = (Username: string, password: string) => async (dispatch: any) => {
-  dispatch(loginStart());
-
-  try {
-    const response = await fetch('http://localhost:5000/api/v2/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ Username, password })
-    });
-
-    if (!response.ok) {
-      throw new Error('Ungültige Anmeldedaten');
-    }
-
-    const data = await response.json();
-    console.log(data);
-/*     if (!data.employee.IsActive) {
-      throw new Error("Ihr Account wurde gesperrt. Bitte kontaktieren Sie Ihren Vorgesetzten oder die IT-Abteilung für Unterstützung.");
-    } */
-
-    dispatch(loginSuccess(data.employee));
-  } catch (error) {
-    console.error("Login error:", error);
-    dispatch(loginFailure(error instanceof Error ? error.message : "Login fehlgeschlagen"));
+  switch (employee.role) {
+    case "admin":
+      return true;
+    case "hr":
+      return ["employees", "trainings", "qualifications", "documents", "dashbaord"].includes(
+        permission,
+      );
+    case "supervisor":
+      return ["employees", "trainings", "documents", "dashboard"].includes(permission);
+    case "employee":
+      return ["trainings", "documents", "dashbaord"].includes(permission);
+    default:
+      return false;
   }
 };
 
-export const toggleUserActive = (userId: string, isActive: boolean) => async (dispatch: any) => {
-  try {
-    const response = await fetch(`http://localhost:5000/api/v2/employees-view/${userId}/status`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ isActive })
-    });
+export const login =
+  (Username: string, password: string) => async (dispatch: any) => {
+    dispatch(loginStart());
 
-    if (!response.ok) {
-      throw new Error('Fehler beim Aktualisieren des Benutzerstatus');
+    try {
+      const response = await fetch("http://localhost:5000/api/v2/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ Username, password }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Ungültige Anmeldedaten");
+      }
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Ungültige Anmeldedaten");
+      }
+
+      if (!data.user) {
+        throw new Error("Ungültige Anmeldedaten");
+      }
+
+      /* if (!data.user.isActive) {
+        throw new Error(
+          "Ihr Account wurde gesperrt. Bitte kontaktieren Sie Ihren Vorgesetzten oder die IT-Abteilung für Unterstützung.",
+        );
+      } */
+
+      // Store the token and user data
+      localStorage.setItem('token', data.token);
+      
+      const userData = {
+        id: data.user.id,
+        SurName: data.user.surname,
+        FirstName: data.user.firstName,
+        FullName: `${data.user.firstName} ${data.user.surname}`,
+        eMail: data.user.email,
+        StaffNumber: data.user.staffNumber,
+        Department: data.user.department,
+        DepartmentID: data.user.departmentID,
+        JobTitle: data.user.jobTitle,
+        JobTitleID: data.user.jobTitleID,
+        SupervisorID: data.user.supervisorID,
+        role: data.user.role,
+        PasswordHash: data.user.passwordHash,
+        isActive: data.user.isActive,
+      };
+      
+      dispatch(loginSuccess(userData));
+    } catch (error) {
+      console.error("Login error:", error);
+      dispatch(
+        loginFailure(
+          error instanceof Error ? error.message : "Login fehlgeschlagen",
+        ),
+      );
     }
-
-    dispatch(updateUserActiveStatus({ userId, isActive }));
-  } catch (error) {
-    console.error("Error toggling user status:", error);
-  }
-};
+  };
 
 export default authSlice.reducer;

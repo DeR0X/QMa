@@ -4,26 +4,31 @@ interface Department {
   ID: number;
   DepartmentID_Atoss: string;
   Department: string;
-  positions?: string[]; // Optional since it's not in the DB response
+  positions?: string[];
 }
 
-const DEBUG = true;
+interface DepartmentsParams {
+  sortBy?: 'ID' | 'DepartmentID_Atoss' | 'Department';
+  sortOrder?: 'asc' | 'desc';
+}
 
-async function fetchDepartments(): Promise<Department[]> {
-  if (DEBUG) console.log('Fetching departments...');
-  
+const API_BASE_URL = 'http://127.0.0.1:5000/api/v2';
+
+async function fetchDepartments(params: DepartmentsParams = {}): Promise<Department[]> {
+  const queryParams = new URLSearchParams();
+  if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+  if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+
+  const queryString = queryParams.toString();
+  const url = `${API_BASE_URL}/departments${queryString ? `?${queryString}` : ''}`;
+
   try {
-    const response = await fetch('http://localhost:5000/api/departments', {
+    const response = await fetch(url, {
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
       },
     });
-    
-    if (DEBUG) {
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-    }
 
     if (!response.ok) {
       throw new Error(`Failed to fetch departments: ${response.status} ${response.statusText}`);
@@ -36,34 +41,17 @@ async function fetchDepartments(): Promise<Department[]> {
     }
 
     const data = await response.json();
-    if (DEBUG) {
-      console.log('Raw department data:', data);
-    }
-
-    // Transform the data to include empty positions array if needed
-    const transformedData = Array.isArray(data) ? data.map(dept => ({
-      ...dept,
-      positions: dept.positions || [] // Initialize empty positions array if not present
-    })) : [data].map(dept => ({
-      ...dept,
-      positions: dept.positions || [] // Initialize empty positions array if not present
-    }));
-
-    if (DEBUG) {
-      console.log('Transformed department data:', transformedData);
-    }
-
-    return transformedData;
+    return Array.isArray(data) ? data : [data];
   } catch (error) {
     console.error('Error fetching departments:', error);
     throw error;
   }
 }
 
-export function useDepartments() {
+export function useDepartments(params: DepartmentsParams = {}) {
   return useQuery({
-    queryKey: ['departments'],
-    queryFn: fetchDepartments,
+    queryKey: ['departments', params],
+    queryFn: () => fetchDepartments(params),
     retry: 1
   });
 }

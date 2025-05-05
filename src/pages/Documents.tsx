@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Calendar, Filter, Search, FileText, Users, GraduationCap, X, Upload, Plus } from 'lucide-react';
 import { useSelector } from 'react-redux';
-import { trainings } from '../data/mockData';
 import { toast } from 'sonner';
 import EnhancedDocumentUploader from '../components/documents/EnhancedDocumentUploader';
 import DocumentViewer from '../components/documents/DocumentViewer';

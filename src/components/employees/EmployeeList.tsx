@@ -2,8 +2,8 @@ import React from 'react';
 import { useState } from 'react';
 import { Lock, Unlock, ChevronDown, ChevronRight } from 'lucide-react';
 import type { Employee } from '../../types';
-import { departments, jobTitles, employees as allEmployees } from '../../data/mockData';
 import { useJobTitles } from '../../hooks/useJobTitles';
+import { useDepartments } from '../../hooks/useDepartments';
 
 interface Props {
   employees: Employee[];
@@ -32,30 +32,26 @@ export default function EmployeeList({
     );
   };
 
+  const { data: departments } = useDepartments();
+
   const getDepartmentName = (departmentId: string) => {
-    const department = departments.find(d => d.id === departmentId);
-    return department ? department.department : 'Unbekannte Abteilung';
+    if (!departments) return 'Laden...';
+    const department = departments.find(d => d.ID.toString() === departmentId);
+    return department ? department.Department : 'Unbekannte Abteilung';
   };
 
   const getJobTitle = (jobTitleId: string | number | null) => {
     if (!jobTitleId) return 'Keine Position';
-
-    // First try to get from API data
-    if (jobTitlesData) {
-      console.log(jobTitlesData);
-      const jobTitle = jobTitlesData.find(jt => jt.id === jobTitleId.toString());
-      if (jobTitle) return jobTitle.jobTitle;
-    }
+    if (!jobTitlesData) return 'Laden...';
     
-    // Fallback to mock data
-    const jobTitle = jobTitles.find(jt => jt.id === jobTitleId.toString());
+    const jobTitle = jobTitlesData.find(jt => jt.id === jobTitleId.toString());
     return jobTitle ? jobTitle.jobTitle : jobTitleId.toString();
   };
 
   // Filter supervisors and their direct reports
   const supervisors = employees.filter(emp => emp.role === 'supervisor');
   const getDirectReports = (supervisorId: string) => 
-    allEmployees.filter(emp => emp.SupervisorID?.toString() === supervisorId);
+    employees.filter(emp => emp.SupervisorID?.toString() === supervisorId);
 
   return (
     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">

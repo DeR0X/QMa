@@ -5,17 +5,25 @@ import {
   AlertCircle, GraduationCap, Plus, Award, Info, X
 } from 'lucide-react';
 import { RootState, AppDispatch } from '../store';
-import { employees, trainings, bookings, qualifications } from '../data/mockData';
 import { Training } from '../types';
 import { formatDate, formatDuration } from '../lib/utils';
 import { toast } from 'sonner';
 import AddTrainingModal from '../components/trainings/AddTrainigModal';
 import { hasHRPermissions } from '../store/slices/authSlice';
 import { addNotification } from '../store/slices/notificationSlice';
+import { useEmployees } from '../hooks/useEmployees';
+import { useTrainings } from '../hooks/useTrainings';
+import { useBookings } from '../hooks/useBookings';
+import { useQualifications } from '../hooks/useQualifications';
 
 export default function Trainings() {
   const dispatch = useDispatch<AppDispatch>();
   const { employee } = useSelector((state: RootState) => state.auth);
+  const { data: employees = [] } = useEmployees();
+  const { data: trainings = [] } = useTrainings();
+  const { data: bookings = [] } = useBookings();
+  const { data: qualifications = [] } = useQualifications();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTraining, setSelectedTraining] = useState<Training | null>(null);
   const [showMandatoryOnly, setShowMandatoryOnly] = useState(false);
@@ -229,9 +237,6 @@ export default function Trainings() {
         {/* Trainingsliste */}
         <div className="grid grid-cols-1 gap-6 p-4 sm:p-6">
           {filteredTrainings.map((training) => {
-            const relatedQualifications = qualifications.filter(qual => 
-              qual.requiredQualifications.includes(training.id)
-            );
             
             return (
               <div
@@ -248,6 +253,7 @@ export default function Trainings() {
                         {training.description}
                       </p>
                       
+
                       {/* Qualifikationen */}
                       <div className="mt-4">
                         <h4 className="text-sm font-medium text-gray-900 dark:text-white flex items-center">
@@ -255,17 +261,6 @@ export default function Trainings() {
                           Erreichbare Qualifikationen:
                         </h4>
                         <div className="mt-2 flex flex-wrap gap-2">
-                          {relatedQualifications.map(qual => (
-                            <button
-                              key={qual.id}
-                              onClick={() => setSelectedQualification(qual.id)}
-                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
-                            >
-                              <Award className="h-3 w-3 mr-1" />
-                              {qual.name}
-                              <Info className="h-3 w-3 ml-1" />
-                            </button>
-                          ))}
                         </div>
                       </div>
                     </div>
@@ -417,17 +412,17 @@ export default function Trainings() {
             </div>
             
             {(() => {
-              const qualification = qualifications.find(q => q.id === selectedQualification);
+              const qualification = qualifications.find(q => q.ID?.toString() === selectedQualification);
               if (!qualification) return null;
               
               return (
                 <div className="space-y-4">
                   <div>
                     <h4 className="text-sm font-medium text-gray-900 dark:text-white">
-                      {qualification.name}
+                      {qualification.Name}
                     </h4>
                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      {qualification.description}
+                      {qualification.Description}
                     </p>
                   </div>
                   
@@ -438,28 +433,12 @@ export default function Trainings() {
                     <ul className="mt-2 space-y-2 text-sm text-gray-500 dark:text-gray-400">
                       <li className="flex items-center">
                         <Clock className="h-4 w-4 mr-2" />
-                        Gültigkeitsdauer: {qualification.validityInMonth} Monate
+                        Gültigkeitsdauer: {qualification.ValidityInMonth} Monate
                       </li>
                       <li className="flex items-center">
                         <AlertCircle className="h-4 w-4 mr-2" />
-                        {qualification.isMandatory ? 'Pflichtqualifikation' : 'Optionale Qualifikation'}
+                        {qualification.IsMandatory ? 'Pflichtqualifikation' : 'Optionale Qualifikation'}
                       </li>
-                    </ul>
-                  </div>
-
-                  <div>
-                    <h5 className="text-sm font-medium text-gray-900 dark:text-white">
-                      Erforderliche Schulungen:
-                    </h5>
-                    <ul className="mt-2 space-y-2">
-                      {qualification.requiredQualifications.map(trainingId => {
-                        const training = trainings.find(t => t.id === trainingId);
-                        return training && (
-                          <li key={trainingId} className="text-sm text-gray-500 dark:text-gray-400">
-                            • {training.title}
-                          </li>
-                        );
-                      })}
                     </ul>
                   </div>
                 </div>

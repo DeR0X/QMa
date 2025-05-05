@@ -1,5 +1,4 @@
 import { X } from 'lucide-react';
-import { trainings } from '../../data/mockData';
 import type { Qualification } from '../../types';
 
 interface Props {
@@ -17,28 +16,29 @@ export default function QualificationDetails({ qualification, onClose }: Props) 
         >
           <X className="h-5 w-5 sm:h-6 sm:w-6" />
         </button>
-        
+
         <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-white mb-4">
           {qualification.name}
         </h2>
-        
+
         <p className="text-gray-600 dark:text-gray-300 mb-4">
           {qualification.description}
         </p>
-        
+
         <div className="text-sm text-gray-500 dark:text-gray-400">
           <p>Gültigkeitsdauer: {qualification.validityInMonth} Monate</p>
-          <p className="mt-2">Erforderliche Schulungen:</p>
-          <ul className="list-disc list-inside mt-1 space-y-1">
-            {qualification.requiredTrainings.map(trainingId => {
-              const training = trainings.find(t => t.id === trainingId);
-              return training ? (
-                <li key={trainingId} className="text-xs sm:text-sm">
-                  {training.title}
-                </li>
-              ) : null;
-            })}
-          </ul>
+          {qualification.requiredQualifications && qualification.requiredQualifications.length > 0 && (
+            <>
+              <p className="mt-2">Erforderliche Qualifikationen:</p>
+              <ul className="list-disc list-inside mt-1 space-y-1">
+                {qualification.requiredQualifications.map((qualId, index) => (
+                  <li key={index} className="text-xs sm:text-sm">
+                    {qualId}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
       </div>
     </div>

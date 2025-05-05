@@ -3,126 +3,126 @@ import { useSelector } from 'react-redux';
 import { useQuery } from '@tanstack/react-query';
 import { GraduationCap, Calendar, Award, Building2, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { RootState } from '../store';
-import { trainings, bookings, qualifications, employees, jobTitles } from '../data/mockData';
 import { formatDate, calculateExpirationDate, isExpiringSoon } from '../lib/utils';
-import { hasHRPermissions } from '../store/slices/authSlice';
+import { hasPermission } from '../store/slices/authSlice';
 import { sendQualificationExpiryNotification } from '../lib/notifications';
 import TrainingStatistics from '../components/dashboard/TrainingStatistics';
 import QualificationDetails from '../components/dashboard/QualificationDetails';
-import type { Qualification, Employee, EmployeeFilters } from '../types';
+import type { Employee, EmployeeFilters, Qualification } from '../types';
 import { useEmployees } from '../hooks/useEmployees';
-import { useEmployeeQualifications } from '../hooks/useEmployeeQualifications'; // Import the new hook
+import { useEmployeeQualifications } from '../hooks/useEmployeeQualifications';
+import { useJobTitles } from '../hooks/useJobTitles';
+import { useQualifications } from '../hooks/useQualifications';
 
 interface DashboardStats {
   totalEmployees: number;
   completedTrainings: number;
-  pendingTrainings: number;
   expiringQualifications: number;
 }
 
 export default function Dashboard() {
   const { employee } = useSelector((state: RootState) => state.auth);
-  const isHR = hasHRPermissions(employee);
+  const isHR = hasPermission(employee, 'hr');
   const [selectedQual, setSelectedQual] = useState<Qualification | null>(null);
-
-/*   console.log("Current employee ", employee); */
-  // Fetch employees data using the same hook as Employees page
-  const filters: EmployeeFilters = {
-    page: 1,
-    limit: 10,
-    sortBy: 'SurName',
-    sortOrder: 'asc',
-    department: employee?.DepartmentID?.toString(),
-  };
-
-  const { 
-    data: employeesData, 
-    isLoading, 
-    error 
-  } = useEmployees(filters);
-  const { data: employeeQualificationsData, isLoading: isLoadingQualifications } = useEmployeeQualifications(employee?.ID ? employee.ID.toString() : ''); // Call the new hook
+  const { data: jobTitlesData } = useJobTitles();
+  const { data: qualificationsData } = useQualifications();
+  const { data: employeeQualificationsData, isLoading: isLoadingQualifications } = useEmployeeQualifications(employee?.ID ? employee.ID.toString() : '');
 
   useEffect(() => {
-    if (employee) {
-      const jobTitle = jobTitles.find(jt => jt.id === employee.JobTitleID?.toString());
-      const userQuals = qualifications.filter(qual => jobTitle?.qualificationIDs.includes(qual.id));
+    if (employee?.ID) {
+      const employeeId = employee.ID.toString();
+      const employeeQuals = employeeQualificationsData || [];
+      const qualifications = qualificationsData || [];
 
-      userQuals.forEach(qual => {
-        const lastTraining = bookings
-          .filter(b => b.userId === employee.ID.toString() && b.status === 'abgeschlossen')
-          .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())[0];
-
-        if (lastTraining?.completedAt) {
-          const expirationDate = calculateExpirationDate(lastTraining.completedAt, qual.validityInMonth);
-          if (isExpiringSoon(expirationDate)) {
-            const daysUntilExpiry = Math.ceil((expirationDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-            sendQualificationExpiryNotification(employee, qual.name, daysUntilExpiry);
+      employeeQuals.forEach(qual => {
+        const qualification = qualifications.find(q => q.ID?.toString() === qual.QualificationID);
+        if (qualification) {
+          const expiryDate = new Date(qual.ToQualifyUntil);
+          if (isExpiringSoon(expiryDate)) {
+            const daysUntilExpiry = Math.ceil((expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+            sendQualificationExpiryNotification(employee, qualification.Name, daysUntilExpiry);
           }
         }
       });
     }
-  }, [employee]);
+  }, [employee, employeeQualificationsData, qualificationsData]);
 
   if (!employee) return null;
 
-  if (isLoading || isLoadingQualifications) { // Check both loading states
-    return (
-      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
-        <p className="text-lg text-gray-500 dark:text-gray-400">Laden...</p>
-      </div>
-    );
+  if (isLoadingQualifications) {
+    return <div>Loading...</div>;
   }
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
-        <p className="text-lg text-red-500">Fehler beim Laden der Daten</p>
-      </div>
-    );
-  }
-
-  const userBookings = bookings.filter(booking => Number(booking.userId) === employee.ID);
-  const jobTitle = jobTitles.find(jt => jt.id === employee.JobTitleID?.toString());
-  const userQualifications = employeeQualificationsData || []; // Use the data from the new query
-
+  const jobTitle = jobTitlesData?.find(jt => jt.id === employee.JobTitleID?.toString());
+  const userQualifications = employeeQualificationsData || [];
 
   const stats = [
     { 
-      name: 'Abgeschlossene Schulungen', 
-      value: userBookings.filter(b => b.status === 'abgeschlossen').length,
-      icon: CheckCircle 
+      name: 'Aktive Qualifikationen', 
+      value: userQualifications.filter(qual => {
+        if (!qual.ToQualifyUntil) return false;
+        const expiryDate = new Date(qual.ToQualifyUntil);
+        return expiryDate > new Date();
+      }).length,
+      icon: Award,
+      color: 'text-green-500'
     },
-    { 
-      name: 'Ausstehende Schulungen', 
-      value: userBookings.filter(b => b.status === 'genehmigt').length,
-      icon: Clock 
+    {
+      name: 'Auslaufende Qualifikationen',
+      value: userQualifications.filter(qual => {
+        if (!qual.ToQualifyUntil) return false;
+        const expiryDate = new Date(qual.ToQualifyUntil);
+        const twoMonthsFromNow = new Date();
+        twoMonthsFromNow.setMonth(twoMonthsFromNow.getMonth() + 2);
+        return expiryDate > new Date() && expiryDate <= twoMonthsFromNow;
+      }).length,
+      icon: Clock,
+      color: 'text-yellow-500'
     },
-    { 
-      name: 'Verfügbare Schulungen', 
-      value: trainings.length - userBookings.length,
-      icon: Calendar 
-    },
+    {
+      name: 'Abgelaufene Qualifikationen',
+      value: userQualifications.filter(qual => {
+        if (!qual.ToQualifyUntil) return false;
+        const expiryDate = new Date(qual.ToQualifyUntil);
+        return expiryDate <= new Date();
+      }).length,
+      icon: AlertCircle,
+      color: 'text-red-500'
+    }
   ];
 
-  const getQualificationStatus = (qualId: string) => {
-    const employeeQual = userQualifications.find((qual) => qual.QualificationID === qualId);
-    if (!employeeQual) return 'inactive';
-
-    const qualification = qualifications.find(q => q.id === qualId);
-    if (!qualification) return 'inactive';
-
-    const lastTraining = userBookings
-      .filter(b => b.status === 'abgeschlossen')
-      .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())[0];
-
-    const expiryDate = lastTraining && lastTraining.completedAt
-      ? calculateExpirationDate(lastTraining.completedAt, qualification.validityInMonth)
-      : new Date();
+  const getQualificationStatus = (qual: any) => {
+    if (!qual.ToQualifyUntil) return { status: 'inactive' };
+    const expiryDate = new Date(qual.ToQualifyUntil);
     const today = new Date();
-    const twoMonthsFromNow = new Date(today.getFullYear(), today.getMonth() + 2, today.getDate());
+    const twoMonthsFromNow = new Date();
+    twoMonthsFromNow.setMonth(today.getMonth() + 2);
 
-    if (expiryDate <= twoMonthsFromNow) return 'expired';
-    return 'active';
+    const qualification = qualificationsData?.find(q => q.ID?.toString() === qual.QualificationID);
+    if (!qualification) return { status: 'inactive' };
+
+    return {
+      qualification,
+      expiryDate,
+      daysUntilExpiry: Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)),
+      isExpired: expiryDate <= today,
+      isExpiringSoon: expiryDate > today && expiryDate <= twoMonthsFromNow,
+      status: expiryDate <= today ? 'expired' : expiryDate <= twoMonthsFromNow ? 'expiring' : 'active'
+    };
+  };
+
+  const handleQualificationClick = (qual: any) => {
+    const qualification = qualificationsData?.find(q => q.ID?.toString() === qual.QualificationID);
+    if (qualification) {
+      setSelectedQual({
+        id: qualification.ID?.toString() || '',
+        name: qualification.Name,
+        description: qualification.Description,
+        requiredQualifications: [],
+        validityInMonth: qualification.ValidityInMonth,
+        isMandatory: qualification.IsMandatory
+      });
+    }
   };
 
   const getStatusStyles = (status: string) => {
@@ -135,19 +135,6 @@ export default function Dashboard() {
         return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'Aktiv';
-      case 'expiring':
-        return 'Läuft bald ab';
-      case 'expired':
-        return 'Abgelaufen';
-      default:
-        return 'Inaktiv';
     }
   };
 
@@ -190,7 +177,7 @@ export default function Dashboard() {
           >
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <stat.icon className="h-8 w-8 text-primary" />
+                <stat.icon className={`h-8 w-8 ${stat.color}`} />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
@@ -234,35 +221,25 @@ export default function Dashboard() {
             </div>
             <div className="mt-6 space-y-4">
               {userQualifications.map((qual) => {
-                const qualification = qualifications.find(q => q.id === qual.QualificationID);
-                if (!qualification) return null;
-
-                const lastTraining = userBookings
-                  .filter(b => b.status === 'abgeschlossen' && trainings.find(t => t.id === b.trainingId)?.id)
-                  .sort((a, b) => new Date(b.completedAt!).getTime() - new Date(a.completedAt!).getTime())[0];
-
-                const expirationDate = lastTraining?.completedAt
-                  ? calculateExpirationDate(lastTraining.completedAt, qualification.validityInMonth)
-                  : null;
+                const status = getQualificationStatus(qual);
+                if (!status) return null;
 
                 return (
                   <div key={qual.ID} className="flex flex-col sm:flex-row items-center justify-between">
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <h3 
                         className="text-sm font-medium text-gray-900 dark:text-white cursor-pointer hover:text-primary"
-                        onClick={() => setSelectedQual(qualification)}
+                        onClick={() => handleQualificationClick(qual)}
                       >
-                        {qualification.name}
+                        {status.qualification?.Name || 'Unbekannte Qualifikation'}
                       </h3>
-                      {expirationDate && (
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Gültig bis {formatDate(expirationDate)}
-                        </p>
-                      )}
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Gültig bis {status.expiryDate ? formatDate(status.expiryDate) : 'N/A'}
+                      </p>
                     </div>
                     <div className="ml-0 sm:ml-4 mt-2 sm:mt-0">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles(getQualificationStatus(qual.QualificationID))}`}>
-                        {getStatusText(getQualificationStatus(qual.QualificationID))}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles(status.status)}`}>
+                        {status.isExpired ? 'Abgelaufen' : status.isExpiringSoon ? `${status.daysUntilExpiry} Tage` : 'Gültig'}
                       </span>
                     </div>
                   </div>
