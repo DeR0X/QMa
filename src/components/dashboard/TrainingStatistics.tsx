@@ -28,7 +28,7 @@ interface Props {
   departmentFilter?: string;
 }
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 1000;
 
 export default function TrainingStatistics({ departmentFilter }: Props) {
   const [showDetails, setShowDetails] = useState(false);
