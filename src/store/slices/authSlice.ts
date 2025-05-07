@@ -35,10 +35,9 @@ const initialState: AuthState = loadInitialState();
 
 // Map AccessRightID to text representation
 const accessRightMap: Record<number, string> = {
-  1: 'Employee',
-  2: 'Supervisor',
-  3: 'HR',
-  4: 'Admin'
+  1: 'Supervisor',
+  2: 'HR',
+  3: 'Admin'
 };
 
 const authSlice = createSlice({
@@ -55,13 +54,6 @@ const authSlice = createSlice({
       state.loading = false;
       state.error = null;
       state.sessionExpiry = Date.now() + 30 * 60 * 1000;
-      
-      // Set access rights based on AccessRightID
-      const accessRight = accessRightMap[action.payload.AccessRightID];
-      if (accessRight) {
-        state.accessRights = [accessRight];
-      }
-      
       localStorage.setItem("auth", JSON.stringify(state));
     },
     loginFailure: (state, action: PayloadAction<string>) => {
@@ -124,13 +116,13 @@ export const hasPermission = (
   const accessRight = accessRightMap[employee.AccessRightID];
 
   switch (accessRight) {
-    case "Admin":
+    case "admin":
       return true;
-    case "HR":
-      return ["employees", "trainings", "qualifications", "documents", "dashboard"].includes(
+    case "hr":
+      return ["employees", "trainings", "qualifications", "documents", "dashboard", "hr"].includes(
         permission,
       );
-    case "Supervisor":
+    case "supervisor":
       return ["employees", "trainings", "documents", "dashboard"].includes(permission);
     default:
       return ["trainings", "documents", "dashboard"].includes(permission);
@@ -182,7 +174,7 @@ export const login = (Username: string, password: string) => async (dispatch: an
       Supervisor: data.user.supervisor || '',
       AccessRightID: data.user.accessRightID || 0,
       AccessRight: accessRightMap[data.user.accessRightID] || 'Employee',
-      role: accessRightMap[data.user.accessRightID] || 'Employee',
+      role: accessRightMap[data.user.accessRightID]?.toLowerCase() || 'employee',
       PasswordHash: data.user.passwordHash,
       isActive: data.user.isActive,
     };
@@ -191,14 +183,21 @@ export const login = (Username: string, password: string) => async (dispatch: an
 
     // Fetch all available access rights
     const allAccessRights = await accessRightsApi.getAll();
-    dispatch(setAvailableAccessRights(allAccessRights));
+    dispatch(setAvailableAccessRights(allAccessRights.map(right => ({
+      id: right.ID,
+      name: right.Name,
+      description: right.Name // Using Name as description since it's not provided by API
+    }))));
 
-    // Set access rights based on AccessRightID
-    if (userData.AccessRightID) {
-      const accessRight = accessRightMap[userData.AccessRightID];
-      if (accessRight) {
-        dispatch(setAccessRights([accessRight]));
+    // Fetch employee-specific access rights
+    try {
+      const employeeAccessRights = await accessRightsApi.getEmployeeAccessRights(userData.ID.toString());
+      if (employeeAccessRights.length > 0) {
+        dispatch(setAccessRights(employeeAccessRights));
       }
+    } catch (error) {
+      console.warn('Failed to fetch employee access rights:', error);
+      // Don't throw error here - fall back to default rights
     }
 
   } catch (error) {
