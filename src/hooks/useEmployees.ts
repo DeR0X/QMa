@@ -95,31 +95,20 @@ const filterAndPaginateEmployees = (employees: Employee[], filters: EmployeeFilt
     });
   }
 
-  // Apply pagination if requested
-  if (filters.page && filters.limit) {
-    const start = (filters.page - 1) * filters.limit;
-    const end = start + filters.limit;
-    const paginatedData = filteredData.slice(start, end);
+  // Apply pagination
+  const page = filters.page || 1;
+  const limit = filters.limit || 10;
+  const start = (page - 1) * limit;
+  const end = start + limit;
+  const paginatedData = filteredData.slice(start, end);
 
-    return {
-      data: paginatedData,
-      pagination: {
-        page: filters.page,
-        limit: filters.limit,
-        total: filteredData.length,
-        totalPages: Math.ceil(filteredData.length / filters.limit)
-      }
-    };
-  }
-
-  // Return all filtered data if no pagination requested
   return {
-    data: filteredData,
+    data: paginatedData,
     pagination: {
-      page: 1,
-      limit: filteredData.length,
+      page,
+      limit,
       total: filteredData.length,
-      totalPages: 1
+      totalPages: Math.ceil(filteredData.length / limit)
     }
   };
 };
@@ -134,8 +123,7 @@ export function useEmployees(filters: EmployeeFilters = {}) {
       try {
         // Check if we need to fetch fresh data
         if (!isCacheValid()) {
-          // Fetch all employees without pagination
-          const response = await employeeApi.getEmployeesFromView();
+          const response = await employeeApi.getEmployeesFromView({ limit: 1000 }); // Fetch all employees
           employeeStore = {
             allEmployees: response.data,
             lastFetched: Date.now(),
@@ -170,7 +158,7 @@ export function useEmployee(id: string) {
       }
 
       // If not in store or cache invalid, fetch all employees again
-      const response = await employeeApi.getEmployeesFromView();
+      const response = await employeeApi.getEmployeesFromView({ limit: 1000 });
       employeeStore = {
         allEmployees: response.data,
         lastFetched: Date.now(),
