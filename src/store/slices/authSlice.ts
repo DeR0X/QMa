@@ -33,13 +33,6 @@ const loadInitialState = (): AuthState => {
 
 const initialState: AuthState = loadInitialState();
 
-// Map AccessRightID to text representation
-const accessRightMap: Record<number, string> = {
-  1: 'Supervisor',
-  2: 'HR',
-  3: 'Admin'
-};
-
 const authSlice = createSlice({
   name: "auth",
   initialState,
@@ -78,6 +71,26 @@ const authSlice = createSlice({
     },
     setAccessRights: (state, action: PayloadAction<string[]>) => {
       state.accessRights = action.payload;
+      if (state.employee) {
+        // Update employee role and AccessRight based on the actual rights from the database
+        const accessRights = action.payload.map(right => right.toLowerCase());
+        let role = 'employee';
+        let accessRight = 'EMPLOYEE';
+
+        if (accessRights.includes('admin')) {
+          role = 'admin';
+          accessRight = 'ADMIN';
+        } else if (accessRights.includes('hr')) {
+          role = 'hr';
+          accessRight = 'HR';
+        } else if (accessRights.includes('supervisor')) {
+          role = 'supervisor';
+          accessRight = 'SUPERVISOR';
+        }
+
+        state.employee.role = role;
+        state.employee.AccessRight = accessRight;
+      }
       localStorage.setItem("auth", JSON.stringify(state));
     },
     setAvailableAccessRights: (state, action: PayloadAction<{ id: number; name: string; description: string; }[]>) => {
@@ -104,8 +117,7 @@ export const toggleUserActive = (userId: string, isActive: boolean) => ({
 
 export const hasHRPermissions = (employee: Employee | null) => {
   if (!employee) return false;
-  const accessRight = accessRightMap[employee.AccessRightID];
-  return accessRight === 'HR' || accessRight === 'Admin';
+  return employee.role === 'hr' || employee.role === 'admin';
 };
 
 export const hasPermission = (
@@ -113,17 +125,17 @@ export const hasPermission = (
   permission: string,
 ) => {
   if (!employee) return false;
-  const accessRight = accessRightMap[employee.AccessRightID];
+  const role = employee.role;
 
-  switch (accessRight) {
+  switch (role) {
     case "admin":
       return true;
     case "hr":
-      return ["employees", "trainings", "qualifications", "documents", "dashboard", "hr"].includes(
+      return ["employees", "trainings", "qualifications", "documents", "dashboard", "hr", "additional"].includes(
         permission,
       );
     case "supervisor":
-      return ["employees", "trainings", "documents", "dashboard"].includes(permission);
+      return ["employees", "trainings", "documents", "dashboard", "additional"].includes(permission);
     default:
       return ["trainings", "documents", "dashboard"].includes(permission);
   }
@@ -173,31 +185,37 @@ export const login = (Username: string, password: string) => async (dispatch: an
       SupervisorID: data.user.supervisorID,
       Supervisor: data.user.supervisor || '',
       AccessRightID: data.user.accessRightID || 0,
-      AccessRight: accessRightMap[data.user.accessRightID] || 'Employee',
-      role: accessRightMap[data.user.accessRightID]?.toLowerCase() || 'employee',
+      AccessRight: 'EMPLOYEE', // Will be updated when access rights are fetched
+      role: 'employee', // Will be updated when access rights are fetched
       PasswordHash: data.user.passwordHash,
       isActive: data.user.isActive,
     };
     
+    // First dispatch login success to set the basic user data
     dispatch(loginSuccess(userData));
 
-    // Fetch all available access rights
-    const allAccessRights = await accessRightsApi.getAll();
-    dispatch(setAvailableAccessRights(allAccessRights.map(right => ({
-      id: right.ID,
-      name: right.Name,
-      description: right.Name // Using Name as description since it's not provided by API
-    }))));
-
-    // Fetch employee-specific access rights
+    // Then fetch employee-specific access rights
     try {
+      console.log('Fetching access rights for employee:', userData.ID);
       const employeeAccessRights = await accessRightsApi.getEmployeeAccessRights(userData.ID.toString());
+      console.log('Received access rights:', employeeAccessRights);
       if (employeeAccessRights.length > 0) {
         dispatch(setAccessRights(employeeAccessRights));
       }
     } catch (error) {
-      console.warn('Failed to fetch employee access rights:', error);
-      // Don't throw error here - fall back to default rights
+      console.error('Failed to fetch employee access rights:', error);
+    }
+
+    // Finally fetch all available access rights
+    try {
+      const allAccessRights = await accessRightsApi.getAll();
+      dispatch(setAvailableAccessRights(allAccessRights.map(right => ({
+        id: right.ID,
+        name: right.Name,
+        description: right.Name
+      }))));
+    } catch (error) {
+      console.error('Failed to fetch all access rights:', error);
     }
 
   } catch (error) {
