@@ -22,19 +22,20 @@ interface DashboardStats {
 
 export default function Dashboard() {
   const { employee } = useSelector((state: RootState) => state.auth);
+  console.log(employee);
   const isHR = hasPermission(employee, 'hr');
   const [selectedQual, setSelectedQual] = useState<Qualification | null>(null);
   const { data: jobTitlesData } = useJobTitles();
   const { data: qualificationsData } = useQualifications();
-  const { data: employeeQualificationsData, isLoading: isLoadingQualifications } = useEmployeeQualifications(employee?.id ? employee.id.toString() : '');
+  const { data: employeeQualificationsData, isLoading: isLoadingQualifications } = useEmployeeQualifications(employee?.ID ? employee.ID.toString() : '');
 
   useEffect(() => {
-    if (employee?.id) {
-      const employeeId = employee.id.toString();
+    if (employee?.ID) {
+      const employeeId = employee.ID.toString();
       const employeeQuals = employeeQualificationsData || [];
       const qualifications = qualificationsData || [];
 
-      employeeQuals.forEach(qual => {
+      employeeQuals.forEach((qual:any) => {
         const qualification = qualifications.find(q => q.ID?.toString() === qual.qualificationID);
         if (qualification) {
           const expiryDate = new Date(qual.toQualifyUntil);
@@ -54,13 +55,13 @@ export default function Dashboard() {
   }
 
 
-  const jobTitle = employee.jobTitle;
+  const jobTitle = employee.JobTitle;
   const userQualifications = employeeQualificationsData || [];
 
   const stats = [
     { 
       name: 'Aktive Qualifikationen', 
-      value: userQualifications.filter(qual => {
+      value: userQualifications.filter((qual:any) => {
         if (!qual.toQualifyUntil) return false;
         const expiryDate = new Date(qual.toQualifyUntil);
         return expiryDate > new Date();
@@ -70,7 +71,7 @@ export default function Dashboard() {
     },
     {
       name: 'Auslaufende Qualifikationen',
-      value: userQualifications.filter(qual => {
+      value: userQualifications.filter((qual:any) => {
         if (!qual.toQualifyUntil) return false;
         const expiryDate = new Date(qual.toQualifyUntil);
         const twoMonthsFromNow = new Date();
@@ -82,7 +83,7 @@ export default function Dashboard() {
     },
     {
       name: 'Abgelaufene Qualifikationen',
-      value: userQualifications.filter(qual => {
+      value: userQualifications.filter((qual:any) => {
         if (!qual.toQualifyUntil) return false;
         const expiryDate = new Date(qual.toQualifyUntil);
         return expiryDate <= new Date();
@@ -143,7 +144,7 @@ export default function Dashboard() {
     <div className="space-y-6 p-4 sm:p-6">
       <div>
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-          {employee.fullName}
+          {employee.FullName}
         </h1>
       </div>
 
@@ -221,7 +222,7 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="mt-6 space-y-4">
-              {userQualifications.map((qual) => {
+              {userQualifications.map((qual : any) => {
                 const status = getQualificationStatus(qual);
                 if (!status) return null;
 

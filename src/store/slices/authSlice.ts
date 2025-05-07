@@ -1,5 +1,6 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import type { Employee } from "../../types";
+import { accessRightsApi } from "../../services/accessRightsApi";
 
 interface AuthState {
   employee: Employee | null;
@@ -7,6 +8,8 @@ interface AuthState {
   loading: boolean;
   error: string | null;
   sessionExpiry: number | null;
+  accessRights: string[];
+  availableAccessRights: { id: number; name: string; description: string; }[];
 }
 
 const loadInitialState = (): AuthState => {
@@ -23,6 +26,8 @@ const loadInitialState = (): AuthState => {
     loading: false,
     error: null,
     sessionExpiry: null,
+    accessRights: [],
+    availableAccessRights: [],
   };
 };
 
@@ -54,6 +59,8 @@ const authSlice = createSlice({
       state.loading = false;
       state.error = null;
       state.sessionExpiry = null;
+      state.accessRights = [];
+      state.availableAccessRights = [];
       localStorage.removeItem("auth");
     },
     refreshSession: (state) => {
@@ -61,6 +68,14 @@ const authSlice = createSlice({
         state.sessionExpiry = Date.now() + 30 * 60 * 1000;
         localStorage.setItem("auth", JSON.stringify(state));
       }
+    },
+    setAccessRights: (state, action: PayloadAction<string[]>) => {
+      state.accessRights = action.payload;
+      localStorage.setItem("auth", JSON.stringify(state));
+    },
+    setAvailableAccessRights: (state, action: PayloadAction<{ id: number; name: string; description: string; }[]>) => {
+      state.availableAccessRights = action.payload;
+      localStorage.setItem("auth", JSON.stringify(state));
     },
   },
 });
@@ -71,6 +86,8 @@ export const {
   loginFailure,
   logout,
   refreshSession,
+  setAccessRights,
+  setAvailableAccessRights,
 } = authSlice.actions;
 
 export const toggleUserActive = (userId: string, isActive: boolean) => ({
@@ -104,68 +121,74 @@ export const hasPermission = (
   }
 };
 
-export const login =
-  (Username: string, password: string) => async (dispatch: any) => {
-    dispatch(loginStart());
+export const login = (Username: string, password: string) => async (dispatch: any) => {
+  dispatch(loginStart());
 
-    try {
-      const response = await fetch("http://localhost:5000/api/v2/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ Username, password }),
-      });
+  try {
+    // Login request
+    const response = await fetch("http://localhost:5000/api/v2/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ Username, password }),
+    });
 
-      if (!response.ok) {
-        throw new Error("Ungültige Anmeldedaten");
-      }
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Ungültige Anmeldedaten");
-      }
-
-      if (!data.user) {
-        throw new Error("Ungültige Anmeldedaten");
-      }
-
-      /* if (!data.user.isActive) {
-        throw new Error(
-          "Ihr Account wurde gesperrt. Bitte kontaktieren Sie Ihren Vorgesetzten oder die IT-Abteilung für Unterstützung.",
-        );
-      } */
-
-      // Store the token and user data
-      localStorage.setItem('token', data.token);
-      
-      const userData = {
-        id: data.user.id,
-        SurName: data.user.surname,
-        FirstName: data.user.firstName,
-        FullName: `${data.user.firstName} ${data.user.surname}`,
-        eMail: data.user.email,
-        StaffNumber: data.user.staffNumber,
-        Department: data.user.department,
-        DepartmentID: data.user.departmentID,
-        JobTitle: data.user.jobTitle,
-        JobTitleID: data.user.jobTitleID,
-        SupervisorID: data.user.supervisorID,
-        role: data.user.role,
-        PasswordHash: data.user.passwordHash,
-        isActive: data.user.isActive,
-      };
-      
-      dispatch(loginSuccess(userData));
-    } catch (error) {
-      console.error("Login error:", error);
-      dispatch(
-        loginFailure(
-          error instanceof Error ? error.message : "Login fehlgeschlagen",
-        ),
-      );
+    if (!response.ok) {
+      throw new Error("Ungültige Anmeldedaten");
     }
-  };
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || "Ungültige Anmeldedaten");
+    }
+
+    if (!data.user) {
+      throw new Error("Ungültige Anmeldedaten");
+    }
+
+    // Store the token and user data
+    localStorage.setItem('token', data.token);
+    
+    const userData = {
+      ID: data.user.id,
+      SurName: data.user.surname,
+      FirstName: data.user.firstName,
+      FullName: `${data.user.firstName} ${data.user.surname}`,
+      eMail: data.user.email,
+      StaffNumber: data.user.staffNumber,
+      Department: data.user.department,
+      DepartmentID: data.user.departmentID,
+      JobTitle: data.user.jobTitle,
+      JobTitleID: data.user.jobTitleID,
+      SupervisorID: data.user.supervisorID,
+      Supervisor: data.user.supervisor || '',
+      AccessRightID: data.user.accessRightID || 0,
+      AccessRight: data.user.accessRight || '',
+      role: data.user.role,
+      PasswordHash: data.user.passwordHash,
+      isActive: data.user.isActive,
+    };
+    
+    dispatch(loginSuccess(userData));
+
+    // Fetch all available access rights
+    const allAccessRights = await accessRightsApi.getAll();
+    dispatch(setAvailableAccessRights(allAccessRights));
+
+    // Fetch employee-specific access rights
+    const employeeAccessRights = await accessRightsApi.getEmployeeAccessRights(data.user.id);
+    dispatch(setAccessRights(employeeAccessRights));
+
+  } catch (error) {
+    console.error("Login error:", error);
+    dispatch(
+      loginFailure(
+        error instanceof Error ? error.message : "Login fehlgeschlagen",
+      ),
+    );
+  }
+};
 
 export default authSlice.reducer;
