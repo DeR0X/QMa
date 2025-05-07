@@ -78,20 +78,48 @@ const filterAndPaginateEmployees = (employees: Employee[], filters: EmployeeFilt
     filteredData = filteredData.filter(emp => emp.AccessRight === filters.role);
   }
 
-  // Apply pagination
-  const page = filters.page || 1;
-  const limit = filters.limit || 10;
-  const start = (page - 1) * limit;
-  const end = start + limit;
-  const paginatedData = filteredData.slice(start, end);
+  // Apply sorting
+  if (filters.sortBy) {
+    const sortField = filters.sortBy as keyof Employee;
+    const sortOrder = filters.sortOrder === 'desc' ? -1 : 1;
+    
+    filteredData.sort((a, b) => {
+      const aValue = a[sortField];
+      const bValue = b[sortField];
+      
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortOrder * aValue.localeCompare(bValue);
+      }
+      if (aValue === undefined || bValue === undefined) return 0;
+      return sortOrder * ((aValue > bValue) ? 1 : -1);
+    });
+  }
 
+  // Apply pagination if requested
+  if (filters.page && filters.limit) {
+    const start = (filters.page - 1) * filters.limit;
+    const end = start + filters.limit;
+    const paginatedData = filteredData.slice(start, end);
+
+    return {
+      data: paginatedData,
+      pagination: {
+        page: filters.page,
+        limit: filters.limit,
+        total: filteredData.length,
+        totalPages: Math.ceil(filteredData.length / filters.limit)
+      }
+    };
+  }
+
+  // Return all filtered data if no pagination requested
   return {
-    data: paginatedData,
+    data: filteredData,
     pagination: {
-      page,
-      limit,
+      page: 1,
+      limit: filteredData.length,
       total: filteredData.length,
-      totalPages: Math.ceil(filteredData.length / limit)
+      totalPages: 1
     }
   };
 };
@@ -106,7 +134,8 @@ export function useEmployees(filters: EmployeeFilters = {}) {
       try {
         // Check if we need to fetch fresh data
         if (!isCacheValid()) {
-          const response = await employeeApi.getEmployeesFromView({ limit: 1000 }); // Fetch all employees
+          // Fetch all employees without pagination
+          const response = await employeeApi.getEmployeesFromView();
           employeeStore = {
             allEmployees: response.data,
             lastFetched: Date.now(),
@@ -141,7 +170,7 @@ export function useEmployee(id: string) {
       }
 
       // If not in store or cache invalid, fetch all employees again
-      const response = await employeeApi.getEmployeesFromView({ limit: 1000 });
+      const response = await employeeApi.getEmployeesFromView();
       employeeStore = {
         allEmployees: response.data,
         lastFetched: Date.now(),

@@ -9,6 +9,7 @@ import {
   Search,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   AlertTriangle,
   Award,
   Info,
@@ -27,6 +28,8 @@ interface Props {
   departmentFilter?: string;
 }
 
+const ITEMS_PER_PAGE = 10;
+
 export default function TrainingStatistics({ departmentFilter }: Props) {
   const [showDetails, setShowDetails] = useState(false);
   const [selectedStat, setSelectedStat] = useState<string | null>(null);
@@ -34,6 +37,7 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [expandedDepartments, setExpandedDepartments] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [filters, setFilters] = useState({
     hideEmptyDepartments: false,
     hasTrainers: false,
@@ -44,6 +48,8 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
 
   const [apiFilters] = useState<EmployeeFilters>({
     department: departmentFilter,
+    page: currentPage,
+    limit: ITEMS_PER_PAGE
   });
 
   const { 
@@ -68,6 +74,10 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
     );
   };
 
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+  };
+
   if (isEmployeesLoading || isDepartmentsLoading) {
     return (
       <div className="bg-white dark:bg-[#181818] rounded-lg shadow p-6">
@@ -89,7 +99,9 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
     );
   }
 
-  const totalEmployees = employeesData?.data.length || 0;
+  const totalEmployees = employeesData?.pagination.total || 0;
+  const totalPages = employeesData?.pagination.totalPages || 1;
+
   const completedEmployees = employeesData?.data.filter(employee => {
     const qualifications = allEmployeeQualifications[employee.ID];
     return qualifications && qualifications.length > 0;
@@ -610,6 +622,72 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
           handleRejectTraining={() => {}}
         />
       )}
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 px-4 py-3 sm:px-6">
+        <div className="flex flex-1 justify-between sm:hidden">
+          <button
+            onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+            className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
+          >
+            Vorherige
+          </button>
+          <button
+            onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage === totalPages}
+            className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
+          >
+            Nächste
+          </button>
+        
+        </div>
+        <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              Zeige <span className="font-medium">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> bis{' '}
+              <span className="font-medium">
+                {Math.min(currentPage * ITEMS_PER_PAGE, totalEmployees)}
+              </span>{' '}
+              von <span className="font-medium">{totalEmployees}</span> Einträgen
+            </p>
+          </div>
+          <div>
+            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+              <button
+                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
+              >
+                <span className="sr-only">Vorherige</span>
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              {/* Page numbers */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                    page === currentPage
+                      ? 'z-10 bg-primary border-primary text-white'
+                      : 'bg-white dark:bg-[#181818] border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#1a1a1a]'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
+              >
+                <span className="sr-only">Nächste</span>
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </nav>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

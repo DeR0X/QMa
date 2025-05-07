@@ -12,7 +12,7 @@ interface DepartmentsParams {
   sortOrder?: 'asc' | 'desc';
 }
 
-const API_BASE_URL = 'http://localhost:5000/api/v2';
+const API_BASE_URL = 'http://localhost:5000/api';
 
 async function fetchDepartments(params: DepartmentsParams = {}): Promise<Department[]> {
   const queryParams = new URLSearchParams();
