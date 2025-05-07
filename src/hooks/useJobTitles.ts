@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import type { JobTitle } from '../types';
 
@@ -15,8 +14,8 @@ async function fetchJobTitles(params: JobTitlesParams = {}): Promise<JobTitle[]>
   if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
 
   const queryString = queryParams.toString();
-  const url = `${API_BASE_URL}/job-titles${queryString ? `?${queryString}` : ''}`;
-
+  //const url = `${API_BASE_URL}/job-titles${queryString ? `?${queryString}` : ''}`;
+  const url = `${API_BASE_URL}/job-titles`;
   try {
     const response = await fetch(url, {
       headers: {
