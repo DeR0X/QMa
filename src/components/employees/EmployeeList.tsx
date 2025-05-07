@@ -50,7 +50,10 @@ export default function EmployeeList({
             Mitarbeiter
           </th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-            Abteilung
+            Personal-Nr.
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+            Abteilung (Atoss-ID)
           </th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
             Position
@@ -72,6 +75,7 @@ export default function EmployeeList({
       {employees
       .filter(employee => employee)
       .map((employee) => {
+        const department = departments?.find(d => d.ID.toString() === employee.DepartmentID?.toString());
         return (
           <React.Fragment key={employee.ID}>
             <tr
@@ -108,119 +112,130 @@ export default function EmployeeList({
                     </div>
                   </div>
                 </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {employee.Department}
-                  <div className="text-xs text-gray-500">ID: {employee.DepartmentID}</div>
-                </td>
-                <td className="py-4 px-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900 dark:text-white">
-                    {employee.JobTitle || 'Keine Position'}
-                  </div>
-                  {employee.JobTitleID && <div className="text-xs text-gray-500">ID: {employee.JobTitleID}</div>}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    !employee.isActive
-                      ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                  }`}>
-                    {!employee.isActive ? 'Gesperrt' : 'Aktiv'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    employee.isTrainer
-                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                      : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-                  }`}>
-                    {employee.isTrainer ? 'Trainer' : 'Kein Trainer'}
-                  </span>
-                </td>
-                {(isHRAdmin || currentEmployee?.role === 'supervisor') && (
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <button
-                      onClick={(e) => onToggleActive(e, employee.ID.toString())}
-                      className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
-                    >
-                      {!employee.isActive ? (
-                        <Unlock className="h-5 w-5" />
-                      ) : (
-                        <Lock className="h-5 w-5" />
-                      )}
-                    </button>
-                  </td>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                {employee.StaffNumber}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                {employee.Department}
+                {department && (
+                  <div className="text-xs text-gray-500">ID: {department.DepartmentID_Atoss}</div>
                 )}
-              </tr>
-              {employee.role === 'supervisor' && 
-               expandedSupervisors.includes(employee.ID.toString()) && 
-               getDirectReports(employee.ID.toString())
-               .filter(report => report)
-                .map((report, index) => (
-                   <tr
-                     key={`report-${report.ID}-${index}`}
-                     onClick={() => onSelectEmployee(report)}
-                     className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer pl-8"
-                   >
-                     <td className="px-6 py-4 whitespace-nowrap">
-                       <div className="flex items-center">
-                         <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
-                         <span className="text-sm font-medium">
-                           {typeof report.FullName === 'string'
-                             ? report.FullName.split(' ').map((n) => n[0]).join('')
-                             : ''}
-                         </span>
-                         </div>
-                         <div className="ml-4">
-                           <div className="text-sm font-medium text-gray-900 dark:text-white">
-                             {report.FullName}
-                           </div>
+              </td>
+              <td className="py-4 px-4 whitespace-nowrap">
+                <div className="text-sm text-gray-900 dark:text-white">
+                  {employee.JobTitle || 'Keine Position'}
+                </div>
+                {employee.JobTitleID && <div className="text-xs text-gray-500">ID: {employee.JobTitleID}</div>}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  !employee.isActive
+                    ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                    : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                }`}>
+                  {!employee.isActive ? 'Gesperrt' : 'Aktiv'}
+                </span>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  employee.isTrainer
+                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                    : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                }`}>
+                  {employee.isTrainer ? 'Trainer' : 'Kein Trainer'}
+                </span>
+              </td>
+              {(isHRAdmin || currentEmployee?.role === 'supervisor') && (
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <button
+                    onClick={(e) => onToggleActive(e, employee.ID.toString())}
+                    className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                  >
+                    {!employee.isActive ? (
+                      <Unlock className="h-5 w-5" />
+                    ) : (
+                      <Lock className="h-5 w-5" />
+                    )}
+                  </button>
+                </td>
+              )}
+            </tr>
+            {employee.role === 'supervisor' && 
+             expandedSupervisors.includes(employee.ID.toString()) && 
+             getDirectReports(employee.ID.toString())
+             .filter(report => report)
+              .map((report, index) => (
+                 <tr
+                   key={`report-${report.ID}-${index}`}
+                   onClick={() => onSelectEmployee(report)}
+                   className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer pl-8"
+                 >
+                   <td className="px-6 py-4 whitespace-nowrap">
+                     <div className="flex items-center">
+                       <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
+                       <span className="text-sm font-medium">
+                         {typeof report.FullName === 'string'
+                           ? report.FullName.split(' ').map((n) => n[0]).join('')
+                           : ''}
+                       </span>
+                       </div>
+                       <div className="ml-4">
+                         <div className="text-sm font-medium text-gray-900 dark:text-white">
+                           {report.FullName}
                          </div>
                        </div>
-                     </td>
-                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                       {report.Department}
-                     </td>
-                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                       {report.JobTitle || 'Keine Position'}
-                     </td>
-                     <td className="px-6 py-4 whitespace-nowrap">
-                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                         !report.isActive
-                           ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                           : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                       }`}>
-                         {!report.isActive ? 'Gesperrt' : 'Aktiv'}
-                       </span>
-                     </td>
-                     <td className="px-6 py-4 whitespace-nowrap">
-                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                         report.isTrainer
-                           ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                           : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-                       }`}>
-                         {report.isTrainer ? 'Trainer' : 'Kein Trainer'}
-                       </span>
-                     </td>
-                     {(isHRAdmin || currentEmployee?.role === 'supervisor') && (
-                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                         <button
-                           onClick={(e) => onToggleActive(e, report.ID.toString())}
-                           className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
-                         >
-                           {!report.isActive ? (
-                             <Unlock className="h-5 w-5" />
-                           ) : (
-                             <Lock className="h-5 w-5" />
-                           )}
-                         </button>
-                       </td>
+                     </div>
+                   </td>
+                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                     {report.StaffNumber}
+                   </td>
+                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                     {report.Department}
+                     {department && (
+                       <div className="text-xs text-gray-500">ID: {department.DepartmentID_Atoss}</div>
                      )}
-                   </tr>
-                 ))}
-            </React.Fragment>
-          );
-        })}
+                   </td>
+                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                     {report.JobTitle || 'Keine Position'}
+                   </td>
+                   <td className="px-6 py-4 whitespace-nowrap">
+                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                       !report.isActive
+                         ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                         : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                     }`}>
+                       {!report.isActive ? 'Gesperrt' : 'Aktiv'}
+                     </span>
+                   </td>
+                   <td className="px-6 py-4 whitespace-nowrap">
+                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                       report.isTrainer
+                         ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                         : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                     }`}>
+                       {report.isTrainer ? 'Trainer' : 'Kein Trainer'}
+                     </span>
+                   </td>
+                   {(isHRAdmin || currentEmployee?.role === 'supervisor') && (
+                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                       <button
+                         onClick={(e) => onToggleActive(e, report.ID.toString())}
+                         className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                       >
+                         {!report.isActive ? (
+                           <Unlock className="h-5 w-5" />
+                         ) : (
+                           <Lock className="h-5 w-5" />
+                         )}
+                       </button>
+                     </td>
+                   )}
+                 </tr>
+               ))}
+          </React.Fragment>
+        );
+      })}
       </tbody>
     </table>
   );
