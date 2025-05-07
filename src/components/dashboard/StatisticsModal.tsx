@@ -25,7 +25,7 @@ export default function StatisticsModal({
   isOpen,
   onClose,
   title,
-  employees,
+  employees = [], // Provide default empty array
   type,
 }: Props) {
   const [currentPage, setCurrentPage] = useState(1);
@@ -34,12 +34,13 @@ export default function StatisticsModal({
   const { data: jobTitlesData } = useJobTitles();
   const { data: qualificationsData } = useQualifications();
 
+  const itemsPerPage = 10;
   const totalItems = employees.length;
-  const totalPages = Math.ceil(totalItems / 10);
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
 
   const paginatedEmployees = employees.slice(
-    (currentPage - 1) * 10,
-    currentPage * 10,
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
   );
 
   if (!isOpen) return null;
@@ -92,6 +93,8 @@ export default function StatisticsModal({
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-[#141616]">
                       {paginatedEmployees.map((employee) => {
+                        if (!employee) return null;
+                        
                         const department = departmentsData?.find(
                           (d) => d.ID === employee.DepartmentID?.toString(),
                         );
@@ -181,11 +184,11 @@ export default function StatisticsModal({
               <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                 Zeige{" "}
                 <span className="font-medium">
-                  {(currentPage - 1) * 10 + 1}
+                  {(currentPage - 1) * itemsPerPage + 1}
                 </span>{" "}
                 -{" "}
                 <span className="font-medium">
-                  {Math.min(currentPage * 10, totalItems)}
+                  {Math.min(currentPage * itemsPerPage, totalItems)}
                 </span>{" "}
                 von <span className="font-medium">{totalItems}</span>{" "}
                 Ergebnissen

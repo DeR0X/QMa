@@ -250,7 +250,7 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
   return (
     <div className="bg-white dark:bg-[#181818] rounded-lg shadow p-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+      <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
           <PieChart className="h-5 w-5 mr-2" />
           Schulungsstatistik
@@ -641,51 +641,6 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
             Nächste
           </button>
         
-        </div>
-        <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm text-gray-700 dark:text-gray-300">
-              Zeige <span className="font-medium">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> bis{' '}
-              <span className="font-medium">
-                {Math.min(currentPage * ITEMS_PER_PAGE, totalEmployees)}
-              </span>{' '}
-              von <span className="font-medium">{totalEmployees}</span> Einträgen
-            </p>
-          </div>
-          <div>
-            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-              <button
-                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
-              >
-                <span className="sr-only">Vorherige</span>
-                <ChevronLeft className="h-5 w-5" />
-              </button>
-              {/* Page numbers */}
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  onClick={() => handlePageChange(page)}
-                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                    page === currentPage
-                      ? 'z-10 bg-primary border-primary text-white'
-                      : 'bg-white dark:bg-[#181818] border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#1a1a1a]'
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
-              <button
-                onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage === totalPages}
-                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#181818] text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
-              >
-                <span className="sr-only">Nächste</span>
-                <ChevronRight className="h-5 w-5" />
-              </button>
-            </nav>
-          </div>
         </div>
       </div>
     </div>
