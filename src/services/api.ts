@@ -19,16 +19,8 @@ function buildQueryString(params: Record<string, any>): string {
   return queryString ? `?${queryString}` : '';
 }
 
-export interface EmployeeQualificationData {
-  EmployeeID: string;
-  QualificationID: string;
-  qualifiedFrom: string;
-  toQualifyUntil: string;
-  isQualifiedUntil: string;
-}
-
 export const employeeApi = {
-  async getEmployees(filters: EmployeeFilters = {}) {
+  async getEmployeesFromView(filters: EmployeeFilters = {}) {
     const queryString = buildQueryString(filters);
     const response = await fetch(`${API_BASE_URL}/employees-view${queryString}`);
     
@@ -39,9 +31,8 @@ export const employeeApi = {
     return response.json();
   },
 
-  async getEmployeeById(id: string, fields?: string[]) {
-    const queryString = fields ? buildQueryString({ fields: fields.join(',') }) : '';
-    const response = await fetch(`${API_BASE_URL}/employees-view/${id}${queryString}`);
+  async getEmployeeByIdFromView(id: string) {
+    const response = await fetch(`${API_BASE_URL}/employees-view/${id}`);
     
     if (!response.ok) {
       throw new Error('Failed to fetch employee');
@@ -89,32 +80,6 @@ export const employeeApi = {
     
     if (!response.ok) {
       throw new Error('Failed to delete employee');
-    }
-    
-    return response.json();
-  },
-
-  async addEmployeeQualification(employeeId: string, data: EmployeeQualificationData) {
-    const response = await fetch(`${API_BASE_URL}/employee-qualifications/${employeeId}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to add employee qualification');
-    }
-
-    return response.json();
-  },
-
-  async getEmployeeQualifications(employeeId: string) {
-    const response = await fetch(`${API_BASE_URL}/employee-qualifications/${employeeId}`);
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch employee qualifications');
     }
     
     return response.json();
