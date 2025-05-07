@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useEmployees } from './useEmployees';
 import type { JobTitle } from '../types';
 
 interface JobTitlesParams {
@@ -14,8 +15,8 @@ async function fetchJobTitles(params: JobTitlesParams = {}): Promise<JobTitle[]>
   if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
 
   const queryString = queryParams.toString();
-  //const url = `${API_BASE_URL}/job-titles${queryString ? `?${queryString}` : ''}`;
   const url = `${API_BASE_URL}/job-titles`;
+  
   try {
     const response = await fetch(url, {
       headers: {
@@ -37,9 +38,35 @@ async function fetchJobTitles(params: JobTitlesParams = {}): Promise<JobTitle[]>
 }
 
 export function useJobTitles(params: JobTitlesParams = {}) {
+  const { data: employeesData } = useEmployees();
+
   return useQuery({
     queryKey: ['jobTitles', params],
-    queryFn: () => fetchJobTitles(params),
+    queryFn: async () => {
+      // First try to extract from employee data
+      if (employeesData?.data) {
+        const uniqueJobTitles = Array.from(
+          new Set(
+            employeesData.data
+              .filter(emp => emp.JobTitleID && emp.JobTitle)
+              .map(emp => ({
+                id: emp.JobTitleID.toString(),
+                jobTitle: emp.JobTitle,
+                description: emp.JobTitle
+              }))
+          )
+        );
+
+        // If we found job titles in employee data, use them
+        if (uniqueJobTitles.length > 0) {
+          return uniqueJobTitles;
+        }
+      }
+
+      // If no job titles found in employee data, fetch from API
+      return fetchJobTitles(params);
+    },
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     retry: 1
   });
 }

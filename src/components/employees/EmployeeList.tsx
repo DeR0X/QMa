@@ -2,7 +2,6 @@ import React from 'react';
 import { useState } from 'react';
 import { Lock, Unlock, ChevronDown, ChevronRight } from 'lucide-react';
 import type { Employee } from '../../types';
-import { useJobTitles } from '../../hooks/useJobTitles';
 import { useDepartments } from '../../hooks/useDepartments';
 
 interface Props {
@@ -21,7 +20,7 @@ export default function EmployeeList({
   currentEmployee
 }: Props) {
   const [expandedSupervisors, setExpandedSupervisors] = useState<string[]>([]);
-  const { data: jobTitlesData, isLoading: isLoadingJobTitles } = useJobTitles();
+  const { data: departments } = useDepartments();
 
   const toggleSupervisor = (e: React.MouseEvent, supervisorId: string) => {
     e.stopPropagation();
@@ -32,20 +31,10 @@ export default function EmployeeList({
     );
   };
 
-  const { data: departments } = useDepartments();
-
   const getDepartmentName = (departmentId: string) => {
     if (!departments) return 'Laden...';
     const department = departments.find(d => d.ID.toString() === departmentId);
     return department ? department.Department : 'Unbekannte Abteilung';
-  };
-
-  const getJobTitle = (jobTitleId: string | number | null) => {
-    if (!jobTitleId) return 'Keine Position';
-    if (!jobTitlesData) return 'Laden...';
-    
-    const jobTitle = jobTitlesData.find(jt => jt.id === jobTitleId.toString());
-    return jobTitle ? jobTitle.jobTitle : jobTitleId.toString();
   };
 
   // Filter supervisors and their direct reports
@@ -126,7 +115,7 @@ export default function EmployeeList({
                 </td>
                 <td className="py-4 px-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900 dark:text-white">
-                    {isLoadingJobTitles ? 'Laden...' : getJobTitle(employee.JobTitleID)}
+                    {employee.JobTitle || 'Keine Position'}
                   </div>
                   {employee.JobTitleID && <div className="text-xs text-gray-500">ID: {employee.JobTitleID}</div>}
                 </td>
@@ -190,10 +179,10 @@ export default function EmployeeList({
                        </div>
                      </td>
                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                       {getDepartmentName(report.DepartmentID?.toString() || '')}
+                       {report.Department}
                      </td>
                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                       {isLoadingJobTitles ? 'Laden...' : getJobTitle(report.JobTitleID)}
+                       {report.JobTitle || 'Keine Position'}
                      </td>
                      <td className="px-6 py-4 whitespace-nowrap">
                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
