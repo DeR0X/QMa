@@ -33,6 +33,14 @@ const loadInitialState = (): AuthState => {
 
 const initialState: AuthState = loadInitialState();
 
+// Map AccessRightID to text representation
+const accessRightMap: Record<number, string> = {
+  1: 'Employee',
+  2: 'Supervisor',
+  3: 'HR',
+  4: 'Admin'
+};
+
 const authSlice = createSlice({
   name: "auth",
   initialState,
@@ -47,6 +55,13 @@ const authSlice = createSlice({
       state.loading = false;
       state.error = null;
       state.sessionExpiry = Date.now() + 30 * 60 * 1000;
+      
+      // Set access rights based on AccessRightID
+      const accessRight = accessRightMap[action.payload.AccessRightID];
+      if (accessRight) {
+        state.accessRights = [accessRight];
+      }
+      
       localStorage.setItem("auth", JSON.stringify(state));
     },
     loginFailure: (state, action: PayloadAction<string>) => {
@@ -96,7 +111,9 @@ export const toggleUserActive = (userId: string, isActive: boolean) => ({
 });
 
 export const hasHRPermissions = (employee: Employee | null) => {
-  return employee?.role === 'Admin' || employee?.role === 'HR';
+  if (!employee) return false;
+  const accessRight = accessRightMap[employee.AccessRightID];
+  return accessRight === 'HR' || accessRight === 'Admin';
 };
 
 export const hasPermission = (
@@ -104,18 +121,19 @@ export const hasPermission = (
   permission: string,
 ) => {
   if (!employee) return false;
+  const accessRight = accessRightMap[employee.AccessRightID];
 
-  switch (employee.role) {
+  switch (accessRight) {
     case "Admin":
       return true;
     case "HR":
-      return ["employees", "trainings", "qualifications", "documents", "dashbaord"].includes(
+      return ["employees", "trainings", "qualifications", "documents", "dashboard"].includes(
         permission,
       );
     case "Supervisor":
       return ["employees", "trainings", "documents", "dashboard"].includes(permission);
     default:
-      return ["trainings", "documents", "dashbaord"].includes(permission);
+      return ["trainings", "documents", "dashboard"].includes(permission);
   }
 };
 
@@ -163,8 +181,8 @@ export const login = (Username: string, password: string) => async (dispatch: an
       SupervisorID: data.user.supervisorID,
       Supervisor: data.user.supervisor || '',
       AccessRightID: data.user.accessRightID || 0,
-      AccessRight: data.user.accessRight || '',
-      role: data.user.role,
+      AccessRight: accessRightMap[data.user.accessRightID] || 'Employee',
+      role: accessRightMap[data.user.accessRightID] || 'Employee',
       PasswordHash: data.user.passwordHash,
       isActive: data.user.isActive,
     };
@@ -175,9 +193,13 @@ export const login = (Username: string, password: string) => async (dispatch: an
     const allAccessRights = await accessRightsApi.getAll();
     dispatch(setAvailableAccessRights(allAccessRights));
 
-    // Fetch employee-specific access rights
-    const employeeAccessRights = await accessRightsApi.getEmployeeAccessRights(data.user.id);
-    dispatch(setAccessRights(employeeAccessRights));
+    // Set access rights based on AccessRightID
+    if (userData.AccessRightID) {
+      const accessRight = accessRightMap[userData.AccessRightID];
+      if (accessRight) {
+        dispatch(setAccessRights([accessRight]));
+      }
+    }
 
   } catch (error) {
     console.error("Login error:", error);
