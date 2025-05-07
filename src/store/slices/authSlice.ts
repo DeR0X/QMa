@@ -114,10 +114,8 @@ export const hasPermission = (
       );
     case "supervisor":
       return ["employees", "trainings", "documents", "dashboard"].includes(permission);
-    case "employee":
-      return ["trainings", "documents", "dashbaord"].includes(permission);
     default:
-      return false;
+      return ["trainings", "documents", "dashbaord"].includes(permission);
   }
 };
 

@@ -2,7 +2,7 @@ import { Menu, Bell, Sun, Moon } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { toggleSidebar } from '../../store/slices/uiSlice';
-import { logout } from '../../store/slices/authSlice';
+import { logout, hasPermission } from '../../store/slices/authSlice';
 import { useTheme } from '../theme-provider';
 import { RootState } from '../../store';
 import { getInitials } from '../../lib/utils';
@@ -18,6 +18,10 @@ export default function Header() {
     dispatch(logout());
     navigate('/login');
   };
+
+  const canAccessEmployees = employee && hasPermission(employee, 'employees');
+  const canAccessTrainings = employee && hasPermission(employee, 'trainings');
+  const canAccessDocuments = employee && hasPermission(employee, 'documents');
 
   return (
     <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-[#121212] px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
@@ -45,7 +49,6 @@ export default function Header() {
               <Moon className="h-6 w-6" aria-hidden="true" />
             )}
           </button>
-
 
           <NotificationCenter />
           <div className="relative">
