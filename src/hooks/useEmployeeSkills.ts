@@ -1,21 +1,35 @@
-
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useEmployees } from './useEmployees';
 
 const API_URL = 'http://localhost:5000/api';
 
 export const useGetEmployeeSkills = (employeeId: string) => {
+  const { data: employeesData } = useEmployees();
+  
   return useQuery({
     queryKey: ['employeeSkills', employeeId],
     queryFn: async () => {
+      // First try to get skills from employee view data
+      const employee = employeesData?.data.find(emp => emp.ID.toString() === employeeId);
+      
+      if (employee?.JobTitle && employee?.JobTitleID) {
+        // Return skills from employee view
+        return {
+          jobTitle: employee.JobTitle,
+          jobTitleId: employee.JobTitleID,
+          skills: [] // Additional skills will be fetched only if needed
+        };
+      }
+
+      // If not found in view, fetch from API
       const response = await fetch(`${API_URL}/employee-skills/${employeeId}`);
-      console.log("EmployeeID: " + employeeId);
       if (!response.ok) {
         throw new Error('Failed to fetch employee skills');
       }
       return response.json();
     },
-    enabled: !!employeeId,
+    enabled: !!employeeId && !!employeesData,
   });
 };
 
