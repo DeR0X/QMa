@@ -96,7 +96,7 @@ export const toggleUserActive = (userId: string, isActive: boolean) => ({
 });
 
 export const hasHRPermissions = (employee: Employee | null) => {
-  return employee?.role === 'admin' || employee?.role === 'hr';
+  return employee?.role === 'Admin' || employee?.role === 'HR';
 };
 
 export const hasPermission = (
@@ -106,13 +106,13 @@ export const hasPermission = (
   if (!employee) return false;
 
   switch (employee.role) {
-    case "admin":
+    case "Admin":
       return true;
-    case "hr":
+    case "HR":
       return ["employees", "trainings", "qualifications", "documents", "dashbaord"].includes(
         permission,
       );
-    case "supervisor":
+    case "Supervisor":
       return ["employees", "trainings", "documents", "dashboard"].includes(permission);
     default:
       return ["trainings", "documents", "dashbaord"].includes(permission);

@@ -49,7 +49,7 @@ export default function TrainingHistory() {
   const filteredHistory = useMemo(() => {
     return bookings.filter(booking => {
       const training = trainings.find(t => t.id === booking.trainingId);
-      const bookingYear = new Date(booking.date).getFullYear();
+      const bookingYear = new Date(booking.createdAt).getFullYear();
 
       return (
         bookingYear === selectedYear &&
@@ -143,7 +143,7 @@ export default function TrainingHistory() {
                       {training?.title || 'Unbekannte Schulung'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {formatDate(new Date(booking.date))}
+                      {formatDate(new Date(booking.completedAt))}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">

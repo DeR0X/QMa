@@ -29,7 +29,7 @@ export default function Departments() {
 
   const getEmployeeQualifications = (employee: Employee) => {
     if (!jobTitles) return [];
-    const jobTitle = jobTitles.find(jt => jt.id === employee.jobTitleID?.toString());
+    const jobTitle = jobTitles.find(jt => jt.id === employee.JobTitleID?.toString());
     return jobTitle ? jobTitle.qualificationIDs : [];
   };
 
@@ -42,7 +42,7 @@ export default function Departments() {
     if (isHR) {
       return matchesSearch && passesEmptyFilter;
     } else if (isSupervisor) {
-      return dept.ID.toString() === currentUser?.departmentID?.toString() && matchesSearch && passesEmptyFilter;
+      return dept.ID.toString() === currentUser?.DepartmentID?.toString() && matchesSearch && passesEmptyFilter;
     }
     return false;
   }) : [];
@@ -193,22 +193,22 @@ export default function Departments() {
               <div className="space-y-6">
                 {departmentEmployees.map((employee) => (
                   <div
-                    key={employee.id}
+                    key={employee.ID}
                     className="bg-gray-50 dark:bg-[#181818] rounded-lg p-4"
                   >
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
                       <div className="flex items-center">
                         <div className="h-12 w-12 rounded-full bg-primary text-white flex items-center justify-center">
                           <span className="text-lg font-medium">
-                            {employee.fullName.split(' ').map((n) => n[0]).join('')}
+                            {employee.FullName.split(' ').map((n) => n[0]).join('')}
                           </span>
                         </div>
                         <div className="ml-0 mt-2 sm:ml-4 sm:mt-0">
                           <h3 className="text-lg font-medium text-gray-900 dark:text-white break-words">
-                            {employee.fullName}
+                            {employee.FullName}
                           </h3>
                           <p className="text-sm text-gray-500 dark:text-gray-400 break-words">
-                            {getJobTitle(employee.jobTitleID?.toString() || '')}
+                            {getJobTitle(employee.JobTitleID?.toString() || '')}
                           </p>
                         </div>
                       </div>
@@ -235,7 +235,7 @@ export default function Departments() {
                           </p>
                           <p className="text-sm flex items-center text-gray-500 dark:text-gray-400 break-words">
                             <Users className="h-4 w-4 mr-2" />
-                            Personalnummer: {employee.staffNumber}
+                            Personalnummer: {employee.StaffNumber}
                           </p>
                         </div>
                       </div>

@@ -37,7 +37,7 @@ export default function Trainings() {
   const isSupervisor = employee.role === 'supervisor';
   const canCreateTraining = isHR || isSupervisor;
 
-  const userBookings = bookings.filter(booking => booking.userId === employee.ID);
+  const userBookings = bookings.filter(booking => booking.userId === employee.ID.toString());
 
   const filteredTrainings = trainings.filter(training => {
     const matchesSearch = training.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -70,7 +70,7 @@ export default function Trainings() {
     }
 
     // Notify HR
-    const hrEmployees = employees.filter(e => e.role === 'hr');
+    const hrEmployees = employees.filter(e => e.role === 'HR');
     hrEmployees.forEach(hrEmployee => {
       dispatch(addNotification({
         userId: hrEmployee.ID.toString(),
