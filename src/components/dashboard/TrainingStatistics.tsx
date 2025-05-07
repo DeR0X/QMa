@@ -30,6 +30,9 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
     error: employeesError 
   } = useEmployees(apiFilters);
 
+  // Single call to get all employee qualifications
+  const { data: allEmployeeQualifications = {} } = useEmployeeQualifications();
+
   if (isEmployeesLoading) {
     return (
       <div className="bg-white dark:bg-[#181818] rounded-lg shadow p-6">
@@ -53,13 +56,13 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
 
   const totalEmployees = employeesData?.data.length || 0;
   const completedEmployees = employeesData?.data.filter(employee => {
-    const { data: qualifications } = useEmployeeQualifications(employee.ID.toString());
+    const qualifications = allEmployeeQualifications[employee.ID];
     return qualifications && qualifications.length > 0;
   }).length || 0;
 
   const expiringEmployees = employeesData?.data.filter(employee => {
-    const { data: qualifications } = useEmployeeQualifications(employee.ID.toString());
-    return qualifications?.some(qual => {
+    const qualifications = allEmployeeQualifications[employee.ID];
+    return qualifications?.some((qual: any) => {
       const expiryDate = new Date(qual.ToQualifyUntil);
       const twoMonthsFromNow = new Date();
       twoMonthsFromNow.setMonth(twoMonthsFromNow.getMonth() + 2);
@@ -112,18 +115,18 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
         return employeesData.data;
       case 'completed':
         return employeesData.data.filter(employee => {
-          const { data: qualifications } = useEmployeeQualifications(employee.ID.toString());
+          const qualifications = allEmployeeQualifications[employee.ID];
           return qualifications && qualifications.length > 0;
         });
       case 'pending':
         return employeesData.data.filter(employee => {
-          const { data: qualifications } = useEmployeeQualifications(employee.ID.toString());
+          const qualifications = allEmployeeQualifications[employee.ID];
           return !qualifications || qualifications.length === 0;
         });
       case 'expiring':
         return employeesData.data.filter(employee => {
-          const { data: qualifications } = useEmployeeQualifications(employee.ID.toString());
-          return qualifications?.some(qual => {
+          const qualifications = allEmployeeQualifications[employee.ID];
+          return qualifications?.some((qual: any) => {
             const expiryDate = new Date(qual.ToQualifyUntil);
             const twoMonthsFromNow = new Date();
             twoMonthsFromNow.setMonth(twoMonthsFromNow.getMonth() + 2);

@@ -12,17 +12,37 @@ interface EmployeeQualification {
   isQualifiedUntil: string;
 }
 
-export const useEmployeeQualifications = (employeeId: string) => {
+export const useEmployeeQualifications = (employeeId?: string) => {
   return useQuery({
     queryKey: ['employeeQualifications', employeeId],
     queryFn: async () => {
-      const response = await fetch(`${API_URL}/employee-qualifications/${employeeId}`);
+      // If employeeId is provided, fetch qualifications for that employee
+      if (employeeId) {
+        const response = await fetch(`${API_URL}/employee-qualifications/${employeeId}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch employee qualifications');
+        }
+        return response.json() as Promise<EmployeeQualification[]>;
+      }
+      
+      // If no employeeId is provided, fetch all employee qualifications
+      const response = await fetch(`${API_URL}/employee-qualifications`);
       if (!response.ok) {
         throw new Error('Failed to fetch employee qualifications');
       }
-      return response.json() as Promise<EmployeeQualification[]>;
+      const data = await response.json();
+      
+      // Transform the data into a map of employeeId -> qualifications[]
+      return data.reduce((acc: Record<string, EmployeeQualification[]>, qual: EmployeeQualification) => {
+        if (!acc[qual.employeeID]) {
+          acc[qual.employeeID] = [];
+        }
+        acc[qual.employeeID].push(qual);
+        return acc;
+      }, {});
     },
-    enabled: !!employeeId,
+    enabled: employeeId === undefined || !!employeeId,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 };
 
@@ -58,7 +78,7 @@ export const useAddEmployeeQualification = () => {
       return response.json();
     },
     onSuccess: (_, { employeeId }) => {
-      queryClient.invalidateQueries({ queryKey: ['employeeQualifications', employeeId] });
+      queryClient.invalidateQueries({ queryKey: ['employeeQualifications'] });
       toast.success('Qualifikation erfolgreich hinzugefügt');
     },
     onError: (error: Error) => {
