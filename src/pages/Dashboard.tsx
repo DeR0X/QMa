@@ -22,7 +22,6 @@ interface DashboardStats {
 
 export default function Dashboard() {
   const { employee } = useSelector((state: RootState) => state.auth);
-  console.log(employee);
   const isHR = hasPermission(employee, 'hr');
   const [selectedQual, setSelectedQual] = useState<Qualification | null>(null);
   const { data: jobTitlesData } = useJobTitles();
