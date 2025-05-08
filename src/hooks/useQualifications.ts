@@ -48,7 +48,6 @@ export function useAddEmployeeQualification() {
           toQualifyUntil: data.toQualifyUntil,
         }),
       });
-
       if (!response.ok) {
         throw new Error('Failed to add qualification');
       }

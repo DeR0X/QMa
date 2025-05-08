@@ -35,7 +35,7 @@ export default function Dashboard() {
       const qualifications = qualificationsData || [];
 
       employeeQuals.forEach((qual:any) => {
-        const qualification = qualifications.find(q => q.ID?.toString() === qual.qualificationID);
+        const qualification = qualifications.find(q => q.ID === qual.QualificationID);
         if (qualification) {
           const expiryDate = new Date(qual.toQualifyUntil);
           if (isExpiringSoon(expiryDate)) {
@@ -98,7 +98,7 @@ export default function Dashboard() {
     const twoMonthsFromNow = new Date();
     twoMonthsFromNow.setMonth(today.getMonth() + 2);
 
-    const qualification = qualificationsData?.find(q => q.ID?.toString() === qual.qualificationID);
+    const qualification = qualificationsData?.find(q => q.ID === qual.QualificationID);
     if (!qualification) return { status: 'inactive' };
 
     return {
@@ -112,7 +112,7 @@ export default function Dashboard() {
   };
 
   const handleQualificationClick = (qual: any) => {
-    const qualification = qualificationsData?.find(q => q.ID?.toString() === qual.qualificationID);
+    const qualification = qualificationsData?.find(q => q.ID?.toString() === qual.QualificationID);
     if (qualification) {
       setSelectedQual({
         id: qualification.ID?.toString() || '',
@@ -223,23 +223,22 @@ export default function Dashboard() {
               {userQualifications.map((qual : any) => {
                 const status = getQualificationStatus(qual);
                 if (!status) return null;
-
                 return (
-                  <div key={qual.id} className="flex flex-col sm:flex-row items-center justify-between">
+                  <div key={qual.ID} className="flex flex-col sm:flex-row items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <h3 
                         className="text-sm font-medium text-gray-900 dark:text-white cursor-pointer hover:text-primary"
                         onClick={() => handleQualificationClick(qual)}
                       >
-                        {status.qualification?.Name || 'Unbekannte Qualifikation'}
+                        {qual?.qualificationName || 'Unbekannte Qualifikation'}
                       </h3>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Gültig bis {status.expiryDate ? formatDate(status.expiryDate) : 'N/A'}
+                        Gültig bis {qual.isQualifiedUntil ? formatDate(qual.isQualifiedUntil) : 'N/A'}
                       </p>
                     </div>
                     <div className="ml-0 sm:ml-4 mt-2 sm:mt-0">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles(status.status)}`}>
-                        {status.isExpired ? 'Abgelaufen' : status.isExpiringSoon ? `${status.daysUntilExpiry} Tage` : 'Gültig'}
+                        {status.isExpired ? 'Abgelaufen' : qual.isExpiringSoon ? `${qual.daysUntilExpiry } Tage` : 'Gültig'}
                       </span>
                     </div>
                   </div>
