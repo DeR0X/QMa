@@ -307,6 +307,8 @@ export default function Qualifications() {
             setShowAddModal(false);
             setEditingQual(null);
           }}
+          jobTitles={jobTitles || []}
+          additionalFunctions={additionalFunctions || []}
         />
       )}
 
@@ -346,16 +348,17 @@ interface QualificationFormProps {
   onSubmit: (data: any) => void;
   onCancel: () => void;
   initialData?: Qualification | null;
+  jobTitles: Array<{ ID: number; JobTitle: string; Description: string | null }>;
+  additionalFunctions: Array<{ ID: number; Name: string; Description: string }>;
 }
 
 function QualificationForm({
   onSubmit,
   onCancel,
   initialData,
+  jobTitles,
+  additionalFunctions,
 }: QualificationFormProps) {
-  const { data: jobTitles } = useJobTitles();
-  const { data: additionalFunctions } = useAdditionalFunctions();
-
   const [activeStep, setActiveStep] = useState(1);
   const [formData, setFormData] = useState({
     Name: initialData?.Name || "",
@@ -392,7 +395,6 @@ function QualificationForm({
       }));
     }
   }, [initialData]);
-
 
   const isStepComplete = (step: number) => {
     const newErrors: Record<string, string> = {};
@@ -652,9 +654,9 @@ function QualificationForm({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {jobTitles.map((jobTitle) => (
                     <label
-                      key={jobTitle.id}
+                      key={jobTitle.ID}
                       className={`p-4 rounded-lg border ${
-                        formData.JobTitleID === jobTitle.id.toString()
+                        formData.JobTitleID === jobTitle.ID.toString()
                           ? "border-primary bg-primary/5 dark:bg-primary/10"
                           : "border-gray-200 dark:border-gray-700"
                       } flex items-start space-x-3 cursor-pointer`}
@@ -662,23 +664,19 @@ function QualificationForm({
                       <input
                         type="radio"
                         name="jobTitle"
-                        id={`jobTitle-${jobTitle.id}`} // Added unique ID
-                        value={jobTitle.id.toString()}
-                        checked={formData.JobTitleID === jobTitle.id.toString()}
-                        onChange={() =>
+                        value={jobTitle.ID.toString()}
+                        checked={formData.JobTitleID === jobTitle.ID.toString()}
+                        onChange={(e) =>
                           setFormData({
                             ...formData,
-                            JobTitleID: jobTitle.id.toString(),
+                            JobTitleID: e.target.value,
                           })
                         }
                         className="mt-1 rounded-full border-gray-300 text-primary focus:ring-primary"
                       />
                       <div>
                         <p className="font-medium text-gray-900 dark:text-white">
-                          {jobTitle.jobTitle}
-                        </p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {jobTitle.description}
+                          {jobTitle.JobTitle}
                         </p>
                       </div>
                     </label>
@@ -706,16 +704,15 @@ function QualificationForm({
                             <input
                               type="radio"
                               name="additionalFunction"
-                              id={`additionalFunction-${func.ID}`} // Added unique ID
                               value={func.ID.toString()}
                               checked={
                                 formData.AdditionalFunctionID ===
                                 func.ID.toString()
                               }
-                              onChange={() =>
+                              onChange={(e) =>
                                 setFormData({
                                   ...formData,
-                                  AdditionalFunctionID: func.ID!.toString(),
+                                  AdditionalFunctionID: e.target.value,
                                 })
                               }
                               className="rounded-full border-gray-300 text-primary focus:ring-primary"
