@@ -85,7 +85,6 @@ export default function Qualifications() {
     ) || [];
 
   const getAssignmentInfo = (qualification: Qualification) => {
-    // Use the Herkunft field to determine the type
     switch (qualification.Herkunft) {
       case "Pflicht":
         return {
@@ -113,7 +112,6 @@ export default function Qualifications() {
           style:
             "bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300",
         };
-
       default:
         return {
           type: "unassigned",
@@ -230,8 +228,7 @@ export default function Qualifications() {
                               qualification.ID &&
                               setShowDeleteConfirm(qualification.ID)
                             }
-                            className="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors duration-200"
-                          >
+                            className="text-red-400 hover:text-red-500 dark:hover:text-red-300">
                             <Trash2 className="h-5 w-5" />
                           </button>
                         </div>
@@ -305,16 +302,8 @@ export default function Qualifications() {
             setShowAddModal(false);
             setEditingQual(null);
           }}
-          jobTitles={(jobTitles || []).map(jt => ({
-            ID: Number(jt.id),
-            JobTitle: jt.jobTitle,
-            Description: jt.description || null
-          }))}
-          additionalFunctions={(additionalFunctions || []).map(af => ({
-            ID: Number(af.ID),
-            Name: af.Name,
-            Description: af.Description || ''
-          }))}
+          jobTitles={jobTitles || []}
+          additionalFunctions={additionalFunctions || []}
         />
       )}
 
@@ -354,8 +343,8 @@ interface QualificationFormProps {
   onSubmit: (data: any) => void;
   onCancel: () => void;
   initialData?: Qualification | null;
-  jobTitles: Array<{ ID: number; JobTitle: string; Description: string | null }>;
-  additionalFunctions: Array<{ ID: number; Name: string; Description: string }>;
+  jobTitles: Array<{ id: string; obTitle: string; description: string | null }>;
+  additionalFunctions: Array<{ ID?: number; Name: string; Description: string }>;
 }
 
 function QualificationForm({
@@ -380,7 +369,7 @@ function QualificationForm({
           : initialData?.Herkunft === "Zusatz"
             ? "additionalFunction"
             : "jobTitle",
-    JobTitleID: initialData?.JobTitleID?.toString() || "",
+    JobTitleID: initialData?.JobTitleID ? initialData.JobTitleID[0] : "",
     AdditionalFunctionID: initialData?.AdditionalSkillID?.toString() || "",
   });
 
@@ -389,7 +378,7 @@ function QualificationForm({
     if (initialData) {
       setFormData((prev) => ({
         ...prev,
-        JobTitleID: initialData.JobTitleID?.toString() || "",
+        JobTitleID: initialData.JobTitleID ? initialData.JobTitleID[0] : "",
         AdditionalFunctionID: initialData.AdditionalSkillID?.toString() || "",
         AssignmentType:
           initialData.Herkunft === "Pflicht"
@@ -519,7 +508,7 @@ function QualificationForm({
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      ValidityInMonth: parseInt(e.target.value),
+                      ValidityInMonth: parseInt(e.target.value) || 0,
                     })
                   }
                 />
@@ -659,9 +648,9 @@ function QualificationForm({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {jobTitles.map((jobTitle) => (
                     <label
-                      key={jobTitle.ID}
+                      key={jobTitle.id}
                       className={`p-4 rounded-lg border ${
-                        formData.JobTitleID === jobTitle.ID.toString()  // Changed from jobTitle.JobTitle
+                        formData.JobTitleID === jobTitle.id
                           ? "border-primary bg-primary/5 dark:bg-primary/10"
                           : "border-gray-200 dark:border-gray-700"
                       } flex items-start space-x-3 cursor-pointer`}
@@ -669,8 +658,8 @@ function QualificationForm({
                       <input
                         type="radio"
                         name="jobTitle"
-                        value={jobTitle.ID}
-                        checked={formData.JobTitleID === jobTitle.ID.toString()}  // Changed from jobTitle.JobTitle
+                        value={jobTitle.id}
+                        checked={formData.JobTitleID === jobTitle.id}
                         onChange={(e) =>
                           setFormData({
                             ...formData,
