@@ -48,15 +48,6 @@ const isCacheValid = () => {
   return employeeStore.isInitialized && (Date.now() - employeeStore.lastFetched) < CACHE_DURATION;
 };
 
-// Helper function to check if we should allow a new request
-const canMakeNewRequest = () => {
-  const now = Date.now();
-  if (now - lastRequestTime < THROTTLE_DURATION) {
-    return false;
-  }
-  lastRequestTime = now;
-  return true;
-};
 
 // Helper function to filter and paginate employees
 const filterAndPaginateEmployees = (employees: Employee[], filters: EmployeeFilters) => {
@@ -141,14 +132,8 @@ export function useEmployees(filters: EmployeeFilters = {}) {
           return filterAndPaginateEmployees(employeeStore.allEmployees, filters);
         }
 
-        // Check if we should throttle the request
-        if (!canMakeNewRequest()) {
-          throw new Error('Too many requests. Please wait a moment before trying again.');
-        }
-
         // Fetch fresh data
         const response = await employeeApi.getEmployeesFromView({ limit: 1000 });
-        
         // Update the store
         employeeStore = {
           allEmployees: response.data,
@@ -185,10 +170,6 @@ export function useEmployee(id: string) {
         if (employee) {
           return employee;
         }
-      }
-
-      if (!canMakeNewRequest()) {
-        throw new Error('Too many requests. Please wait a moment before trying again.');
       }
 
       const response = await employeeApi.getEmployeesFromView({ limit: 1000 });

@@ -47,8 +47,8 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
 
   const [apiFilters] = useState<EmployeeFilters>({
     department: departmentFilter,
-    page: currentPage,
-    limit: ITEMS_PER_PAGE
+    page: 1,
+    limit: 1000  // Set to maximum allowed value
   });
 
   const { 

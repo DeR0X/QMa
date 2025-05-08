@@ -131,7 +131,7 @@ export const hasPermission = (
     case "admin":
       return true;
     case "hr":
-      return ["employees", "trainings", "qualifications", "documents", "dashboard", "hr", "additional"].includes(
+      return ["employees", "trainings", "qualifications", "documents", "dashboard", "additional"].includes(
         permission,
       );
     case "supervisor":

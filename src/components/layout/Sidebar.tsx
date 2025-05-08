@@ -26,7 +26,7 @@ const navigation = [
   { name: 'Zusatzfunktionen', href: '/zusatzfunktionen', icon: Star, permission: 'additional' },
   { name: 'Mitarbeiter', href: '/mitarbeiter', icon: Users, permission: 'employees' },
   { name: 'Dokumente', href: '/dokumente', icon: FileText, permission: 'documents' },
-  { name: 'Passwort-Verwaltung', href: '/passwort-verwaltung', icon: Key, permission: 'hr' },
+  { name: 'Passwort-Verwaltung', href: '/passwort-verwaltung', icon: Key, permission: 'password' },
 ];
 
 export default function Sidebar() {
