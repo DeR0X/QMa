@@ -42,6 +42,14 @@ export default function EmployeeList({
   const getDirectReports = (supervisorId: string) => 
     employees.filter(emp => emp.SupervisorID?.toString() === supervisorId);
 
+  const getJobTitleDisplay = (employee: Employee) => {
+    if (employee.JobTitle) {
+      return employee.JobTitle;
+    }
+
+    return 'Keine Position';
+  }
+
   return (
     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
       <thead className="bg-gray-50 dark:bg-[#181818]">
@@ -124,7 +132,7 @@ export default function EmployeeList({
               </td>
               <td className="py-4 px-4 whitespace-nowrap">
                 <div className="text-sm text-gray-900 dark:text-white">
-                  {employee.JobTitle || 'Keine Position'}
+                  {employee.JobTitle || 'Keine Position'} 
                 </div>
                 {employee.JobTitleID && <div className="text-xs text-gray-500">ID: {employee.JobTitleID}</div>}
               </td>

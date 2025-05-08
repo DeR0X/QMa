@@ -39,10 +39,23 @@ let employeeStore: {
 };
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const THROTTLE_DURATION = 2000; // 2 seconds minimum between requests
+
+let lastRequestTime = 0;
 
 // Helper function to check if cache is valid
 const isCacheValid = () => {
   return employeeStore.isInitialized && (Date.now() - employeeStore.lastFetched) < CACHE_DURATION;
+};
+
+// Helper function to check if we should allow a new request
+const canMakeNewRequest = () => {
+  const now = Date.now();
+  if (now - lastRequestTime < THROTTLE_DURATION) {
+    return false;
+  }
+  lastRequestTime = now;
+  return true;
 };
 
 // Helper function to filter and paginate employees
@@ -123,17 +136,26 @@ export function useEmployees(filters: EmployeeFilters = {}) {
     queryKey: ['employees', filters],
     queryFn: async () => {
       try {
-        // Check if we need to fetch fresh data
-        if (!isCacheValid()) {
-          const response = await employeeApi.getEmployeesFromView({ limit: 1000 }); // Fetch all employees
-          employeeStore = {
-            allEmployees: response.data,
-            lastFetched: Date.now(),
-            isInitialized: true
-          };
+        // Check if we can use cached data
+        if (isCacheValid()) {
+          return filterAndPaginateEmployees(employeeStore.allEmployees, filters);
         }
 
-        // Return filtered and paginated data from cache
+        // Check if we should throttle the request
+        if (!canMakeNewRequest()) {
+          throw new Error('Too many requests. Please wait a moment before trying again.');
+        }
+
+        // Fetch fresh data
+        const response = await employeeApi.getEmployeesFromView({ limit: 1000 });
+        
+        // Update the store
+        employeeStore = {
+          allEmployees: response.data,
+          lastFetched: Date.now(),
+          isInitialized: true
+        };
+
         return filterAndPaginateEmployees(employeeStore.allEmployees, filters);
       } catch (error) {
         console.error('Error handling employees:', error);
@@ -141,17 +163,23 @@ export function useEmployees(filters: EmployeeFilters = {}) {
       }
     },
     staleTime: CACHE_DURATION,
+    retry: (failureCount, error) => {
+      // Only retry if it's not a throttling error
+      if (error instanceof Error && error.message.includes('Too many requests')) {
+        return false;
+      }
+      return failureCount < 3;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 }
 
-// Hook for accessing single employee
 export function useEmployee(id: string) {
   const queryClient = useQueryClient();
 
   return useQuery({
     queryKey: ['employee', id],
     queryFn: async () => {
-      // First check store
       if (isCacheValid()) {
         const employee = employeeStore.allEmployees.find(emp => emp.ID.toString() === id);
         if (employee) {
@@ -159,7 +187,10 @@ export function useEmployee(id: string) {
         }
       }
 
-      // If not in store or cache invalid, fetch all employees again
+      if (!canMakeNewRequest()) {
+        throw new Error('Too many requests. Please wait a moment before trying again.');
+      }
+
       const response = await employeeApi.getEmployeesFromView({ limit: 1000 });
       employeeStore = {
         allEmployees: response.data,
@@ -173,7 +204,6 @@ export function useEmployee(id: string) {
   });
 }
 
-// Hook for updating employee
 export function useUpdateEmployee() {
   const queryClient = useQueryClient();
 
@@ -181,47 +211,37 @@ export function useUpdateEmployee() {
     mutationFn: ({ id, data }: { id: string; data: Partial<Employee> }) =>
       employeeApi.updateEmployee(id, data),
     onSuccess: (updatedEmployee, variables) => {
-      // Update store
       employeeStore.allEmployees = employeeStore.allEmployees.map(emp => 
         emp.ID.toString() === variables.id ? { ...emp, ...updatedEmployee } : emp
       );
 
-      // Invalidate queries
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       queryClient.invalidateQueries({ queryKey: ['employee', variables.id] });
     },
   });
 }
 
-// Hook for creating employee
 export function useCreateEmployee() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (data: Omit<Employee, 'id'>) => employeeApi.createEmployee(data),
     onSuccess: (newEmployee) => {
-      // Update store
       employeeStore.allEmployees = [...employeeStore.allEmployees, newEmployee];
-      
-      // Invalidate queries
       queryClient.invalidateQueries({ queryKey: ['employees'] });
     },
   });
 }
 
-// Hook for deleting employee
 export function useDeleteEmployee() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (id: string) => employeeApi.deleteEmployee(id),
     onSuccess: (_, id) => {
-      // Update store
       employeeStore.allEmployees = employeeStore.allEmployees.filter(emp => 
         emp.ID.toString() !== id
       );
-
-      // Invalidate queries
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       queryClient.invalidateQueries({ queryKey: ['employee', id] });
     },

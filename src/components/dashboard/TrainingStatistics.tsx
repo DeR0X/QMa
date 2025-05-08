@@ -58,7 +58,6 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
   } = useEmployees(apiFilters);
 
   const { data: departmentsData, isLoading: isDepartmentsLoading, error: departmentsError } = useDepartments();
-  const { data: jobTitles = [] } = useJobTitles();
   const { data: allEmployeeQualifications = {} } = useEmployeeQualifications();
 
   const handleToggleDetails = () => {
@@ -556,7 +555,7 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
                                   </div>
                                 </td>
                                 <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                                  {jobTitles.find(jt => jt.id === report.JobTitleID?.toString())?.jobTitle || '-'}
+                                  {report.JobTitle || '-'}
                                 </td>
                                 <td className="px-4 py-2">
                                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
