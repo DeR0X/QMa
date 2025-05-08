@@ -11,6 +11,7 @@ import Documents from '../pages/Documents';
 import Qualifications from '../pages/Qualifications';
 import TrainingHistory from '../pages/TrainingHistory';
 import AdditionalFunctions from '../pages/AdditionalFunctions';
+import PasswordManagement from '../pages/PasswordManagement';
 
 export default function AppRoutes() {
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
@@ -31,6 +32,7 @@ export default function AppRoutes() {
         <Route path="/qualifikationen" element={<Qualifications />} />
         <Route path="/zusatzfunktionen" element={<AdditionalFunctions />} />
         <Route path="/dokumente" element={<Documents />} />
+        <Route path="/passwort-verwaltung" element={<PasswordManagement />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

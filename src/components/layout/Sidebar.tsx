@@ -1,4 +1,3 @@
-
 import { useSelector, useDispatch } from 'react-redux';
 import { NavLink } from 'react-router-dom';
 import { 
@@ -11,7 +10,8 @@ import {
   X,
   Award,
   History as HistoryIcon,
-  Star
+  Star,
+  Key
 } from 'lucide-react';
 import { RootState } from '../../store';
 import { toggleSidebar } from '../../store/slices/uiSlice';
@@ -26,6 +26,7 @@ const navigation = [
   { name: 'Zusatzfunktionen', href: '/zusatzfunktionen', icon: Star, permission: 'additional' },
   { name: 'Mitarbeiter', href: '/mitarbeiter', icon: Users, permission: 'employees' },
   { name: 'Dokumente', href: '/dokumente', icon: FileText, permission: 'documents' },
+  { name: 'Passwort-Verwaltung', href: '/passwort-verwaltung', icon: Key, permission: 'hr' },
 ];
 
 export default function Sidebar() {
