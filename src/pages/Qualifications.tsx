@@ -664,7 +664,7 @@ function QualificationForm({
                     <label
                       key={jobTitle.ID}
                       className={`p-4 rounded-lg border ${
-                        formData.JobTitleID === jobTitle.ID.toString()
+                        formData.JobTitleID === jobTitle.JobTitle
                           ? "border-primary bg-primary/5 dark:bg-primary/10"
                           : "border-gray-200 dark:border-gray-700"
                       } flex items-start space-x-3 cursor-pointer`}
@@ -672,8 +672,8 @@ function QualificationForm({
                       <input
                         type="radio"
                         name="jobTitle"
-                        value={jobTitle.ID.toString()}
-                        checked={formData.JobTitleID === jobTitle.ID.toString()}
+                        value={jobTitle.ID}
+                        checked={formData.JobTitleID === jobTitle.JobTitle}
                         onChange={(e) =>
                           setFormData({
                             ...formData,

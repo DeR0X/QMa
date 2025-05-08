@@ -4,7 +4,6 @@ import {
   Users,
   Mail,
   Phone,
-  MapPin,
   Award,
   FileText,
   Download,
@@ -103,7 +102,8 @@ export default function EmployeeDetails({
   };
 
   const getJobTitle = (jobTitleId: string) => {
-    const jobTitle = jobTitlesData?.find((jt) => jt.id === jobTitleId);
+    if (!jobTitlesData) return 'Laden...';
+    const jobTitle = jobTitlesData.find(jt => jt.id === jobTitleId);
     return jobTitle ? jobTitle.jobTitle : jobTitleId;
   };
 
@@ -261,21 +261,11 @@ export default function EmployeeDetails({
   };
 
   const userQualifications = employeeQualificationsData || [];
-/*     console.log("Mitarbeiter-Qualifikationen:", userQualifications);  */
-  /* console.log("Verfügbare Qualifikationen:", qualificationsData);  */
 
   const getQualificationName = (qualId: string) => {
     if (!qualificationsData) return "Unbekannte Qualifikation";
-    let qualification;
-    for (let i = 0; i < qualificationsData.length; i++) {
-      if (qualificationsData[i].ID?.toString() === qualId.toString()) {
-        qualification = qualificationsData[i];
-        break;
-      }
-    }
-    if (!qualification) return "Unbekannte Qualifikation";
-
-    return qualification.Name;
+    const qualification = qualificationsData.find(q => q.ID?.toString() === qualId);
+    return qualification ? qualification.Name : "Unbekannte Qualifikation";
   };
 
   const availableQualifications =
@@ -432,7 +422,7 @@ export default function EmployeeDetails({
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
                                 <h5 className="text-sm font-medium text-gray-900 dark:text-white">
-                                  {getQualificationName(qual.QualificationID[0])}
+                                  {getQualificationName(qual.QualificationID)}
                                 </h5>
                               </div>
                               <div className="mt-2 space-y-1">
@@ -622,7 +612,7 @@ export default function EmployeeDetails({
         </div>
       </div>
 
-      {/* Qualifications Modal */}
+      {/* Modal für neue Zusatzfunktion */}
       {showPositionModal && (
         <div className="fixed inset-0 z-[60] bg-black bg-opacity-50 flex items-end justify-center md:items-center">
           <div className="w-full md:max-w-md mx-4 transform transition-transform duration-300 ease-in-out">
