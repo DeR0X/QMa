@@ -149,35 +149,38 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
     }
   ];
 
-  // Filter employees based on search term
+  // Enhanced search function
   const filterEmployees = (employees: any[]) => {
     if (!searchTerm) return employees;
     
     const searchLower = searchTerm.toLowerCase();
-    return employees.filter(emp => 
-      emp.FullName?.toLowerCase().includes(searchLower) ||
-      emp.StaffNumber?.toString().toLowerCase().includes(searchLower) ||
-      emp.eMail?.toLowerCase().includes(searchLower) ||
-      emp.Department?.toLowerCase().includes(searchLower)
-    );
+    return employees.filter(emp => {
+      const matchesName = emp.FullName?.toLowerCase().includes(searchLower);
+      const matchesStaffNumber = emp.StaffNumber?.toString().toLowerCase().includes(searchLower);
+      const matchesDepartment = emp.Department?.toLowerCase().includes(searchLower);
+      return matchesName || matchesStaffNumber || matchesDepartment;
+    });
   };
 
-  // Find department by staff number
-  const findDepartmentByStaffNumber = (staffNumber: string) => {
-    const employee = employeesData?.data.find(emp => 
-      emp.StaffNumber?.toString() === staffNumber
+  // Find department by search criteria
+  const findRelevantDepartments = () => {
+    if (!searchTerm) return departmentsData;
+
+    const searchLower = searchTerm.toLowerCase();
+    const matchingEmployees = filterEmployees(employeesData?.data || []);
+    const relevantDepartmentIds = new Set(matchingEmployees.map(emp => emp.DepartmentID?.toString()));
+
+    // If searching by department name, also include direct department matches
+    const departmentMatches = departmentsData?.filter(dept => 
+      dept.Department.toLowerCase().includes(searchLower)
     );
-    return employee?.Department;
+    departmentMatches?.forEach(dept => relevantDepartmentIds.add(dept.ID.toString()));
+
+    return departmentsData?.filter(dept => relevantDepartmentIds.has(dept.ID.toString()));
   };
 
   // Prepare department statistics with filtered employees
-  const departmentStats = departmentsData?.map(dept => {
-    // If searching by staff number, only include the department of that employee
-    const staffNumberMatch = findDepartmentByStaffNumber(searchTerm);
-    if (searchTerm && /^\d+$/.test(searchTerm) && staffNumberMatch && staffNumberMatch !== dept.Department) {
-      return null;
-    }
-
+  const departmentStats = findRelevantDepartments()?.map(dept => {
     const deptEmployees = filterEmployees(
       employeesData?.data.filter(emp => emp.DepartmentID?.toString() === dept.ID.toString()) || []
     );
