@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   PieChart, 
   Building2, 
@@ -150,40 +150,25 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
     }
   ];
 
-  const getFilteredEmployees = () => {
-    if (!employeesData?.data) return [];
-
-    switch (selectedStat) {
-      case 'all':
-        return employeesData.data;
-      case 'completed':
-        return employeesData.data.filter(employee => {
-          const qualifications = allEmployeeQualifications[employee.ID];
-          return qualifications && qualifications.length > 0;
-        });
-      case 'pending':
-        return employeesData.data.filter(employee => {
-          const qualifications = allEmployeeQualifications[employee.ID];
-          return !qualifications || qualifications.length === 0;
-        });
-      case 'expiring':
-        return employeesData.data.filter(employee => {
-          const qualifications = allEmployeeQualifications[employee.ID];
-          return qualifications?.some((qual: any) => {
-            const expiryDate = new Date(qual.ToQualifyUntil);
-            const twoMonthsFromNow = new Date();
-            twoMonthsFromNow.setMonth(twoMonthsFromNow.getMonth() + 2);
-            return expiryDate <= twoMonthsFromNow && expiryDate > new Date();
-          });
-        });
-      default:
-        return [];
-    }
+  // Filter employees based on search term
+  const filterEmployees = (employees: any[]) => {
+    if (!searchTerm) return employees;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return employees.filter(emp => 
+      emp.FullName?.toLowerCase().includes(searchLower) ||
+      emp.StaffNumber?.toString().toLowerCase().includes(searchLower) ||
+      emp.eMail?.toLowerCase().includes(searchLower) ||
+      emp.Department?.toLowerCase().includes(searchLower)
+    );
   };
 
-  // Prepare department statistics
+  // Prepare department statistics with filtered employees
   const departmentStats = departmentsData?.map(dept => {
-    const deptEmployees = employeesData?.data.filter(emp => emp.DepartmentID?.toString() === dept.ID.toString()) || [];
+    const deptEmployees = filterEmployees(
+      employeesData?.data.filter(emp => emp.DepartmentID?.toString() === dept.ID.toString()) || []
+    );
+    
     const completedCount = deptEmployees.filter(emp => {
       const quals = allEmployeeQualifications[emp.ID];
       return quals && quals.length > 0;
@@ -233,19 +218,6 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
           return a.Department.localeCompare(b.Department);
       }
     });
-
-  // Prepare employee statistics
-  const employeesWithStats = employeesData?.data.map(emp => ({
-    ...emp,
-    completedTrainings: (allEmployeeQualifications[emp.ID] || []).length,
-    pendingTrainings: 0, // This would need to be calculated based on required qualifications
-    expiringQualifications: (allEmployeeQualifications[emp.ID] || []).filter((qual: any) => {
-      const expiryDate = new Date(qual.ToQualifyUntil);
-      const twoMonthsFromNow = new Date();
-      twoMonthsFromNow.setMonth(twoMonthsFromNow.getMonth() + 2);
-      return expiryDate <= twoMonthsFromNow && expiryDate > new Date();
-    })
-  }));
 
   return (
     <div className="bg-white dark:bg-[#181818] rounded-lg shadow p-6">
@@ -299,13 +271,16 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
             <div className="flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="flex-1">
-                  <input
-                    type="text"
-                    placeholder="Suche nach Personalnummer, Abteilung oder Mitarbeiternamen..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-                  />
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Suche nach Personal-Nr., Name, Email oder Abteilung..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                    />
+                  </div>
                 </div>
                 <button
                   onClick={() => setShowFilters(!showFilters)}
@@ -535,51 +510,52 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                            {employeesWithStats
-                              ?.filter(e => e.DepartmentID?.toString() === dept.ID.toString())
-                              .filter(report => report)
-                              .map((report, index) => (
-                                <tr
-                                  key={`report-${report.ID}-${index}`}
-                                  onClick={() => setSelectedEmployee(report)}
-                                  className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer pl-8"
-                                >
-                                  <td className="px-4 py-2 whitespace-nowrap">
-                                    <div className="flex items-center">
-                                      <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
-                                        <span className="text-sm font-medium">
-                                          {typeof report.FullName === 'string'
-                                            ? report.FullName.split(' ').map((n) => n[0]).join('')
-                                            : ''}
-                                        </span>
-                                      </div>
-                                      <div className="ml-4">
-                                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                          {report.FullName}
-                                        </div>
+                            {filterEmployees(
+                              employeesData?.data
+                                .filter(e => e.DepartmentID?.toString() === dept.ID.toString())
+                                .filter(report => report) || []
+                            ).map((report, index) => (
+                              <tr
+                                key={`report-${report.ID}-${index}`}
+                                onClick={() => setSelectedEmployee(report)}
+                                className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer pl-8"
+                              >
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                  <div className="flex items-center">
+                                    <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
+                                      <span className="text-sm font-medium">
+                                        {typeof report.FullName === 'string'
+                                          ? report.FullName.split(' ').map((n : any) => n[0]).join('')
+                                          : ''}
+                                      </span>
+                                    </div>
+                                    <div className="ml-4">
+                                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                        {report.FullName}
                                       </div>
                                     </div>
-                                  </td>
-                                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                                    {jobTitles.find(jt => jt.id === report.JobTitleID?.toString())?.jobTitle || '-'}
-                                  </td>
-                                  <td className="px-4 py-2">
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                                      {report.completedTrainings}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-2">
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                                      {report.pendingTrainings}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-2">
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                                      {report.expiringQualifications.length}
-                                    </span>
-                                  </td>
-                                </tr>
-                              ))}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                  {jobTitles.find(jt => jt.id === report.JobTitleID?.toString())?.jobTitle || '-'}
+                                </td>
+                                <td className="px-4 py-2">
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                    {report.completedTrainings}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-2">
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                    {report.pendingTrainings}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-2">
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                    {report.expiringQualifications.length}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
                           </tbody>
                         </table>
                       </div>
@@ -606,7 +582,7 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
               ? 'Ausstehende Schulungen'
               : 'Ablaufende Qualifikationen'
           }
-          employees={getFilteredEmployees()}
+          employees={employeesData?.data || []}
           type={selectedStat as "all" | "completed" | "pending" | "expiring"}
         />
       )}
@@ -640,7 +616,6 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
           >
             Nächste
           </button>
-        
         </div>
       </div>
     </div>
