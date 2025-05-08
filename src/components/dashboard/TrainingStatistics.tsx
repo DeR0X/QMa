@@ -9,7 +9,6 @@ import {
   Search,
   ChevronDown,
   ChevronRight,
-  ChevronLeft,
   AlertTriangle,
   Award,
   Info,
@@ -163,8 +162,22 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
     );
   };
 
+  // Find department by staff number
+  const findDepartmentByStaffNumber = (staffNumber: string) => {
+    const employee = employeesData?.data.find(emp => 
+      emp.StaffNumber?.toString() === staffNumber
+    );
+    return employee?.Department;
+  };
+
   // Prepare department statistics with filtered employees
   const departmentStats = departmentsData?.map(dept => {
+    // If searching by staff number, only include the department of that employee
+    const staffNumberMatch = findDepartmentByStaffNumber(searchTerm);
+    if (searchTerm && /^\d+$/.test(searchTerm) && staffNumberMatch && staffNumberMatch !== dept.Department) {
+      return null;
+    }
+
     const deptEmployees = filterEmployees(
       employeesData?.data.filter(emp => emp.DepartmentID?.toString() === dept.ID.toString()) || []
     );
@@ -192,19 +205,19 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
         });
       }).length
     };
-  }) || [];
+  }).filter(Boolean) || [];
 
   // Filter and sort departments
   const filteredDepartments = departmentStats
+    .filter((dept): dept is NonNullable<typeof dept> => dept !== null)
     .filter(dept => {
-      const matchesSearch = dept.Department.toLowerCase().includes(searchTerm.toLowerCase());
       const meetsFilters = (
         (!filters.hideEmptyDepartments || dept.employeeCount > 0) &&
         (!filters.hasTrainers || dept.trainersCount > 0) &&
         dept.employeeCount >= filters.minEmployees &&
         dept.completionRate >= filters.minCompletionRate
       );
-      return matchesSearch && meetsFilters;
+      return meetsFilters;
     })
     .sort((a, b) => {
       switch (filters.sortBy) {
@@ -533,6 +546,9 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
                                       <div className="text-sm font-medium text-gray-900 dark:text-white">
                                         {report.FullName}
                                       </div>
+                                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                                        {report.StaffNumber}
+                                      </div>
                                     </div>
                                   </div>
                                 </td>
@@ -551,7 +567,7 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
                                 </td>
                                 <td className="px-4 py-2">
                                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                                    {report.expiringQualifications.length}
+                                    {report.expiringQualifications?.length || 0}
                                   </span>
                                 </td>
                               </tr>
