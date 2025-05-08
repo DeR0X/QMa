@@ -85,8 +85,6 @@ export default function Qualifications() {
     ) || [];
 
   const getAssignmentInfo = (qualification: Qualification) => {
-    console.log("Checking qualification:", qualification);
-
     // Use the Herkunft field to determine the type
     switch (qualification.Herkunft) {
       case "Pflicht":
@@ -389,7 +387,6 @@ function QualificationForm({
   // Pre-select values when editing
   useEffect(() => {
     if (initialData) {
-      console.log("Initial Data:", initialData);
       setFormData((prev) => ({
         ...prev,
         JobTitleID: initialData.JobTitleID?.toString() || "",
@@ -664,7 +661,7 @@ function QualificationForm({
                     <label
                       key={jobTitle.ID}
                       className={`p-4 rounded-lg border ${
-                        formData.JobTitleID === jobTitle.JobTitle
+                        formData.JobTitleID === jobTitle.ID.toString()  // Changed from jobTitle.JobTitle
                           ? "border-primary bg-primary/5 dark:bg-primary/10"
                           : "border-gray-200 dark:border-gray-700"
                       } flex items-start space-x-3 cursor-pointer`}
@@ -673,7 +670,7 @@ function QualificationForm({
                         type="radio"
                         name="jobTitle"
                         value={jobTitle.ID}
-                        checked={formData.JobTitleID === jobTitle.JobTitle}
+                        checked={formData.JobTitleID === jobTitle.ID.toString()}  // Changed from jobTitle.JobTitle
                         onChange={(e) =>
                           setFormData({
                             ...formData,
