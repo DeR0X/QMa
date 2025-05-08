@@ -301,7 +301,7 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
                 <div className="flex-1">
                   <input
                     type="text"
-                    placeholder="Suche nach Atoss-ID, Personalnummer, Abteilung oder Mitarbeiter..."
+                    placeholder="Suche nach Personalnummer, Abteilung oder Mitarbeiternamen..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"

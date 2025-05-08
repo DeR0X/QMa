@@ -55,6 +55,8 @@ const filterAndPaginateEmployees = (employees: Employee[], filters: EmployeeFilt
     filteredData = filteredData.filter((employee) => {
       const searchableFields = [
         employee.FullName?.toLowerCase() || '',
+        employee.FirstName?.toLowerCase() || '',
+        employee.SurName?.toLowerCase() || '',
         employee.StaffNumber?.toString().toLowerCase() || '',
         employee.eMail?.toLowerCase() || '',
         employee.Department?.toLowerCase() || '',
