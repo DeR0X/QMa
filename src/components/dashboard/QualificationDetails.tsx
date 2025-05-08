@@ -27,7 +27,7 @@ export default function QualificationDetails({ qualification, onClose }: Props) 
 
         <div className="text-sm text-gray-500 dark:text-gray-400">
           <p>Gültigkeitsdauer: {qualification.validityInMonth} Monate</p>
-          <p>Läuft in {qualification.expireInDays} Tagen ab.</p>
+          <p>Läuft in {qualification.expireInDays} Tagen ab</p>
         </div>
       </div>
     </div>
