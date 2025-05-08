@@ -110,7 +110,7 @@ export default function EmployeeDetails({
   // Get all qualifications from current and additional positions
   const getEmployeeQualifications = () => {
     if (!employeeQualificationsData) return [];
-    return employeeQualificationsData.map((eq) => eq.QualificationID);
+    return employeeQualificationsData.map((eq : any) => eq.QualificationID);
   };
 
   const tabs = [
@@ -190,7 +190,7 @@ export default function EmployeeDetails({
     if (!employeeQualificationsData) return "inactive";
 
     const employeeQual = employeeQualificationsData.find(
-      (eq) => eq.QualificationID === qualId,
+      (eq : any) => eq.QualificationID === qualId,
     );
     if (!employeeQual) return "inactive";
 
@@ -284,7 +284,7 @@ export default function EmployeeDetails({
     qualificationsData?.filter(
       (qual) =>
         qual.ID &&
-        !employeeQualifications.some(eq => eq.QualificationID === String(qual.ID)) &&
+        !employeeQualifications.some((eq:any) => eq.QualificationID === String(qual.ID)) &&
         (qual.Herkunft === "Zusatz" || qual.AdditionalSkillID), // Show Zusatz qualifications and those with AdditionalSkillID
     ) || [];
 
@@ -422,7 +422,7 @@ export default function EmployeeDetails({
                     </div>
 
                     <div className="space-y-6">
-                      {userQualifications.map((qual) => {
+                      {userQualifications.map((qual : any) => {
                         if (!qual.QualificationID) return null;
                         const status = getQualificationStatus(qual.QualificationID);
 

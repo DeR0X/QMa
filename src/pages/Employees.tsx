@@ -16,11 +16,6 @@ type FilterType = 'all' | 'employees' | 'supervisors' | 'active' | 'inactive';
 
 const ITEMS_PER_PAGE = 10;
 
-// Debug function
-const debugLog = (message: string, data?: any) => {
-  console.log(`[Employees] ${message}`, data || '');
-};
-
 export default function Employees() {
   const dispatch = useDispatch<AppDispatch>();
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,13 +27,18 @@ export default function Employees() {
   const [sortBy, setSortBy] = useState<string>('SurName');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [showDebug, setShowDebug] = useState(false);
+  
+  // New filter states
+  const [staffNumberFilter, setStaffNumberFilter] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('');
+  const [departmentIdFilter, setDepartmentIdFilter] = useState('');
+
   const { employee: currentEmployee } = useSelector((state: RootState) => state.auth);
   const isHRAdmin = hasHRPermissions(currentEmployee);
 
-  // Build filters for API request
   const filters: EmployeeFilters = useMemo(() => {
     return {
-      limit: 1000, // Load more records initially
+      limit: 1000,
       sortBy,
       sortOrder,
       department: currentEmployee?.role === 'supervisor' ? currentEmployee.DepartmentID?.toString() : undefined,
@@ -52,7 +52,6 @@ export default function Employees() {
     isFetching 
   } = useEmployees(filters);
 
-  // Client-side filtering
   const filteredEmployees = useMemo(() => {
     if (!employeesData?.data) return [];
     
@@ -63,9 +62,17 @@ export default function Employees() {
         employee.FirstName?.toLowerCase().includes(searchLower) ||
         employee.SurName?.toLowerCase().includes(searchLower) ||
         employee.FullName?.toLowerCase().includes(searchLower) ||
-        employee.eMail?.toLowerCase().includes(searchLower) ||
-        employee.Department?.toLowerCase().includes(searchLower) ||
-        employee.StaffNumber?.toString().includes(searchLower);
+        employee.eMail?.toLowerCase().includes(searchLower);
+
+      // Additional filters
+      const matchesStaffNumber = !staffNumberFilter || 
+        employee.StaffNumber?.toString().includes(staffNumberFilter);
+      
+      const matchesDepartment = !departmentFilter || 
+        employee.Department?.toLowerCase().includes(departmentFilter.toLowerCase());
+      
+      const matchesDepartmentId = !departmentIdFilter || 
+        employee.DepartmentID?.toString().includes(departmentIdFilter);
 
       // Role filtering
       const matchesRole = activeFilter === 'all' ||
@@ -77,7 +84,8 @@ export default function Employees() {
         (activeFilter === 'active' && employee.isActive) ||
         (activeFilter === 'inactive' && !employee.isActive);
 
-      return matchesSearch && matchesRole && matchesStatus;
+      return matchesSearch && matchesRole && matchesStatus && 
+             matchesStaffNumber && matchesDepartment && matchesDepartmentId;
     }).sort((a, b) => {
       const aValue = a[sortBy as keyof Employee];
       const bValue = b[sortBy as keyof Employee];
@@ -87,9 +95,9 @@ export default function Employees() {
       const comparison = String(aValue).localeCompare(String(bValue));
       return sortOrder === 'asc' ? comparison : -comparison;
     });
-  }, [employeesData?.data, searchTerm, activeFilter, sortBy, sortOrder]);
+  }, [employeesData?.data, searchTerm, activeFilter, sortBy, sortOrder, 
+      staffNumberFilter, departmentFilter, departmentIdFilter]);
 
-  // Pagination calculation
   const paginatedEmployees = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     return filteredEmployees.slice(startIndex, startIndex + ITEMS_PER_PAGE);
@@ -106,11 +114,9 @@ export default function Employees() {
 
   const handleUpdateEmployee = async (id: string, data: Partial<Employee>) => {
     try {
-      debugLog('Updating employee', { id, data });
       await updateEmployee.mutateAsync({ id, data });
       toast.success('Mitarbeiter erfolgreich aktualisiert');
     } catch (error) {
-      debugLog('Error updating employee', error);
       toast.error('Fehler beim Aktualisieren des Mitarbeiters');
     }
   };
@@ -118,7 +124,6 @@ export default function Employees() {
   const handleToggleActive = async (e: React.MouseEvent, employeeId: string) => {
     e.stopPropagation();
     try {
-      debugLog('Toggling employee active status', employeeId);
       const employee = employeesData?.data.find((emp: Employee) => emp.ID.toString() === employeeId);
       if (employee) {
         const newActiveStatus = !employee.isActive;
@@ -150,7 +155,6 @@ export default function Employees() {
   }
 
   if (error) {
-    debugLog('Error loading employees', error);
     return (
       <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
         <p className="text-lg text-red-500">Fehler beim Laden der Mitarbeiter</p>
@@ -162,59 +166,56 @@ export default function Employees() {
     <div className="space-y-6 p-4 sm:p-6">
       <div className="bg-white dark:bg-[#121212] shadow rounded-lg">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col gap-4">
             <EmployeeFilter
               searchTerm={searchTerm}
               onSearchChange={handleSearchChange}
               activeFilter={activeFilter}
             />
-            <div className="flex gap-2">
-              {isHRAdmin && (
-                <>
-                  {/* <button className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121212] hover:bg-gray-50 dark:hover:bg-gray-600">
-                    <Upload className="h-5 w-5 mr-2" />
-                    Import
-                  </button> */}
-                  <button className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121212] hover:bg-gray-50 dark:hover:bg-gray-600">
-                    <Download className="h-5 w-5 mr-2" />
-                    Export
-                  </button>
-                </>
-              )}
-              <button
-                onClick={() => setShowDebug(!showDebug)}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121212] hover:bg-gray-50 dark:hover:bg-gray-600"
-              >
-                <Bug className="h-5 w-5 mr-2" />
-                Debug
-              </button>
+            
+            {/* Additional Filters */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Personal-Nr.
+                </label>
+                <input
+                  type="text"
+                  value={staffNumberFilter}
+                  onChange={(e) => setStaffNumberFilter(e.target.value)}
+                  placeholder="Nach Personal-Nr. filtern..."
+                  className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white text-sm"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Abteilung
+                </label>
+                <input
+                  type="text"
+                  value={departmentFilter}
+                  onChange={(e) => setDepartmentFilter(e.target.value)}
+                  placeholder="Nach Abteilung filtern..."
+                  className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white text-sm"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Abteilungs-ID
+                </label>
+                <input
+                  type="text"
+                  value={departmentIdFilter}
+                  onChange={(e) => setDepartmentIdFilter(e.target.value)}
+                  placeholder="Nach Abteilungs-ID filtern..."
+                  className="block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white text-sm"
+                />
+              </div>
             </div>
           </div>
         </div>
-
-        {showDebug && (
-          <div className="p-4 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Debug Information</h3>
-            <pre className="text-xs overflow-auto max-h-40 bg-white dark:bg-gray-900 p-2 rounded">
-              {JSON.stringify(
-                {
-                  totalEmployees: employeesData?.data.length,
-                  filteredCount: filteredEmployees.length,
-                  paginatedCount: paginatedEmployees.length,
-                  currentPage,
-                  totalPages,
-                  searchTerm,
-                  activeFilter,
-                  sortBy,
-                  sortOrder,
-                  isFetching,
-                },
-                null,
-                2
-              )}
-            </pre>
-          </div>
-        )}
 
         <div className="overflow-x-auto">
           {paginatedEmployees.length > 0 ? (
