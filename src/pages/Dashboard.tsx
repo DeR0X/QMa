@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useQuery } from '@tanstack/react-query';
-import { GraduationCap, Calendar, Award, Building2, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { GraduationCap, Calendar, Award, Building2, CheckCircle, Clock, AlertCircle, Info } from 'lucide-react';
 import { RootState } from '../store';
 import { formatDate, calculateExpirationDate, isExpiringSoon } from '../lib/utils';
 import { hasPermission } from '../store/slices/authSlice';
@@ -52,7 +52,6 @@ export default function Dashboard() {
   if (isLoadingQualifications) {
     return <div>Loading...</div>;
   }
-
 
   const jobTitle = employee.JobTitle;
   const userQualifications = employeeQualificationsData || [];

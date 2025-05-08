@@ -183,8 +183,6 @@ export default function EmployeeDetails({
   };
 
   const employeeQualifications = employeeQualificationsData || [];
-  console.log("Mitarbeiter-Qualifikationen:", employeeQualifications);
-  console.log("Verfügbare Qualifikationen:", qualificationsData);
 
   const getQualificationStatus = (qualId: string) => {
     if (!employeeQualificationsData) return "inactive";
@@ -339,7 +337,7 @@ export default function EmployeeDetails({
                     {isLoadingJobTitles
                       ? "Laden..."
                       : getJobTitle(
-                          localEmployee.JobTitleID?.toString() || "",
+                          localEmployee.JobTitle?.toString() || "",
                         )}{" "}
                     • {localEmployee.Department}
                   </p>
@@ -396,7 +394,7 @@ export default function EmployeeDetails({
                           {isLoadingJobTitles
                             ? "Laden..."
                             : getJobTitle(
-                                localEmployee.JobTitleID?.toString() || "",
+                                localEmployee.JobTitle?.toString() || "",
                               )}
                         </span>
                       </div>
