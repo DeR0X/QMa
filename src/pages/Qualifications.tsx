@@ -307,8 +307,16 @@ export default function Qualifications() {
             setShowAddModal(false);
             setEditingQual(null);
           }}
-          jobTitles={jobTitles || []}
-          additionalFunctions={additionalFunctions || []}
+          jobTitles={(jobTitles || []).map(jt => ({
+            ID: Number(jt.id),
+            JobTitle: jt.jobTitle,
+            Description: jt.description || null
+          }))}
+          additionalFunctions={(additionalFunctions || []).map(af => ({
+            ID: Number(af.ID),
+            Name: af.Name,
+            Description: af.Description || ''
+          }))}
         />
       )}
 

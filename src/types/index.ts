@@ -43,6 +43,7 @@ export interface Qualification {
   requiredQualifications: string[];
   validityInMonth: number;
   isMandatory: boolean;
+  expireInDays?: string;
 }
 
 export interface QualificationHistory {

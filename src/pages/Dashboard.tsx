@@ -112,7 +112,8 @@ export default function Dashboard() {
   };
 
   const handleQualificationClick = (qual: any) => {
-    const qualification = qualificationsData?.find(q => q.ID?.toString() === qual.QualificationID);
+    const qualification = qualificationsData?.find(q => q.ID === qual.QualificationID);
+    const status = getQualificationStatus(qual);
     if (qualification) {
       setSelectedQual({
         id: qualification.ID?.toString() || '',
@@ -120,7 +121,8 @@ export default function Dashboard() {
         description: qualification.Description,
         requiredQualifications: [],
         validityInMonth: qualification.ValidityInMonth,
-        isMandatory: qualification.IsMandatory
+        isMandatory: qualification.IsMandatory,
+        expireInDays: status.daysUntilExpiry?.toString(),
       });
     }
   };

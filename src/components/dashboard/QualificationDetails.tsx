@@ -27,18 +27,7 @@ export default function QualificationDetails({ qualification, onClose }: Props) 
 
         <div className="text-sm text-gray-500 dark:text-gray-400">
           <p>Gültigkeitsdauer: {qualification.validityInMonth} Monate</p>
-          {qualification.requiredQualifications && qualification.requiredQualifications.length > 0 && (
-            <>
-              <p className="mt-2">Erforderliche Qualifikationen:</p>
-              <ul className="list-disc list-inside mt-1 space-y-1">
-                {qualification.requiredQualifications.map((qualId, index) => (
-                  <li key={index} className="text-xs sm:text-sm">
-                    {qualId}
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
+          <p>Läuft in {qualification.expireInDays} Tagen ab.</p>
         </div>
       </div>
     </div>
