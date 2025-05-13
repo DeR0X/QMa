@@ -242,7 +242,6 @@ export default function Employees() {
         <div className="overflow-x-auto">
           {paginatedEmployees.length > 0 ? (
             <EmployeeList
-              employees={paginatedEmployees}
               onSelectEmployee={setSelectedEmployee}
               onToggleActive={handleToggleActive}
               isHRAdmin={isHRAdmin}
