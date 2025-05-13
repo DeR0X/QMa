@@ -40,33 +40,42 @@ export default function EmployeeList({
   };
 
   // Get all subordinates for a supervisor (including nested supervisors)
-  const getAllSubordinates = (staffNumber: string): Employee[] => {
-    const directReports = employees.filter(emp => emp.SupervisorID?.toString() === staffNumber);
-    const nestedSubordinates = directReports
-      .filter(emp => emp.role === 'supervisor')
-      .flatMap(supervisor => getAllSubordinates(supervisor.StaffNumber.toString()));
-    
-    return [...directReports, ...nestedSubordinates];
+  const getAllSubordinates = (supervisorStaffNumber: string, visited = new Set<string>(), level = 0): { employee: Employee, level: number }[] => {
+    if (visited.has(supervisorStaffNumber)) {
+      return [];
+    }
+    visited.add(supervisorStaffNumber);
+
+    const directReports = employees.filter(emp => 
+      emp.SupervisorID?.toString() === supervisorStaffNumber && 
+      emp.StaffNumber !== supervisorStaffNumber &&
+      emp.ID !== currentEmployee?.ID
+    );
+
+    let subordinates: { employee: Employee, level: number }[] = [];
+    for (const employee of directReports) {
+      subordinates.push({ employee, level });
+      if (employee.role === 'supervisor') {
+        const nested = getAllSubordinates(employee.StaffNumber.toString(), visited, level + 1);
+        subordinates = [...subordinates, ... nested];
+      }
+    }
+
+    return subordinates;
   };
 
   // Filter employees based on current user's role and supervisor status
   const filteredEmployees = (() => {
     if (isHRAdmin) {
-      return employees;
+      return employees.filter(emp => emp.ID !== currentEmployee?.ID);
     }
 
     if (currentEmployee?.role === 'supervisor') {
-      const subordinates = getAllSubordinates(currentEmployee.StaffNumber.toString());
-      return [currentEmployee, ...subordinates];
+      return getAllSubordinates(currentEmployee.StaffNumber.toString()).map(item => item.employee);
     }
 
     return [];
   })();
-
-  // Group supervisors and their direct reports
-  const supervisors = filteredEmployees.filter(emp => emp.role === 'supervisor');
-  const getDirectReports = (supervisorStaffNumber: string) => 
-    filteredEmployees.filter(emp => emp.SupervisorID?.toString() === supervisorStaffNumber);
 
   return (
     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -98,9 +107,11 @@ export default function EmployeeList({
         </tr>
       </thead>
       <tbody className="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-[#141616]">
-        {filteredEmployees
-          .map((employee) => {
+        {getAllSubordinates(currentEmployee?.StaffNumber.toString() || '')
+          .map(({ employee, level }) => {
             const department = departments?.find(d => d.ID.toString() === employee.DepartmentID?.toString());
+            const isSupervisor = employee.role === 'supervisor';
+            const isExpanded = expandedSupervisors.includes(employee.StaffNumber.toString());
             return (
               <React.Fragment key={employee.ID}>
                 <tr
@@ -108,7 +119,15 @@ export default function EmployeeList({
                   className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
                 >
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
+                    <div className="flex items-center" style={{ paddingLeft: `${level * 1.5}rem` }}>
+                      {isSupervisor && (
+                        <button
+                          onClick={(e) => toggleSupervisor(e, employee.StaffNumber.toString())}
+                          className="mr-2"
+                        >
+                          {isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                        </button>
+                      )}
                       <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
                         <span className="text-sm font-medium">
                           {typeof employee.FullName === 'string'

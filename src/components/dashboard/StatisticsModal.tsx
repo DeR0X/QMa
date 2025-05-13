@@ -5,6 +5,15 @@ import {
   History as HistoryIcon,
   UserCheck,
   Building2,
+  AlertTriangle,
+  Briefcase,
+  Calendar,
+  Timer,
+  Users as UsersIcon,
+  Tag,
+  AlertCircle,
+  CheckCircle,
+  Clock,
 } from "lucide-react";
 import { formatDate } from "../../lib/utils";
 import EmployeeDetails from "../employees/EmployeeDetails";
@@ -25,7 +34,7 @@ export default function StatisticsModal({
   isOpen,
   onClose,
   title,
-  employees = [], // Provide default empty array
+  employees = [],
   type,
 }: Props) {
   const [currentPage, setCurrentPage] = useState(1);
@@ -36,12 +45,46 @@ export default function StatisticsModal({
   const { data: allEmployeeQualifications } = useEmployeeQualifications();
 
   const itemsPerPage = 10;
-  const totalItems = employees.length;
+
+  // Filter employees based on their qualification status
+  const filteredEmployees = employees.filter((employee) => {
+    const employeeQuals = allEmployeeQualifications?.[employee.ID] || [];
+
+    switch (type) {
+      case "completed":
+        // Show employees with active qualifications
+        return employeeQuals.some((qual: any) => {
+          const expiryDate = new Date(qual.ToQualifyUntil);
+          return expiryDate > new Date();
+        });
+
+      case "expiring":
+        // Show employees with qualifications expiring in the next 2 months
+        return employeeQuals.some((qual: any) => {
+          const expiryDate = new Date(qual.ToQualifyUntil);
+          const twoMonthsFromNow = new Date();
+          twoMonthsFromNow.setMonth(twoMonthsFromNow.getMonth() + 2);
+          return expiryDate <= twoMonthsFromNow && expiryDate > new Date();
+        });
+
+      case "pending":
+        // Show employees with expired qualifications
+        return employeeQuals.some((qual: any) => {
+          const expiryDate = new Date(qual.ToQualifyUntil);
+          return expiryDate <= new Date();
+        });
+
+      default:
+        return true;
+    }
+  });
+
+  const totalItems = filteredEmployees.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
-  const paginatedEmployees = employees.slice(startIndex, endIndex);
+  const paginatedEmployees = filteredEmployees.slice(startIndex, endIndex);
 
   if (!isOpen) return null;
 
@@ -84,17 +127,14 @@ export default function StatisticsModal({
                           Qualifikationen
                         </th>
                         <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
-                          Aktivitäten
-                        </th>
-                        <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
-                          Personalinfo
+                          Status
                         </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-[#141616]">
                       {paginatedEmployees.map((employee) => {
                         if (!employee) return null;
-          
+
                         const department = departmentsData?.find(
                           (d) => d.Department === employee.Department,
                         );
@@ -105,6 +145,37 @@ export default function StatisticsModal({
                               .map((n: string) => n[0])
                               .join("")
                           : "??";
+
+                        // Get qualification status for display
+                        const qualStatus = employeeQuals.map((qual: any) => {
+                          const expiryDate = new Date(qual.ToQualifyUntil);
+                          const now = new Date();
+                          const twoMonthsFromNow = new Date();
+                          twoMonthsFromNow.setMonth(now.getMonth() + 2);
+
+                          if (expiryDate <= now) {
+                            return {
+                              status: "expired",
+                              icon: AlertCircle,
+                              text: "Abgelaufen",
+                              class: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+                            };
+                          } else if (expiryDate <= twoMonthsFromNow) {
+                            return {
+                              status: "expiring",
+                              icon: Clock,
+                              text: "Läuft bald ab",
+                              class: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+                            };
+                          } else {
+                            return {
+                              status: "active",
+                              icon: CheckCircle,
+                              text: "Aktiv",
+                              class: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+                            };
+                          }
+                        });
 
                         return (
                           <tr
@@ -133,39 +204,34 @@ export default function StatisticsModal({
                               {department?.Department || "-"}
                             </td>
                             <td className="px-3 py-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                              <div className="flex items-center">
-                                <Award className="h-4 w-4 mr-1 text-blue-500" />
-                                <span>
-                                  {employeeQuals.length} aktive Qualifikationen
-                                </span>
+                              <div className="space-y-1">
+                                {employeeQuals.map((qual: any, index: number) => {
+                                  const qualification = qualificationsData?.find(
+                                    (q) => q.ID === parseInt(qual.QualificationID)
+                                  );
+                                  return (
+                                    <div key={index} className="flex items-center">
+                                      <Award className="h-4 w-4 mr-1 text-primary" />
+                                      <span>{qualification?.Name || 'Unbekannte Qualifikation'}</span>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </td>
-                            <td className="px-3 py-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                              <div className="flex items-center">
-                                <HistoryIcon className="h-4 w-4 mr-1 text-purple-500" />
-                                <span>
-                                  Aktivitäten werden geladen...
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-3 py-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                              <div className="flex items-center">
-                                <UserCheck className="h-4 w-4 mr-1 text-indigo-500" />
-                                <span>
-                                  Vorgesetzter: {employee.Supervisor || "Nicht zugewiesen"}
-                                </span>
-                              </div>
-                              <div className="flex items-center mt-1">
-                                <Building2 className="h-4 w-4 mr-1 text-orange-500" />
-                                <span>
-                                  Rolle: {
-                                    employee.role === "supervisor"
-                                      ? "Vorgesetzter"
-                                      : employee.role === "hr"
-                                        ? "HR"
-                                        : "Mitarbeiter"
-                                  }
-                                </span>
+                            <td className="px-3 py-2">
+                              <div className="space-y-1">
+                                {qualStatus.map((status, index) => {
+                                  const StatusIcon = status.icon;
+                                  return (
+                                    <span
+                                      key={index}
+                                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${status.class}`}
+                                    >
+                                      <StatusIcon className="h-3 w-3 mr-1" />
+                                      {status.text}
+                                    </span>
+                                  );
+                                })}
                               </div>
                             </td>
                           </tr>
