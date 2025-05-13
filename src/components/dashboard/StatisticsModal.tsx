@@ -33,15 +33,15 @@ export default function StatisticsModal({
   const { data: departmentsData } = useDepartments();
   const { data: jobTitlesData } = useJobTitles();
   const { data: qualificationsData } = useQualifications();
+  const { data: allEmployeeQualifications } = useEmployeeQualifications();
 
   const itemsPerPage = 10;
   const totalItems = employees.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
-  const paginatedEmployees = employees.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage,
-  );
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+  const paginatedEmployees = employees.slice(startIndex, endIndex);
 
   if (!isOpen) return null;
 
@@ -99,7 +99,7 @@ export default function StatisticsModal({
                           (d) => d.Department === employee.Department,
                         );
 
-                        const { data: employeeQuals } = useEmployeeQualifications(employee.ID.toString());
+                        const employeeQuals = allEmployeeQualifications?.[employee.ID] || [];
                         const initials = employee.FullName
                           ? employee.FullName.split(" ")
                               .map((n: string) => n[0])
@@ -136,7 +136,7 @@ export default function StatisticsModal({
                               <div className="flex items-center">
                                 <Award className="h-4 w-4 mr-1 text-blue-500" />
                                 <span>
-                                  {employeeQuals?.length || 0} aktive Qualifikationen
+                                  {employeeQuals.length} aktive Qualifikationen
                                 </span>
                               </div>
                             </td>
@@ -185,11 +185,11 @@ export default function StatisticsModal({
               <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">
                 Zeige{" "}
                 <span className="font-medium">
-                  {(currentPage - 1) * itemsPerPage + 1}
+                  {startIndex + 1}
                 </span>{" "}
                 -{" "}
                 <span className="font-medium">
-                  {Math.min(currentPage * itemsPerPage, totalItems)}
+                  {endIndex}
                 </span>{" "}
                 von <span className="font-medium">{totalItems}</span>{" "}
                 Ergebnissen
