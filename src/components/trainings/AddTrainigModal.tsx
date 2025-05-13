@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Plus, Award, Edit2, Building2, Globe, Search, AlertCircle, BookOpen, Timer, Users, Calendar, MapPin, Info } from 'lucide-react';
 import { useQualifications } from '../../hooks/useQualifications';
+import { useDepartments } from '../../hooks/useDepartments';
 import type { Training } from '../../types';
 import { toast } from 'sonner';
 
@@ -9,8 +10,6 @@ interface Props {
   onAdd: (training: Omit<Training, 'id'>) => void;
   userDepartment?: string;
 }
-
-const allDepartments = [{name: ""}];
 
 interface Session {
   id: string;
@@ -22,7 +21,7 @@ interface Session {
 
 export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Props) {
   const { data: qualificationsData } = useQualifications();
-  const qualification = qualificationsData?.find(q => q.ID?.toString() === qual.QualificationID);
+  const { data: departmentsData } = useDepartments();
   const [activeStep, setActiveStep] = useState(1);
   const [formData, setFormData] = useState({
     title: '',
@@ -49,7 +48,9 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
   const [searchTerm, setSearchTerm] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const availablePositions = allDepartments.find(d => d.name === selectedDepartment)?.positions || [];
+  // Get available positions for selected department
+  const selectedDepartmentData = departmentsData?.find(d => d.ID.toString() === selectedDepartment);
+  const availablePositions = selectedDepartmentData?.positions || [];
 
   const handleDepartmentChange = (dept: string) => {
     setSelectedDepartment(dept);
@@ -173,12 +174,12 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
     }));
   };
 
-  const filteredQualifications = qualifications.filter(qual => {
+  const filteredQualifications = qualificationsData?.filter(qual => {
     const matchesSearch = searchTerm === '' || 
-      qual.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      qual.description.toLowerCase().includes(searchTerm.toLowerCase());
+      qual.Name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      qual.Description.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
-  });
+  }) || [];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -309,9 +310,9 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
                   className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
                 >
                   <option value="">Abteilung auswählen</option>
-                  {allDepartments.map((dept) => (
-                    <option key={dept.name} value={dept.name}>
-                      {dept.name}
+                  {departmentsData?.map((dept) => (
+                    <option key={dept.ID} value={dept.ID.toString()}>
+                      {dept.Department}
                     </option>
                   ))}
                 </select>
@@ -520,9 +521,9 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {filteredQualifications.map((qual) => (
                   <div
-                    key={qual.id}
+                    key={qual.ID}
                     className={`p-4 rounded-lg border transition-colors ${
-                      formData.qualificationIds.includes(qual.id)
+                      formData.qualificationIds.includes(qual.ID?.toString() || '')
                         ? 'border-primary bg-primary/5 dark:bg-primary/10'
                         : 'border-gray-200 dark:border-gray-700'
                     }`}
@@ -530,24 +531,25 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
                     <label className="flex items-start space-x-3">
                       <input
                         type="checkbox"
-                        checked={formData.qualificationIds.includes(qual.id)}
+                        checked={formData.qualificationIds.includes(qual.ID?.toString() || '')}
                         onChange={() => {
-                          const newQualIds = formData.qualificationIds.includes(qual.id)
-                            ? formData.qualificationIds.filter(id => id !== qual.id)
-                            : [...formData.qualificationIds, qual.id];
+                          const qualId = qual.ID?.toString() || '';
+                          const newQualIds = formData.qualificationIds.includes(qualId)
+                            ? formData.qualificationIds.filter(id => id !== qualId)
+                            : [...formData.qualificationIds, qualId];
                           setFormData({ ...formData, qualificationIds: newQualIds });
                         }}
                         className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
                       />
                       <div>
                         <p className="font-medium text-gray-900 dark:text-white">
-                          {qual.name}
+                          {qual.Name}
                         </p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {qual.description}
+                          {qual.Description}
                         </p>
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                          Gültigkeitsdauer: {qual.validityInMonth} Monate
+                          Gültigkeitsdauer: {qual.ValidityInMonth} Monate
                         </p>
                       </div>
                     </label>
@@ -610,7 +612,7 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
                   <div className="space-y-3">
                     <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
                       <Building2 className="h-4 w-4 mr-2" />
-                      Abteilung: {formData.department}
+                      Abteilung: {departmentsData?.find(d => d.ID.toString() === selectedDepartment)?.Department || 'Keine Abteilung ausgewählt'}
                     </div>
                     <div>
                       <p className="text-sm text-gray-900 dark:text-white">
@@ -670,6 +672,7 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
                           <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
                             <MapPin className="h-4 w-4 mr-2" />
                             {session.location}
+                
                           </p>
                           {session.trainer && (
                             <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
@@ -685,17 +688,17 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
 
                 <div className="bg-gray-50 dark:bg-[#181818] rounded-lg p-4">
                   <div className="flex items-center mb-4">
-                    <Users className="h-5 w-5 text-gray-400 mr-2" />
+                    <Award className="h-5 w-5 text-gray-400 mr-2" />
                     <h4 className="text-sm font-medium text-gray-900 dark:text-white">
-                    Qualifikationen ({formData.qualificationIds.length})
+                      Qualifikationen ({formData.qualificationIds.length})
                     </h4>
                   </div>
                   <div className="space-y-1">
                     {formData.qualificationIds.map(qualId => {
-                      const qual = qualifications.find(q => q.id === qualId);
+                      const qual = qualificationsData?.find(q => q.ID?.toString() === qualId);
                       return qual ? (
                         <p key={qualId} className="text-sm text-gray-900 dark:text-white">
-                          • {qual.name}
+                          • {qual.Name}
                         </p>
                       ) : null;
                     })}
@@ -705,8 +708,8 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
             </div>
           )}
 
-         {/* Navigation Buttons */}
-         <div className="flex justify-between pt-6">
+          {/* Navigation Buttons */}
+          <div className="flex justify-between pt-6">
             <button
               type="button"
               onClick={() => activeStep > 1 ? setActiveStep(activeStep - 1) : onClose()}
@@ -715,25 +718,12 @@ export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Pro
               {activeStep > 1 ? "Zurück" : "Abbrechen"}
             </button>
 
-            {activeStep < 5 && (
-              <button
-                type="button"
-                onClick={() => isStepComplete(activeStep) && setActiveStep(activeStep + 1)}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
-              >
-                Weiter
-              </button>
-            )}
-
-            {activeStep === 5 && (
-              <button
-                type="button"
-                onClick={handleSubmit}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
-              >
-                Schulung erstellen
-              </button>
-            )}
+            <button
+              type="submit"
+              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
+            >
+              {activeStep < 5 ? "Weiter" : "Schulung erstellen"}
+            </button>
           </div>
         </form>
       </div>

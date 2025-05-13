@@ -1,22 +1,20 @@
-import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
-import type { Employee, Role } from '../../types';
-import { itDepartments, manufacturingDepartments } from '../../data/departments';
+import { useState, useEffect } from "react";
+import { X } from "lucide-react";
+import type { Employee } from '../../types';
+import { useDepartments } from '../../hooks/useDepartments';
 
 interface Props {
   onClose: () => void;
   onAdd: (user: Omit<Employee, 'id' | 'isActive' | 'failedLoginAttempts'>) => void;
 }
 
-// Combine all departments
-const allDepartments = [...itDepartments, ...manufacturingDepartments];
-
 export default function AddUserModal({ onClose, onAdd }: Props) {
+  const { data: departmentsData } = useDepartments();
   const [formData, setFormData] = useState({
     personalNumber: '',
     email: '',
     name: '',
-    role: 'employee' as Role,
+    role: 'employee' as const,
     department: '',
     position: '',
     startDate: '',
@@ -35,19 +33,19 @@ export default function AddUserModal({ onClose, onAdd }: Props) {
 
   // Update available positions when department changes
   useEffect(() => {
-    if (formData.department) {
-      const selectedDept = allDepartments.find(dept => dept.name === formData.department);
+    if (formData.department && departmentsData) {
+      const selectedDept = departmentsData.find(dept => dept.ID.toString() === formData.department);
       if (selectedDept) {
-        setAvailablePositions(selectedDept.positions);
+        setAvailablePositions(selectedDept.positions || []);
         // Reset position if current position is not in new department
-        if (!selectedDept.positions.includes(formData.position)) {
+        if (!selectedDept.positions?.includes(formData.position)) {
           setFormData(prev => ({ ...prev, position: '' }));
         }
       }
     } else {
       setAvailablePositions([]);
     }
-  }, [formData.department]);
+  }, [formData.department, departmentsData]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,7 +130,7 @@ export default function AddUserModal({ onClose, onAdd }: Props) {
             <select
               className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
               value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value as Role })}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value as 'employee' | 'supervisor' })}
             >
               <option value="employee">Mitarbeiter</option>
               <option value="supervisor">Vorgesetzter</option>
@@ -150,9 +148,9 @@ export default function AddUserModal({ onClose, onAdd }: Props) {
               onChange={(e) => setFormData({ ...formData, department: e.target.value })}
             >
               <option value="">Abteilung auswählen</option>
-              {allDepartments.map((dept) => (
-                <option key={dept.name} value={dept.name}>
-                  {dept.name}
+              {departmentsData?.map((dept) => (
+                <option key={dept.ID} value={dept.ID.toString()}>
+                  {dept.Department}
                 </option>
               ))}
             </select>
