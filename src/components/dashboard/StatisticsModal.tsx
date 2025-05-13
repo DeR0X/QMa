@@ -94,10 +94,11 @@ export default function StatisticsModal({
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-[#141616]">
                       {paginatedEmployees.map((employee) => {
                         if (!employee) return null;
-                        
+          
                         const department = departmentsData?.find(
-                          (d) => d.ID === employee.DepartmentID?.toString(),
+                          (d) => d.Department === employee.Department,
                         );
+
                         const { data: employeeQuals } = useEmployeeQualifications(employee.ID.toString());
                         const initials = employee.FullName
                           ? employee.FullName.split(" ")

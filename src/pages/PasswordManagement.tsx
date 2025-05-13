@@ -62,7 +62,7 @@ export default function PasswordManagement() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          employeeId: selectedEmployee.ID,
+          staffNumber: selectedEmployee.StaffNumber,
           password: generatedPassword,
         }),
       });
