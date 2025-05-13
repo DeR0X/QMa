@@ -56,7 +56,30 @@ export default function Employees() {
   const filteredEmployees = useMemo(() => {
     if (!employeesData?.data) return [];
     
-    return employeesData.data.filter(employee => {
+    let filtered = employeesData.data;
+
+    // If user is a supervisor, only show their direct reports and supervisors under them
+    if (currentEmployee?.role === 'supervisor') {
+      const getAllSubordinates = (supervisorId: string): string[] => {
+        const directReports = filtered.filter(emp => emp.SupervisorID?.toString() === supervisorId);
+        const subordinateIds = directReports.map(emp => emp.ID.toString());
+        
+        // Get subordinates of supervisors who report to this supervisor
+        const supervisorSubordinates = directReports
+          .filter(emp => emp.role === 'supervisor')
+          .flatMap(supervisor => getAllSubordinates(supervisor.ID.toString()));
+        
+        return [...subordinateIds, ...supervisorSubordinates];
+      };
+
+      const subordinateIds = getAllSubordinates(currentEmployee.ID.toString());
+      filtered = filtered.filter(emp => 
+        emp.ID.toString() === currentEmployee.ID.toString() || // Include the supervisor themselves
+        subordinateIds.includes(emp.ID.toString())
+      );
+    }
+
+    return filtered.filter(employee => {
       // Search term filtering
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch = !searchTerm || 
@@ -87,7 +110,7 @@ export default function Employees() {
       const comparison = String(aValue).localeCompare(String(bValue));
       return sortOrder === 'asc' ? comparison : -comparison;
     });
-  }, [employeesData?.data, searchTerm, activeFilter, sortBy, sortOrder]);
+  }, [employeesData?.data, searchTerm, activeFilter, sortBy, sortOrder, currentEmployee]);
 
   // Pagination calculation
   const paginatedEmployees = useMemo(() => {
