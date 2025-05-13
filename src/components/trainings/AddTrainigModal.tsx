@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { X, Plus, Award, Edit2, Building2, Globe, Search, AlertCircle, BookOpen, Timer, Users, Calendar, MapPin, Info } from 'lucide-react';
-import { itDepartments, manufacturingDepartments } from '../../data/departments';
 import { useQualifications } from '../../hooks/useQualifications';
 import type { Training } from '../../types';
 import { toast } from 'sonner';
@@ -11,7 +10,7 @@ interface Props {
   userDepartment?: string;
 }
 
-const allDepartments = [...itDepartments, ...manufacturingDepartments];
+const allDepartments = [{name: ""}];
 
 interface Session {
   id: string;
@@ -23,7 +22,7 @@ interface Session {
 
 export default function AddTrainingModal({ onClose, onAdd, userDepartment }: Props) {
   const { data: qualificationsData } = useQualifications();
-  const qualification = qualificationsData.find(q => q.ID?.toString() === qual.QualificationID);
+  const qualification = qualificationsData?.find(q => q.ID?.toString() === qual.QualificationID);
   const [activeStep, setActiveStep] = useState(1);
   const [formData, setFormData] = useState({
     title: '',

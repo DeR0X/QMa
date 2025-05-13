@@ -22,7 +22,6 @@ import {
 import { toast } from 'sonner';
 import { RootState } from '../../store';
 import type { DocumentUploadFormData, EmployeeFilters } from '../../types';
-import { itDepartments, manufacturingDepartments } from '../../data/departments';
 import { DOCUMENT_CATEGORIES, DOCUMENT_TYPES, DOCUMENT_CLASSIFICATIONS, VISIBILITY_LEVELS, LANGUAGES, ROLES, PERMISSIONS } from './constants';
 import RoleAccess from './access-control/RoleAccess';
 import DepartmentAccess from './access-control/DepartmentAccess';
@@ -35,10 +34,10 @@ interface Props {
   onSubmit: (data: DocumentUploadFormData) => void;
 }
 
-const allDepartments = [...itDepartments, ...manufacturingDepartments];
+const allDepartments = [{name: "Empty"}];
 
 export default function EnhancedDocumentUploader({ onClose, onSubmit }: Props) {
-  const { user } = useSelector((state: RootState) => state.auth);
+  const { employee } = useSelector((state: RootState) => state.auth);
   const [activeTab, setActiveTab] = useState<'file' | 'url'>('file');
   const [activeFilter, setActiveFilter] = useState('all');
   const [formData, setFormData] = useState<DocumentUploadFormData>({
@@ -48,10 +47,10 @@ export default function EnhancedDocumentUploader({ onClose, onSubmit }: Props) {
       title: '',
       type: '',
       category: '',
-      department: user?.department || '',
+      department: employee?.Department || '',
       classification: 'employee',
       version: '1.0',
-      owner: user?.name || '',
+      owner: employee?.FullName || '',
       tags: [],
       description: '',
       relatedDocuments: [],
