@@ -40,28 +40,28 @@ export default function EmployeeList({
   };
 
   // Get all subordinates for a supervisor (including nested supervisors)
-  const getAllSubordinates = (supervisorStaffNumber: string, visited = new Set<string>()): { employee: Employee, level: number }[] => {
-    if (visited.has(supervisorStaffNumber)) {
+  const getAllSubordinates = (supervisorId: string, visited = new Set<string>()): Employee[] => {
+    if (visited.has(supervisorId)) {
       return [];
     }
-    visited.add(supervisorStaffNumber);
+    visited.add(supervisorId);
 
     const directReports = employees.filter(emp => 
-      emp.SupervisorID?.toString() === supervisorStaffNumber && 
-      emp.StaffNumber !== supervisorStaffNumber &&
-      emp.ID !== currentEmployee?.ID
+      emp.SupervisorID?.toString() === supervisorId && 
+      emp.ID.toString() !== supervisorId
     );
 
-    let subordinates: { employee: Employee, level: number }[] = [];
-    for (const employee of directReports) {
-      subordinates.push({ employee, level: 0 });
-      if (employee.role === 'supervisor') {
-        const nested = getAllSubordinates(employee.StaffNumber.toString(), visited);
-        subordinates = [...subordinates, ...nested.map(sub => ({ ...sub, level: sub.level + 1 }))];
-      }
-    }
+    let allSubordinates = [...directReports];
 
-    return subordinates;
+    // Recursively get subordinates of supervisors
+    directReports.forEach(employee => {
+      if (employee.role === 'supervisor') {
+        const nestedSubordinates = getAllSubordinates(employee.ID.toString(), visited);
+        allSubordinates = [...allSubordinates, ...nestedSubordinates];
+      }
+    });
+
+    return allSubordinates;
   };
 
   // Filter employees based on current user's role
@@ -74,12 +74,110 @@ export default function EmployeeList({
     }
 
     if (currentEmployee.role === 'supervisor') {
-      // Supervisors can see their direct and indirect subordinates
-      return getAllSubordinates(currentEmployee.StaffNumber.toString()).map(item => item.employee);
+      // Get all subordinates (direct and indirect)
+      const subordinates = getAllSubordinates(currentEmployee.ID.toString());
+      // Include the supervisor themselves in the list
+      return [currentEmployee, ...subordinates];
     }
 
     return [];
   })();
+
+  // Group employees by their direct supervisor
+  const employeesByManager = filteredEmployees.reduce((acc, employee) => {
+    const supervisorId = employee.SupervisorID?.toString() || 'none';
+    if (!acc[supervisorId]) {
+      acc[supervisorId] = [];
+    }
+    acc[supervisorId].push(employee);
+    return acc;
+  }, {} as Record<string, Employee[]>);
+
+  // Render an employee row with proper indentation
+  const renderEmployeeRow = (employee: Employee, level: number = 0) => (
+    <tr
+      key={employee.ID}
+      onClick={() => onSelectEmployee(employee)}
+      className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+    >
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="flex items-center" style={{ marginLeft: `${level * 20}px` }}>
+          {employee.role === 'supervisor' && (
+            <button
+              onClick={(e) => toggleSupervisor(e, employee.ID.toString())}
+              className="mr-2"
+            >
+              {expandedSupervisors.includes(employee.ID.toString()) ? 
+                <ChevronDown className="h-5 w-5" /> : 
+                <ChevronRight className="h-5 w-5" />
+              }
+            </button>
+          )}
+          <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
+            <span className="text-sm font-medium">
+              {typeof employee.FullName === 'string'
+                ? employee.FullName.split(' ').map((n) => n[0]).join('')
+                : ''}
+            </span>
+          </div>
+          <div className="ml-4">
+            <div className="text-sm font-medium text-gray-900 dark:text-white">
+              {employee.FullName}
+            </div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              {employee.eMail}
+            </div>
+          </div>
+        </div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+        {employee.StaffNumber}
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+        {employee.Department}
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+        {employee.JobTitle}
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+          !employee.isActive
+            ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+            : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+        }`}>
+          {!employee.isActive ? 'Gesperrt' : 'Aktiv'}
+        </span>
+      </td>
+      {(isHRAdmin || currentEmployee?.role === 'supervisor') && (
+        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+          <button
+            onClick={(e) => onToggleActive(e, employee.ID.toString())}
+            className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+          >
+            {!employee.isActive ? (
+              <Unlock className="h-5 w-5" />
+            ) : (
+              <Lock className="h-5 w-5" />
+            )}
+          </button>
+        </td>
+      )}
+    </tr>
+  );
+
+  // Recursively render employee hierarchy
+  const renderEmployeeHierarchy = (employee: Employee, level: number = 0) => {
+    const rows = [renderEmployeeRow(employee, level)];
+    
+    if (employee.role === 'supervisor' && expandedSupervisors.includes(employee.ID.toString())) {
+      const subordinates = employeesByManager[employee.ID.toString()] || [];
+      subordinates.forEach(subordinate => {
+        rows.push(...renderEmployeeHierarchy(subordinate, level + 1));
+      });
+    }
+    
+    return rows;
+  };
 
   return (
     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -92,16 +190,13 @@ export default function EmployeeList({
             Personal-Nr.
           </th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-            Abteilung (Atoss-ID)
+            Abteilung
           </th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
             Position
           </th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
             Status
-          </th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-            Trainer
           </th>
           {(isHRAdmin || currentEmployee?.role === 'supervisor') && (
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -111,93 +206,12 @@ export default function EmployeeList({
         </tr>
       </thead>
       <tbody className="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-[#141616]">
-        {filteredEmployees.map((employee) => {
-          const department = departments?.find(d => d.ID.toString() === employee.DepartmentID?.toString());
-          const isSupervisor = employee.role === 'supervisor';
-          const isExpanded = expandedSupervisors.includes(employee.StaffNumber.toString());
-          return (
-            <React.Fragment key={employee.ID}>
-              <tr
-                onClick={() => onSelectEmployee(employee)}
-                className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-              >
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    {isSupervisor && (
-                      <button
-                        onClick={(e) => toggleSupervisor(e, employee.StaffNumber.toString())}
-                        className="mr-2"
-                      >
-                        {isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
-                      </button>
-                    )}
-                    <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
-                      <span className="text-sm font-medium">
-                        {typeof employee.FullName === 'string'
-                          ? employee.FullName.split(' ').map((n) => n[0]).join('')
-                          : ''}
-                      </span>
-                    </div>
-                    <div className="ml-4">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {employee.FullName}
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {employee.eMail}
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {employee.StaffNumber}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                  {employee.Department}
-                  {department && (
-                    <div className="text-xs text-gray-500">ID: {department.DepartmentID_Atoss}</div>
-                  )}
-                </td>
-                <td className="py-4 px-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900 dark:text-white">
-                    {employee.JobTitle || 'Keine Position'} 
-                  </div>
-                  {employee.JobTitleID && <div className="text-xs text-gray-500">ID: {employee.JobTitleID}</div>}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    !employee.isActive
-                      ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                  }`}>
-                    {!employee.isActive ? 'Gesperrt' : 'Aktiv'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    employee.isTrainer
-                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                      : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-                  }`}>
-                    {employee.isTrainer ? 'Trainer' : 'Kein Trainer'}
-                  </span>
-                </td>
-                {(isHRAdmin || currentEmployee?.role === 'supervisor') && (
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <button
-                      onClick={(e) => onToggleActive(e, employee.ID.toString())}
-                      className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
-                    >
-                      {!employee.isActive ? (
-                        <Unlock className="h-5 w-5" />
-                      ) : (
-                        <Lock className="h-5 w-5" />
-                      )}
-                    </button>
-                  </td>
-                )}
-              </tr>
-            </React.Fragment>
-          );
+        {filteredEmployees.map(employee => {
+          // Only render top-level employees (those without supervisors or whose supervisor isn't in the filtered list)
+          if (!employee.SupervisorID || !filteredEmployees.some(e => e.ID === employee.SupervisorID)) {
+            return renderEmployeeHierarchy(employee);
+          }
+          return null;
         })}
       </tbody>
     </table>
