@@ -23,8 +23,7 @@ export const useEmployeeQualifications = (employeeId?: string) => {
           if (!response.ok) {
             throw new Error('Failed to fetch employee qualifications');
           }
-          const data = await response.json();
-          return data as EmployeeQualification[];
+          return response.json();
         }
         
         // If no employeeId is provided, fetch all employee qualifications
@@ -32,18 +31,7 @@ export const useEmployeeQualifications = (employeeId?: string) => {
         if (!response.ok) {
           throw new Error('Failed to fetch employee qualifications');
         }
-        const data = await response.json();
-        
-        // Group qualifications by employeeId
-        const groupedQualifications = data.reduce((acc: Record<string, EmployeeQualification[]>, qual: EmployeeQualification) => {
-          if (!acc[qual.EmployeeID]) {
-            acc[qual.EmployeeID] = [];
-          }
-          acc[qual.EmployeeID].push(qual);
-          return acc;
-        }, {});
-
-        return groupedQualifications;
+        return response.json();
       } catch (error) {
         console.error('Error fetching qualifications:', error);
         throw error;

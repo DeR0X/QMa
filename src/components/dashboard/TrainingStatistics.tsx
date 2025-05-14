@@ -245,15 +245,9 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
   const processedQualIds = new Set<string>();
 
   // Calculate qualification statistics
-  const qualificationStats = employeesData?.data.reduce((stats: any, employee) => {
-    const qualifications = Object.values(allEmployeeQualifications)[0] as any[] || [];
-    qualifications.forEach((qual: any) => {
-      if (processedQualIds.has(qual.ID)) return;
-
-      processedQualIds.add(qual.ID);
-
-      if (!qual.toQualifyUntil) return;
-
+  const qualificationStats = (Array.isArray(allEmployeeQualifications) ? allEmployeeQualifications : [])
+    .reduce((stats: any, qual: any) => {
+      if (!qual.toQualifyUntil) return stats;
       const expiryDate = new Date(qual.toQualifyUntil);
       const now = new Date();
       const twoMonthsFromNow = new Date();
@@ -265,10 +259,8 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
       } else {
         stats.active++;
       }
-    });
-
-    return stats;
-  }, { expired: 0, expiring: 0, active: 0 });
+      return stats;
+    }, { expired: 0, expiring: 0, active: 0 });
 
   const statCards = [
     { 
@@ -336,24 +328,23 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
       employeesData?.data.filter(emp => emp.DepartmentID?.toString() === dept.ID.toString()) || []
     );
     
-    const quals = Object.values(allEmployeeQualifications)[0] as any[] || [];
-    const qualStats = quals.reduce((stats: any, qual: any) => {
-      if (!qual.toQualifyUntil) return stats;
+    const qualStats = (Array.isArray(allEmployeeQualifications) ? allEmployeeQualifications : [])
+      .reduce((stats: any, qual: any) => {
+        if (!qual.toQualifyUntil) return stats;
+        const expiryDate = new Date(qual.toQualifyUntil);
+        const now = new Date();
+        const twoMonthsFromNow = new Date();
+        twoMonthsFromNow.setMonth(now.getMonth() + 2);
       
-      const expiryDate = new Date(qual.toQualifyUntil);
-      const now = new Date();
-      const twoMonthsFromNow = new Date();
-      twoMonthsFromNow.setMonth(now.getMonth() + 2);
-    
-      if (expiryDate <= now) {
-        stats.expired++;
-      } else if (expiryDate <= twoMonthsFromNow) {
-        stats.expiring++;
-      } else {
-        stats.active++;
-      }
-      return stats;
-    }, { active: 0, expiring: 0, expired: 0 });
+        if (expiryDate <= now) {
+          stats.expired++;
+        } else if (expiryDate <= twoMonthsFromNow) {
+          stats.expiring++;
+        } else {
+          stats.active++;
+        }
+        return stats;
+      }, { active: 0, expiring: 0, expired: 0 });
     
     return {
       ...dept,
@@ -693,7 +684,8 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
                                 .filter(e => e.DepartmentID?.toString() === dept.ID.toString())
                                 .filter(report => report) || []
                             ).map((employee, index) => {
-                              const quals = allEmployeeQualifications[employee.ID] as any[] || [];
+                              const quals = (Array.isArray(allEmployeeQualifications) ? allEmployeeQualifications : [])
+                                .filter(q => q.ID === employee.QualificationID);
                               const qualStats = quals.reduce((stats: any, qual: any) => {
                                 if (!qual.toQualifyUntil) return stats;
                                 

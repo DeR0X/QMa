@@ -32,7 +32,7 @@ interface Props {
   type: "all" | "completed" | "pending" | "expiring";
 }
 
-export default function StatisticsModal({
+export default function StatisticsModal({  
   isOpen,
   onClose,
   title,
@@ -42,27 +42,34 @@ export default function StatisticsModal({
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const { data: departmentsData } = useDepartments();
   const { data: jobTitlesData } = useJobTitles();
   const { data: qualificationsData } = useQualifications();
   const { data: allEmployeeQualifications } = useEmployeeQualifications();
-  console.log(allEmployeeQualifications);
   const itemsPerPage = 10;
 
   // Filter employees based on their qualification status and selected filters
   const filteredEmployees = employees.filter((employee) => {
-    // Get qualifications for this employee, handling the undefined case
-    const employeeQuals = allEmployeeQualifications && allEmployeeQualifications[employee.ID] 
-      ? allEmployeeQualifications[employee.ID] 
+    // Get qualifications for this employee
+    const employeeQuals = Array.isArray(allEmployeeQualifications)
+      ? allEmployeeQualifications.filter((qual: any) => qual.EmployeeID == employee.ID)
       : [];
+
+    for (let i = 0; i < allEmployeeQualifications.length; i++) {
+      for (let q = 0; q < qualificationsData.length; q++) {
+        if(allEmployeeQualifications[i].QualificationID === qualificationsData[q].ID){
+          
+        }
+      }
+
+    }
     
     // Department filter
     if (selectedDepartment !== 'all' && employee.Department !== selectedDepartment) {
       return false;
     }
 
-    // Type filter - Modified to better handle expired qualifications
+    // For pending (expired) qualifications, only show employees with expired qualifications
     switch (type) {
       case "pending":
         // Show only employees with expired qualifications
@@ -88,12 +95,12 @@ export default function StatisticsModal({
     }
   }).sort((a, b) => {
     // Sort by most recently expired qualifications first
-    const aQuals = allEmployeeQualifications && allEmployeeQualifications[a.ID] 
-      ? allEmployeeQualifications[a.ID] 
-      : [];
-    const bQuals = allEmployeeQualifications && allEmployeeQualifications[b.ID]
-      ? allEmployeeQualifications[b.ID]
-      : [];
+    const aQuals = allEmployeeQualifications?.filter((qual: any) => 
+      qual.EmployeeID === a.ID.toString()
+    ) || [];
+    const bQuals = allEmployeeQualifications?.filter((qual: any) => 
+      qual.EmployeeID === b.ID.toString()
+    ) || [];
     
     const aExpiredDates = aQuals
       .map((qual: any) => new Date(qual.ToQualifyUntil))
@@ -118,12 +125,12 @@ export default function StatisticsModal({
     return a.FullName.localeCompare(b.FullName);
   });
 
-  const totalItems = filteredEmployees.length;
+
+  const totalItems = allEmployeeQualifications.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
-  console.log(filteredEmployees);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
-  const paginatedEmployees = filteredEmployees.slice(startIndex, endIndex);
+  const paginatedEmployees = allEmployeeQualifications.slice(startIndex, endIndex);
 
   if (!isOpen) return null;
 
@@ -136,7 +143,7 @@ export default function StatisticsModal({
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
           >
             <X className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
@@ -188,15 +195,15 @@ export default function StatisticsModal({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-[#141616]">
-                        {paginatedEmployees.map((employee) => {
+                        {paginatedEmployees.map((employee : any) => {
                         if (!employee) return null;
 
                         const department = departmentsData?.find(
                           (d) => d.Department === employee.Department,
                         );
 
-                        const employeeQuals = allEmployeeQualifications && allEmployeeQualifications[employee.ID] 
-                          ? allEmployeeQualifications[employee.ID] 
+                        const employeeQuals = Array.isArray(allEmployeeQualifications)
+                          ? allEmployeeQualifications.filter((qual: any) => qual.EmployeeID == employee.ID)
                           : [];
 
                         const initials = employee.FullName
@@ -207,7 +214,7 @@ export default function StatisticsModal({
 
                           const displayQuals = type === "pending"
                   ? employeeQuals.filter((qual: any) => {
-                      const expiryDate = new Date(qual.ToQualifyUntil);
+                      const expiryDate = new Date(qual.toQualifyUntil);
                       return expiryDate <= new Date();
                     })
                   : employeeQuals;
@@ -249,30 +256,7 @@ export default function StatisticsModal({
                                   
                                   const expiryDate = new Date(qual.ToQualifyUntil);
                                   const now = new Date();
-                                  const thirtyDaysFromNow = new Date();
-                                  thirtyDaysFromNow.setDate(now.getDate() + 30);
                                   const daysExpired = Math.floor((now.getTime() - expiryDate.getTime()) / (1000 * 60 * 60 * 24));
-
-                                  let status;
-                                  if (expiryDate <= now) {
-                                    status = {
-                                      icon: AlertCircle,
-                                      text: "Abgelaufen",
-                                      class: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                                    };
-                                  } else if (expiryDate <= thirtyDaysFromNow) {
-                                    status = {
-                                      icon: Clock,
-                                      text: "Läuft bald ab",
-                                      class: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                                    };
-                                  } else {
-                                    status = {
-                                      icon: CheckCircle,
-                                      text: "Aktiv",
-                                      class: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                    };
-                                  }
 
                                   return (
                                     <div key={index} className="flex items-center justify-between">
