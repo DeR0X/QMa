@@ -32,6 +32,32 @@ interface Props {
   type: "all" | "completed" | "pending" | "expiring";
 }
 
+// Modal für abgelaufene Qualifikation
+function ExpiredQualificationModal({ qualification, employee, onClose }: { qualification: any, employee: any, onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-[#121212] rounded-lg max-w-md w-full p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Qualifikationsdetails</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div>
+            <span className="font-medium text-gray-900 dark:text-white">{qualification?.Name || 'Unbekannte Qualifikation'}</span>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Gültig bis: {formatDate(qualification.toQualifyUntil)}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-900 dark:text-white">Mitarbeiter: {employee?.FullName || employee?.fullName || employee?.Name || employee?.name || employee?.EmployeeID}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Personalnummer: {employee?.StaffNumber || employee?.staffNumber || '-'}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function StatisticsModal({  
   isOpen,
   onClose,
@@ -47,7 +73,8 @@ export default function StatisticsModal({
   const { data: qualificationsData } = useQualifications();
   const { data: allEmployeeQualifications } = useEmployeeQualifications();
   const itemsPerPage = 10;
-
+  const [selectedExpiredQual, setSelectedExpiredQual] = useState<any | null>(null);
+  const [selectedExpiredEmployee, setSelectedExpiredEmployee] = useState<any | null>(null);
   // Filter employees based on their qualification status and selected filters
   const filteredEmployees = employees.filter((employee) => {
     // Get qualifications for this employee
@@ -55,15 +82,6 @@ export default function StatisticsModal({
       ? allEmployeeQualifications.filter((qual: any) => qual.EmployeeID == employee.ID)
       : [];
 
-    for (let i = 0; i < allEmployeeQualifications.length; i++) {
-      for (let q = 0; q < qualificationsData.length; q++) {
-        if(allEmployeeQualifications[i].QualificationID === qualificationsData[q].ID){
-          
-        }
-      }
-
-    }
-    
     // Department filter
     if (selectedDepartment !== 'all' && employee.Department !== selectedDepartment) {
       return false;
@@ -93,57 +111,179 @@ export default function StatisticsModal({
       default:
         return true;
     }
-  }).sort((a, b) => {
-    // Sort by most recently expired qualifications first
-    const aQuals = allEmployeeQualifications?.filter((qual: any) => 
-      qual.EmployeeID === a.ID.toString()
-    ) || [];
-    const bQuals = allEmployeeQualifications?.filter((qual: any) => 
-      qual.EmployeeID === b.ID.toString()
-    ) || [];
-    
-    const aExpiredDates = aQuals
-      .map((qual: any) => new Date(qual.ToQualifyUntil))
-      .filter((date:any)  => date <= new Date())
-      .sort((d1:any, d2:any) => d2.getTime() - d1.getTime());
-    
-    const bExpiredDates = bQuals
-      .map((qual: any) => new Date(qual.ToQualifyUntil))
-      .filter((date:any)  => date <= new Date())
-      .sort((d1:any, d2:any) => d2.getTime() - d1.getTime());
-    
-    // Compare the most recent expired date
-    if (aExpiredDates.length && bExpiredDates.length) {
-      return bExpiredDates[0].getTime() - aExpiredDates[0].getTime();
-    }
-    
-    // If one has expired qualifications and the other doesn't
-    if (aExpiredDates.length) return -1;
-    if (bExpiredDates.length) return 1;
-    
-    // If neither has expired qualifications, sort by name
-    return a.FullName.localeCompare(b.FullName);
   });
-
-
-  const totalItems = allEmployeeQualifications.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
-  const paginatedEmployees = allEmployeeQualifications.slice(startIndex, endIndex);
 
   if (!isOpen) return null;
 
+  // Section: Abgelaufene Qualifikationen (alle)
+  const now = new Date();
+  let expiredQualifications: any[] = [];
+  if (type === 'pending' && Array.isArray(allEmployeeQualifications)) {
+    expiredQualifications = allEmployeeQualifications.filter((qual: any) => {
+      const expiryDate = new Date(qual.ToQualifyUntil || qual.toQualifyUntil);
+      return expiryDate <= now;
+    });
+  }
+
+  // Hilfsfunktion, um Mitarbeiter zu einer Qualifikation zu finden
+  const findEmployeeByQual = (qual: any) => {
+    return employees.find((emp: any) => emp.ID == qual.EmployeeID);
+  };
+
+  const renderContent = () => {
+    if (type === 'all') {
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filteredEmployees.map((employee) => (
+            <div
+              key={employee.ID}
+              className="bg-white dark:bg-[#181818] p-4 rounded-lg shadow cursor-pointer hover:shadow-md transition-all"
+              onClick={() => setSelectedEmployee(employee)}
+            >
+              <div className="flex items-center space-x-4">
+                <div className="h-12 w-12 rounded-full bg-primary text-white flex items-center justify-center">
+                  <span className="text-sm font-medium">
+                    {employee.FullName.split(' ').map((n: string) => n[0]).join('')}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-white">{employee.FullName}</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{employee.Department}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{employee.StaffNumber}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // For qualification-related views (completed, pending, expiring)
+    return (
+      <div className="space-y-4">
+        {/* Zeige alle abgelaufenen Qualifikationen, wenn type === 'pending' */}
+        {type === 'pending' && expiredQualifications.length > 0 && (
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Alle abgelaufenen Qualifikationen</h3>
+            <ul className="space-y-2">
+              {expiredQualifications.map((qual: any) => {
+                const qualification = qualificationsData?.find(q => q.ID === parseInt(qual.QualificationID));
+                const employee = findEmployeeByQual(qual);
+                return (
+                  <li key={qual.ID} className="p-2 rounded-lg bg-red-50 dark:bg-red-900/10 flex flex-col md:flex-row md:items-center md:justify-between cursor-pointer"
+                    onClick={() => {
+                      setSelectedExpiredQual(qualification || qual);
+                      setSelectedExpiredEmployee(employee);
+                    }}
+                  >
+                    <div>
+                      <span className="font-medium text-gray-900 dark:text-white">{qualification?.Name || 'Unbekannte Qualifikation'}</span>
+                      <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">(Mitarbeiter: {employee?.FullName || employee?.EmployeeID})</span>
+                      <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">Personalnummer: {employee?.StaffNumber || '-'}</span>
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Gültig bis: {formatDate(qual.ToQualifyUntil || qual.toQualifyUntil)}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+        {filteredEmployees.map((employee) => {
+          const employeeQuals = Array.isArray(allEmployeeQualifications)
+            ? allEmployeeQualifications.filter((qual: any) => qual.EmployeeID == employee.ID)
+            : [];
+
+          const relevantQuals = employeeQuals.filter((qual: any) => {
+            const expiryDate = new Date(qual.ToQualifyUntil || qual.toQualifyUntil);
+            const now = new Date();
+            const twoMonthsFromNow = new Date();
+            twoMonthsFromNow.setMonth(now.getMonth() + 2);
+
+            switch (type) {
+              case "pending":
+                return expiryDate <= now;
+              case "expiring":
+                return expiryDate > now && expiryDate <= twoMonthsFromNow;
+              case "completed":
+                return expiryDate > twoMonthsFromNow;
+              default:
+                return true;
+            }
+          });
+
+          if (relevantQuals.length === 0) return null;
+
+          return (
+            <div key={employee.ID} className="bg-white dark:bg-[#181818] p-4 rounded-lg shadow">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-4">
+                  <div className="h-12 w-12 rounded-full bg-primary text-white flex items-center justify-center">
+                    <span className="text-sm font-medium">
+                      {employee.FullName.split(' ').map((n: string) => n[0]).join('')}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-900 dark:text-white">{employee.FullName}</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{employee.Department}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedEmployee(employee)}
+                  className="text-sm text-primary hover:text-primary/80"
+                >
+                  Details
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {relevantQuals.map((qual: any) => {
+                  const qualification = qualificationsData?.find(q => q.ID === parseInt(qual.QualificationID));
+                  const expiryDate = new Date(qual.ToQualifyUntil || qual.toQualifyUntil);
+                  const now = new Date();
+                  const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+                  let statusClass = '';
+                  let statusText = '';
+
+                  statusClass = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+                  statusText = `Läuft in ${daysUntilExpiry} Tagen ab`;
+
+                  return (
+                    <div key={qual.ID} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-[#1a1a1a]">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
+                          {qualification?.Name || 'Unbekannte Qualifikation'}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Gültig bis: {formatDate(qual.ToQualifyUntil)}
+                        </p>
+                      </div>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}`}>
+                        {statusText}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-[#121212] rounded-lg w-full max-w-6xl max-h-[90vh] flex flex-col">
+      <div className="bg-white dark:bg-[#121212] rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col">
         <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
             {title}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+            className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
           >
             <X className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
@@ -167,168 +307,104 @@ export default function StatisticsModal({
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto min-h-0 p-4 sm:p-6">
-        {paginatedEmployees.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {type === "pending" 
-                ? "Keine Mitarbeiter mit abgelaufenen Qualifikationen gefunden"
-                : "Keine Mitarbeiter gefunden"}
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-              <div className="inline-block min-w-full align-middle">
-                <div className="overflow-hidden border border-gray-200 dark:border-gray-700 sm:rounded-lg">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-[#181818]">
-                      <tr>
-                        <th className="py-2 pl-4 pr-3 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white sm:pl-6">
-                          Mitarbeiter
-                        </th>
-                        <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
-                          Abteilung
-                        </th>
-                        <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
-                          Qualifikationen & Status
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-[#141616]">
-                        {paginatedEmployees.map((employee : any) => {
-                        if (!employee) return null;
-
-                        const department = departmentsData?.find(
-                          (d) => d.Department === employee.Department,
-                        );
-
-                        const employeeQuals = Array.isArray(allEmployeeQualifications)
-                          ? allEmployeeQualifications.filter((qual: any) => qual.EmployeeID == employee.ID)
-                          : [];
-
-                        const initials = employee.FullName
-                          ? employee.FullName.split(" ")
-                              .map((n: string) => n[0])
-                              .join("")
-                          : "??";
-
-                          const displayQuals = type === "pending"
-                  ? employeeQuals.filter((qual: any) => {
-                      const expiryDate = new Date(qual.toQualifyUntil);
-                      return expiryDate <= new Date();
-                    })
-                  : employeeQuals;
-
-                  return (
-                    <tr
-                      key={employee.ID}
-                      className={`hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${
-                        type === "pending" ? "bg-red-50 dark:bg-red-900/10" : ""
-                      }`}
-                      onClick={() => setSelectedEmployee(employee)}
-                    >
-                            <td className="whitespace-nowrap py-2 pl-4 pr-3 sm:pl-6">
-                              <div className="flex items-center">
-                                <div className="h-8 w-8 flex-shrink-0 rounded-full bg-primary text-white flex items-center justify-center">
-                                  <span className="text-xs sm:text-sm font-medium">
-                                    {initials}
-                                  </span>
-                                </div>
-                                <div className="ml-2">
-                                  <div className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white">
-                                    {employee.FullName}
-                                  </div>
-                                  <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                                    {employee.StaffNumber}
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm text-gray-900 dark:text-white">
-                              {department?.Department || "-"}
-                            </td>
-                            <td className="px-3 py-2">
-                              <div className="space-y-2">
-                              {displayQuals.map((qual: any, index: number) => {
-                          const qualification = qualificationsData?.find(
-                            (q) => q.ID === parseInt(qual.QualificationID)
-                          );
-                                  
-                                  const expiryDate = new Date(qual.ToQualifyUntil);
-                                  const now = new Date();
-                                  const daysExpired = Math.floor((now.getTime() - expiryDate.getTime()) / (1000 * 60 * 60 * 24));
-
-                                  return (
-                                    <div key={index} className="flex items-center justify-between">
-                                      <div className="flex items-center">
-                                        <Award className="h-4 w-4 mr-1 text-primary" />
-                                        <span className="text-sm text-gray-900 dark:text-white">
-                                          {qualification?.Name || 'Unbekannte Qualifikation'}
-                                        </span>
-                                      </div>
-                                      <div className="flex items-center space-x-2">
-                                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                                          {type === "pending" 
-                                            ? `Abgelaufen seit ${daysExpired} Tagen`
-                                            : `Gültig bis: ${formatDate(qual.ToQualifyUntil)}`}
-                                        </span>
-                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                                          <AlertCircle className="h-3 w-3 mr-1" />
-                                          Abgelaufen
-                                        </span>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+        <div className="flex-1 overflow-auto p-4 sm:p-6">
+          {type === "pending" && expiredQualifications.length > 0 ? (
+            renderContent()
+          ) : filteredEmployees.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {type === "pending" 
+                  ? "Keine abgelaufenen Qualifikationen gefunden"
+                  : "Keine Mitarbeiter gefunden"}
+              </p>
             </div>
+          ) : (
+            <>
+              {type === "expiring" && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Ablaufende Qualifikationen (nächste 2 Monate)</h3>
+                  {filteredEmployees.map((employee) => {
+                    const employeeQuals = Array.isArray(allEmployeeQualifications)
+                      ? allEmployeeQualifications.filter((qual: any) => qual.EmployeeID == employee.ID)
+                      : [];
+
+                    const relevantQuals = employeeQuals.filter((qual: any) => {
+                      const expiryDate = new Date(qual.ToQualifyUntil || qual.toQualifyUntil);
+                      const now = new Date();
+                      const twoMonthsFromNow = new Date();
+                      twoMonthsFromNow.setMonth(now.getMonth() + 2);
+                      return expiryDate > now && expiryDate <= twoMonthsFromNow;
+                    });
+
+                    if (relevantQuals.length === 0) return null;
+
+                    return (
+                      <div key={employee.ID} className="bg-white dark:bg-[#181818] p-4 rounded-lg shadow">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center space-x-4">
+                            <div className="h-12 w-12 rounded-full bg-primary text-white flex items-center justify-center">
+                              <span className="text-sm font-medium">
+                                {employee.FullName.split(' ').map((n: string) => n[0]).join('')}
+                              </span>
+                            </div>
+                            <div>
+                              <h3 className="text-sm font-medium text-gray-900 dark:text-white">{employee.FullName}</h3>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">{employee.Department}</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedEmployee(employee);
+                            }}
+                            className="text-sm text-primary hover:text-primary/80"
+                          >
+                            Details
+                          </button>
+                        </div>
+
+                        <div className="space-y-2">
+                          {relevantQuals.map((qual: any) => {
+                            const qualification = qualificationsData?.find(q => q.ID === parseInt(qual.QualificationID));
+                            const expiryDate = new Date(qual.ToQualifyUntil || qual.toQualifyUntil);
+                            const now = new Date();
+                            const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                            let statusClass = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+                            let statusText = `Läuft in ${daysUntilExpiry} Tagen ab`;
+
+                            return (
+                              <div
+                                key={qual.ID}
+                                className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-[#1a1a1a] cursor-pointer"
+                                onClick={() => {
+                                  setSelectedExpiredQual(qualification || qual);
+                                  setSelectedExpiredEmployee(employee);
+                                }}
+                              >
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {qualification?.Name || 'Unbekannte Qualifikation'}
+                                  </p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    Gültig bis: {formatDate(qual.ToQualifyUntil || qual.toQualifyUntil)}
+                                  </p>
+                                </div>
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}`}>
+                                  {statusText}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {renderContent()}
+            </>
           )}
         </div>
-
-        {!selectedEmployee && (
-          <div className="border-t border-gray-200 dark:border-gray-700 px-4 sm:px-6 py-3">
-            <div className="flex items-center justify-between">
-              <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300">
-                Zeige{" "}
-                <span className="font-medium">
-                  {startIndex + 1}
-                </span>{" "}
-                -{" "}
-                <span className="font-medium">
-                  {endIndex}
-                </span>{" "}
-                von <span className="font-medium">{totalItems}</span>{" "}
-                Ergebnissen
-              </p>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="inline-flex items-center px-3 py-1 border border-gray-300 dark:border-gray-600 text-xs sm:text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Zurück
-                </button>
-                <button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                  }
-                  disabled={currentPage >= totalPages}
-                  className="inline-flex items-center px-3 py-1 border border-gray-300 dark:border-gray-600 text-xs sm:text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Weiter
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {selectedEmployee && (
@@ -340,6 +416,16 @@ export default function StatisticsModal({
           trainings={[]}
           handleApproveTraining={() => {}}
           handleRejectTraining={() => {}}
+        />
+      )}
+      {selectedExpiredQual && (
+        <ExpiredQualificationModal
+          qualification={selectedExpiredQual}
+          employee={selectedExpiredEmployee}
+          onClose={() => {
+            setSelectedExpiredQual(null);
+            setSelectedExpiredEmployee(null);
+          }}
         />
       )}
     </div>
