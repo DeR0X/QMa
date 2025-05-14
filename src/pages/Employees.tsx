@@ -100,7 +100,6 @@ export default function Employees() {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     return filteredEmployees.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [filteredEmployees, currentPage]);
-console.log(filteredEmployees);
   const totalPages = Math.ceil(filteredEmployees.length / ITEMS_PER_PAGE);
 
   const updateEmployee = useUpdateEmployee();

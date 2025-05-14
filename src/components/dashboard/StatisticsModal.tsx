@@ -49,36 +49,38 @@ export default function StatisticsModal({
   // Filter employees based on their qualification status
   const filteredEmployees = employees.filter((employee) => {
     const employeeQuals = allEmployeeQualifications?.[employee.ID] || [];
-
+    console.log(allEmployeeQualifications);
     switch (type) {
       case "completed":
         // Show employees with active qualifications
         return employeeQuals.some((qual: any) => {
-          const expiryDate = new Date(qual.ToQualifyUntil);
+          const expiryDate = new Date(qual.toQualifyUntil);
           return expiryDate > new Date();
         });
-
+  
       case "expiring":
         // Show employees with qualifications expiring in the next 2 months
         return employeeQuals.some((qual: any) => {
-          const expiryDate = new Date(qual.ToQualifyUntil);
+          const expiryDate = new Date(qual.toQualifyUntil);
           const twoMonthsFromNow = new Date();
+
           twoMonthsFromNow.setMonth(twoMonthsFromNow.getMonth() + 2);
           return expiryDate <= twoMonthsFromNow && expiryDate > new Date();
         });
 
+  
       case "pending":
         // Show employees with expired qualifications
         return employeeQuals.some((qual: any) => {
           const expiryDate = new Date(qual.toQualifyUntil);
           return expiryDate <= new Date();
-        });
 
+        });
+  
       default:
         return true;
     }
   });
-
   const totalItems = filteredEmployees.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 

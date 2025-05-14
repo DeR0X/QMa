@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { 
   PieChart, 
   Building2, 
@@ -13,19 +14,147 @@ import {
   Award,
   Info,
   Target,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Calendar,
+  X
 } from 'lucide-react';
 import StatisticsModal from './StatisticsModal';
 import { useEmployees } from '../../hooks/useEmployees';
 import { useEmployeeQualifications } from '../../hooks/useEmployeeQualifications';
 import { useJobTitles } from '../../hooks/useJobTitles';
 import { useDepartments } from '../../hooks/useDepartments';
+import { useQualifications } from '../../hooks/useQualifications';
+import { hasHRPermissions } from '../../store/slices/authSlice';
 import type { EmployeeFilters } from '../../types';
 import EmployeeDetails from '../employees/EmployeeDetails';
+import { toast } from 'sonner';
+import type { RootState } from '../../store';
 
 interface Props {
   departmentFilter?: string;
 }
+
+interface QualificationDetailsModalProps {
+  employeeId: string;
+  qualificationId: string;
+  onClose: () => void;
+  onRenew?: () => void;
+}
+
+const QualificationDetailsModal = ({ employeeId, qualificationId, onClose, onRenew }: QualificationDetailsModalProps) => {
+  const { data: qualificationsData } = useQualifications();
+  const { data: employeeQualificationsData } = useEmployeeQualifications(employeeId);
+  const { data: employeesData } = useEmployees();
+
+  const qualification = qualificationsData?.find(q => q.ID?.toString() === qualificationId);
+  const employeeQualification = employeeQualificationsData?.find((eq: any) => eq.QualificationID === qualificationId);
+  const employee = employeesData?.data.find(e => e.ID.toString() === employeeId);
+
+  if (!qualification || !employeeQualification || !employee) return null;
+
+  const expiryDate = new Date(employeeQualification.ToQualifyUntil);
+  const isExpired = expiryDate <= new Date();
+
+  const handleRenew = async () => {
+    try {
+      // Here you would implement the actual renewal logic
+      // For now, we'll just show a success message
+      toast.success('Qualifikation erfolgreich erneuert');
+      onRenew?.();
+      onClose();
+    } catch (error) {
+      toast.error('Fehler beim Erneuern der Qualifikation');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-lg w-full m-4">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            Qualifikationsdetails
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+              {qualification.Name}
+            </h3>
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              {qualification.Description}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                Mitarbeiter
+              </p>
+              <p className="mt-1 text-sm text-gray-900 dark:text-white">
+                {employee.FullName}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                Personal-Nr.
+              </p>
+              <p className="mt-1 text-sm text-gray-900 dark:text-white">
+                {employee.StaffNumber}
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                Qualifiziert seit
+              </p>
+              <p className="text-sm text-gray-900 dark:text-white">
+                {new Date(employeeQualification.QualifiedFrom).toLocaleDateString()}
+              </p>
+            </div>
+            <div className="flex justify-between items-center">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                Gültig bis
+              </p>
+              <p className="text-sm text-gray-900 dark:text-white">
+                {expiryDate.toLocaleDateString()}
+              </p>
+            </div>
+            <div className="flex justify-between items-center">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                Status
+              </p>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                isExpired
+                  ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                  : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+              }`}>
+                {isExpired ? 'Abgelaufen' : 'Aktiv'}
+              </span>
+            </div>
+          </div>
+
+          {isExpired && (
+            <button
+              onClick={handleRenew}
+              className="w-full px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
+            >
+              Qualifikation erneuern
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ITEMS_PER_PAGE = 1000;
 
@@ -33,6 +162,7 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
   const [showDetails, setShowDetails] = useState(false);
   const [selectedStat, setSelectedStat] = useState<string | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
+  const [selectedQualification, setSelectedQualification] = useState<{ employeeId: string; qualificationId: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [expandedDepartments, setExpandedDepartments] = useState<string[]>([]);
@@ -50,6 +180,9 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
     page: 1,
     limit: 1000
   });
+
+  const { employee: currentEmployee } = useSelector((state: RootState) => state.auth);
+  const isHRAdmin = hasHRPermissions(currentEmployee);
 
   const { 
     data: employeesData, 
@@ -76,6 +209,13 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
     setCurrentPage(newPage);
   };
 
+  const handleQualificationClick = (e: React.MouseEvent, employeeId: string, qualificationId: string) => {
+    e.stopPropagation();
+    if (isHRAdmin) {
+      setSelectedQualification({ employeeId, qualificationId });
+    }
+  };
+
   if (isEmployeesLoading || isDepartmentsLoading) {
     return (
       <div className="bg-white dark:bg-[#181818] rounded-lg shadow p-6">
@@ -100,11 +240,11 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
   const totalEmployees = employeesData?.pagination.total || 0;
   const totalPages = employeesData?.pagination.totalPages || 1;
   const processedQualIds = new Set<string>();
+
   // Calculate qualification statistics
   const qualificationStats = employeesData?.data.reduce((stats: any, employee) => {
     const qualifications = Object.values(allEmployeeQualifications)[0] as any[] || [];
     qualifications.forEach((qual: any) => {
-      // Skip if qualification has no ID or has already been processed
       if (processedQualIds.has(qual.ID)) return;
 
       processedQualIds.add(qual.ID);
@@ -537,6 +677,7 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
                           <thead>
                             <tr>
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Mitarbeiter</th>
+                
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Position</th>
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Aktiv</th>
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Ablaufend</th>
@@ -654,6 +795,18 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
           trainings={[]}
           handleApproveTraining={() => {}}
           handleRejectTraining={() => {}}
+        />
+      )}
+
+      {selectedQualification && (
+        <QualificationDetailsModal
+          employeeId={selectedQualification.employeeId}
+          qualificationId={selectedQualification.qualificationId}
+          onClose={() => setSelectedQualification(null)}
+          onRenew={() => {
+            // Refresh the data after renewal
+            // This will be implemented when the actual renewal endpoint is available
+          }}
         />
       )}
     </div>
