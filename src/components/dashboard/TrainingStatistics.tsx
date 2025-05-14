@@ -48,7 +48,7 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
   const [apiFilters] = useState<EmployeeFilters>({
     department: departmentFilter,
     page: 1,
-    limit: 1000  // Set to maximum allowed value
+    limit: 1000
   });
 
   const { 
@@ -99,34 +99,22 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
 
   const totalEmployees = employeesData?.pagination.total || 0;
   const totalPages = employeesData?.pagination.totalPages || 1;
-
-  const completedEmployees = employeesData?.data.filter(employee => {
-    const qualifications = allEmployeeQualifications[employee.ID];
-    return qualifications && qualifications.length > 0;
-  }).length || 0;
-
-  const expiringEmployees = employeesData?.data.filter(employee => {
-    const qualifications = allEmployeeQualifications[employee.ID];
-    return qualifications?.some((qual: any) => {
-      const expiryDate = new Date(qual.ToQualifyUntil);
-      const twoMonthsFromNow = new Date();
-      twoMonthsFromNow.setMonth(twoMonthsFromNow.getMonth() + 2);
-      return expiryDate <= twoMonthsFromNow && expiryDate > new Date();
-    });
-  }).length || 0;
-
-   // Calculate qualification statistics
-   const qualificationStats = employeesData?.data.reduce((stats: any, employee) => {
-    const qualifications = allEmployeeQualifications[employee.ID] || [];
-    
+  const processedQualIds = new Set<string>();
+  // Calculate qualification statistics
+  const qualificationStats = employeesData?.data.reduce((stats: any, employee) => {
+    const qualifications = Object.values(allEmployeeQualifications)[0] as any[] || [];
     qualifications.forEach((qual: any) => {
+      // Skip if qualification has no ID or has already been processed
+      if (processedQualIds.has(qual.ID)) return;
+
+      processedQualIds.add(qual.ID);
+
       if (!qual.toQualifyUntil) return;
-      
+
       const expiryDate = new Date(qual.toQualifyUntil);
       const now = new Date();
       const twoMonthsFromNow = new Date();
       twoMonthsFromNow.setMonth(now.getMonth() + 2);
-  
       if (expiryDate <= now) {
         stats.expired++;
       } else if (expiryDate <= twoMonthsFromNow) {
@@ -135,11 +123,9 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
         stats.active++;
       }
     });
-  
-    return stats;
-  }, { active: 0, expiring: 0, expired: 0 });
 
-  const pendingEmployees = totalEmployees - completedEmployees;
+    return stats;
+  }, { expired: 0, expiring: 0, active: 0 });
 
   const statCards = [
     { 
@@ -151,21 +137,21 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
     },
     { 
       type: 'completed',
-      name: 'Qualifiziert', 
+      name: 'Aktive Qualifikationen', 
       value: qualificationStats?.active || 0,
       icon: CheckCircle,
       color: 'text-green-500'
     },
     {
       type: 'expiring',
-      name: 'Ablaufend',
+      name: 'Ablaufende Qualifikationen',
       value: qualificationStats?.expiring || 0,
       icon: Clock,
       color: 'text-yellow-500'
     },
     {
       type: 'pending',
-      name: 'Abgelaufen',
+      name: 'Abgelaufene Qualifikationen',
       value: qualificationStats?.expired || 0,
       icon: AlertCircle,
       color: 'text-red-500'
@@ -193,7 +179,6 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
     const matchingEmployees = filterEmployees(employeesData?.data || []);
     const relevantDepartmentIds = new Set(matchingEmployees.map(emp => emp.DepartmentID?.toString()));
 
-    // If searching by department name, also include direct department matches
     const departmentMatches = departmentsData?.filter(dept => 
       dept.Department.toLowerCase().includes(searchLower)
     );
@@ -208,28 +193,35 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
       employeesData?.data.filter(emp => emp.DepartmentID?.toString() === dept.ID.toString()) || []
     );
     
-    const completedCount = deptEmployees.filter(emp => {
-      const quals = allEmployeeQualifications[emp.ID];
-      return quals && quals.length > 0;
-    }).length;
+    const quals = Object.values(allEmployeeQualifications)[0] as any[] || [];
+    const qualStats = quals.reduce((stats: any, qual: any) => {
+      if (!qual.toQualifyUntil) return stats;
+      
+      const expiryDate = new Date(qual.toQualifyUntil);
+      const now = new Date();
+      const twoMonthsFromNow = new Date();
+      twoMonthsFromNow.setMonth(now.getMonth() + 2);
+    
+      if (expiryDate <= now) {
+        stats.expired++;
+      } else if (expiryDate <= twoMonthsFromNow) {
+        stats.expiring++;
+      } else {
+        stats.active++;
+      }
+      return stats;
+    }, { active: 0, expiring: 0, expired: 0 });
     
     return {
       ...dept,
       employeeCount: deptEmployees.length,
-      completedTrainings: completedCount,
-      pendingTrainings: deptEmployees.length - completedCount,
-      completionRate: deptEmployees.length ? Math.round((completedCount / deptEmployees.length) * 100) : 0,
+      completedTrainings: qualStats.active,
+      pendingTrainings: qualStats.expiring,
+      expiredQualifications: qualStats.expired,
+      completionRate: deptEmployees.length ? 
+        Math.round((qualStats.active / (qualStats.active + qualStats.expiring + qualStats.expired)) * 100) : 0,
       trainersCount: deptEmployees.filter(emp => emp.isTrainer).length,
-      positions: dept.positions || [],
-      expiringQualifications: deptEmployees.filter(emp => {
-        const quals = allEmployeeQualifications[emp.ID];
-        return quals?.some((qual: any) => {
-          const expiryDate = new Date(qual.ToQualifyUntil);
-          const twoMonthsFromNow = new Date();
-          twoMonthsFromNow.setMonth(twoMonthsFromNow.getMonth() + 2);
-          return expiryDate <= twoMonthsFromNow && expiryDate > new Date();
-        });
-      }).length
+      positions: dept.positions || []
     };
   }).filter(Boolean) || [];
 
@@ -454,21 +446,21 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
                             <CheckCircle className="h-4 w-4 mr-1" />
                             {dept.completedTrainings}
                           </span>
-                          <span className="text-xs text-gray-500">Abgeschlossen</span>
+                          <span className="text-xs text-gray-500">Aktiv</span>
                         </div>
                         <div className="text-center">
                           <span className="text-sm text-yellow-500 flex items-center">
                             <Clock className="h-4 w-4 mr-1" />
                             {dept.pendingTrainings}
                           </span>
-                          <span className="text-xs text-gray-500">Ausstehend</span>
+                          <span className="text-xs text-gray-500">Ablaufend</span>
                         </div>
                         <div className="text-center">
                           <span className="text-sm text-red-500 flex items-center">
                             <AlertTriangle className="h-4 w-4 mr-1" />
-                            {dept.expiringQualifications}
+                            {dept.expiredQualifications}
                           </span>
-                          <span className="text-xs text-gray-500">Ablaufend</span>
+                          <span className="text-xs text-gray-500">Abgelaufen</span>
                         </div>
                         <div className="text-center">
                           <span className="text-sm text-blue-500 flex items-center">
@@ -526,10 +518,13 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
                             </div>
                             <div>
                               <p className="text-sm text-gray-500 dark:text-gray-400">
-                                Aktive Schulungen: {dept.pendingTrainings}
+                                Aktive Qualifikationen: {dept.completedTrainings}
                               </p>
                               <p className="text-sm text-gray-500 dark:text-gray-400">
-                                Abgeschlossen: {dept.completedTrainings}
+                                Ablaufende: {dept.pendingTrainings}
+                              </p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                Abgelaufene: {dept.expiredQualifications}
                               </p>
                             </div>
                           </div>
@@ -543,9 +538,9 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
                             <tr>
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Mitarbeiter</th>
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Position</th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Abgeschlossen</th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Ausstehend</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Aktiv</th>
                               <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Ablaufend</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Abgelaufen</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -553,51 +548,72 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
                               employeesData?.data
                                 .filter(e => e.DepartmentID?.toString() === dept.ID.toString())
                                 .filter(report => report) || []
-                            ).map((report, index) => (
-                              <tr
-                                key={`report-${report.ID}-${index}`}
-                                onClick={() => setSelectedEmployee(report)}
-                                className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer pl-8"
-                              >
-                                <td className="px-4 py-2 whitespace-nowrap">
-                                  <div className="flex items-center">
-                                    <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
-                                      <span className="text-sm font-medium">
-                                        {typeof report.FullName === 'string'
-                                          ? report.FullName.split(' ').map((n : any) => n[0]).join('')
-                                          : ''}
-                                      </span>
-                                    </div>
-                                    <div className="ml-4">
-                                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                        {report.FullName}
+                            ).map((employee, index) => {
+                              const quals = allEmployeeQualifications[employee.ID] as any[] || [];
+                              const qualStats = quals.reduce((stats: any, qual: any) => {
+                                if (!qual.toQualifyUntil) return stats;
+                                
+                                const expiryDate = new Date(qual.toQualifyUntil);
+                                const now = new Date();
+                                const twoMonthsFromNow = new Date();
+                                twoMonthsFromNow.setMonth(now.getMonth() + 2);
+                            
+                                if (expiryDate <= now) {
+                                  stats.expired++;
+                                } else if (expiryDate <= twoMonthsFromNow) {
+                                  stats.expiring++;
+                                } else {
+                                  stats.active++;
+                                }
+                                return stats;
+                              }, { active: 0, expiring: 0, expired: 0 });
+
+                              return (
+                                <tr
+                                  key={`report-${employee.ID}-${index}`}
+                                  onClick={() => setSelectedEmployee(employee)}
+                                  className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer pl-8"
+                                >
+                                  <td className="px-4 py-2 whitespace-nowrap">
+                                    <div className="flex items-center">
+                                      <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
+                                        <span className="text-sm font-medium">
+                                          {typeof employee.FullName === 'string'
+                                            ? employee.FullName.split(' ').map((n : any) => n[0]).join('')
+                                            : ''}
+                                        </span>
                                       </div>
-                                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                                        {report.StaffNumber}
+                                      <div className="ml-4">
+                                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                          {employee.FullName}
+                                        </div>
+                                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                                          {employee.StaffNumber}
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
-                                </td>
-                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                                  {report.JobTitle || '-'}
-                                </td>
-                                <td className="px-4 py-2">
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                                    {report.completedTrainings}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-2">
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                                    {report.pendingTrainings}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-2">
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                                    {report.expiringQualifications?.length || 0}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
+                                  </td>
+                                  <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                                    {employee.JobTitle || '-'}
+                                  </td>
+                                  <td className="px-4 py-2">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                      {qualStats.active}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-2">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                                      {qualStats.expiring}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-2">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                      {qualStats.expired}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
@@ -619,9 +635,9 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
             selectedStat === 'all'
               ? 'Alle Mitarbeiter'
               : selectedStat === 'completed'
-              ? 'Abgeschlossene Schulungen'
+              ? 'Aktive Qualifikationen'
               : selectedStat === 'pending'
-              ? 'Ausstehende Schulungen'
+              ? 'Abgelaufene Qualifikationen'
               : 'Ablaufende Qualifikationen'
           }
           employees={employeesData?.data || []}
@@ -640,26 +656,6 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
           handleRejectTraining={() => {}}
         />
       )}
-
-      {/* Pagination */}
-      <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 px-4 py-3 sm:px-6">
-        <div className="flex flex-1 justify-between sm:hidden">
-          <button
-            onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-            disabled={currentPage === 1}
-            className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
-          >
-            Vorherige
-          </button>
-          <button
-            onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
-            disabled={currentPage === totalPages}
-            className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-[#1a1a1a]"
-          >
-            Nächste
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
