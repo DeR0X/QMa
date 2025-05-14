@@ -16,33 +16,38 @@ export const useEmployeeQualifications = (employeeId?: string) => {
   return useQuery({
     queryKey: ['employeeQualifications', employeeId],
     queryFn: async () => {
-      // If employeeId is provided, fetch qualifications for that employee
-      if (employeeId) {
-        const response = await fetch(`${API_URL}/employee-qualifications/${employeeId}`);
+      try {
+        // If employeeId is provided, fetch qualifications for that specific employee
+        if (employeeId) {
+          const response = await fetch(`${API_URL}/employee-qualifications/${employeeId}`);
+          if (!response.ok) {
+            throw new Error('Failed to fetch employee qualifications');
+          }
+          const data = await response.json();
+          return data as EmployeeQualification[];
+        }
+        
+        // If no employeeId is provided, fetch all employee qualifications
+        const response = await fetch(`${API_URL}/employee-qualifications`);
         if (!response.ok) {
           throw new Error('Failed to fetch employee qualifications');
         }
-        return response.json() as Promise<EmployeeQualification[]>;
-      }
-      
-      // If no employeeId is provided, fetch all employee qualifications
-      const response = await fetch(`${API_URL}/employee-qualifications`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch employee qualifications');
-      }
+        const data = await response.json();
+        
+        // Group qualifications by employeeId
+        const groupedQualifications = data.reduce((acc: Record<string, EmployeeQualification[]>, qual: EmployeeQualification) => {
+          if (!acc[qual.EmployeeID]) {
+            acc[qual.EmployeeID] = [];
+          }
+          acc[qual.EmployeeID].push(qual);
+          return acc;
+        }, {});
 
-      const data = await response.json();
-      if(!employeeId){
-        return data;
+        return groupedQualifications;
+      } catch (error) {
+        console.error('Error fetching qualifications:', error);
+        throw error;
       }
-      // Transform the data into a map of employeeId -> qualifications[]
-      return data.reduce((acc: Record<string, EmployeeQualification[]>, qual: EmployeeQualification) => {
-        if (!acc[qual.EmployeeID]) {
-          acc[qual.EmployeeID] = [];
-        }
-        acc[qual.EmployeeID].push(qual);
-        return acc;
-      }, {});
     },
     enabled: employeeId === undefined || !!employeeId,
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes

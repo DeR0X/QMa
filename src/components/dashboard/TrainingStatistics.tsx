@@ -167,6 +167,12 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
   const [showFilters, setShowFilters] = useState(false);
   const [expandedDepartments, setExpandedDepartments] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const { data: departmentsData, isLoading: isDepartmentsLoading, error: departmentsError } = useDepartments();
+  const { data: allEmployeeQualifications } = useEmployeeQualifications();
+  const { data: jobTitlesData } = useJobTitles();
+  const { data: qualificationsData } = useQualifications();
+
+
   const [filters, setFilters] = useState({
     hideEmptyDepartments: false,
     hasTrainers: false,
@@ -189,9 +195,6 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
     isLoading: isEmployeesLoading, 
     error: employeesError 
   } = useEmployees(apiFilters);
-
-  const { data: departmentsData, isLoading: isDepartmentsLoading, error: departmentsError } = useDepartments();
-  const { data: allEmployeeQualifications = {} } = useEmployeeQualifications();
 
   const handleToggleDetails = () => {
     setShowDetails(!showDetails);

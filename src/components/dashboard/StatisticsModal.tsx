@@ -120,7 +120,7 @@ export default function StatisticsModal({
 
   const totalItems = filteredEmployees.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
-
+  console.log(filteredEmployees);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
   const paginatedEmployees = filteredEmployees.slice(startIndex, endIndex);
