@@ -14,6 +14,7 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
+  Filter,
 } from "lucide-react";
 import { formatDate } from "../../lib/utils";
 import EmployeeDetails from "../employees/EmployeeDetails";
@@ -39,6 +40,8 @@ export default function StatisticsModal({
 }: Props) {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const { data: departmentsData } = useDepartments();
   const { data: jobTitlesData } = useJobTitles();
   const { data: qualificationsData } = useQualifications();
@@ -46,41 +49,68 @@ export default function StatisticsModal({
 
   const itemsPerPage = 10;
 
-  // Filter employees based on their qualification status
+
+  // Filter employees based on their qualification status and selected filters
   const filteredEmployees = employees.filter((employee) => {
     const employeeQuals = allEmployeeQualifications?.[employee.ID] || [];
-    console.log(allEmployeeQualifications);
+    
+    // Department filter
+    if (selectedDepartment !== 'all' && employee.Department !== selectedDepartment) {
+      return false;
+    }
+
+    // Type filter - Modified to better handle expired qualifications
     switch (type) {
-      case "completed":
-        // Show employees with active qualifications
+      case "pending":
+        // Show only employees with expired qualifications
         return employeeQuals.some((qual: any) => {
-          const expiryDate = new Date(qual.toQualifyUntil);
+          const expiryDate = new Date(qual.ToQualifyUntil);
+          return expiryDate <= new Date();
+        });
+      case "expiring":
+        return employeeQuals.some((qual: any) => {
+          const expiryDate = new Date(qual.ToQualifyUntil);
+          const now = new Date();
+          const twoMonthsFromNow = new Date();
+          twoMonthsFromNow.setMonth(now.getMonth() + 2);
+          return expiryDate <= twoMonthsFromNow && expiryDate > now;
+        });
+      case "completed":
+        return employeeQuals.some((qual: any) => {
+          const expiryDate = new Date(qual.ToQualifyUntil);
           return expiryDate > new Date();
         });
-  
-      case "expiring":
-        // Show employees with qualifications expiring in the next 2 months
-        return employeeQuals.some((qual: any) => {
-          const expiryDate = new Date(qual.toQualifyUntil);
-          const twoMonthsFromNow = new Date();
-
-          twoMonthsFromNow.setMonth(twoMonthsFromNow.getMonth() + 2);
-          return expiryDate <= twoMonthsFromNow && expiryDate > new Date();
-        });
-
-  
-      case "pending":
-        // Show employees with expired qualifications
-        return employeeQuals.some((qual: any) => {
-          const expiryDate = new Date(qual.toQualifyUntil);
-          return expiryDate <= new Date();
-
-        });
-  
       default:
         return true;
     }
+  }).sort((a, b) => {
+    // Sort by most recently expired qualifications first
+    const aQuals = allEmployeeQualifications?.[a.ID] || [];
+    const bQuals = allEmployeeQualifications?.[b.ID] || [];
+    
+    const aExpiredDates = aQuals
+      .map((qual: any) => new Date(qual.ToQualifyUntil))
+      .filter((date:any)  => date <= new Date())
+      .sort((d1:any, d2:any) => d2.getTime() - d1.getTime());
+    
+    const bExpiredDates = bQuals
+      .map((qual: any) => new Date(qual.ToQualifyUntil))
+      .filter((date:any)  => date <= new Date())
+      .sort((d1:any, d2:any) => d2.getTime() - d1.getTime());
+    
+    // Compare the most recent expired date
+    if (aExpiredDates.length && bExpiredDates.length) {
+      return bExpiredDates[0].getTime() - aExpiredDates[0].getTime();
+    }
+    
+    // If one has expired qualifications and the other doesn't
+    if (aExpiredDates.length) return -1;
+    if (bExpiredDates.length) return 1;
+    
+    // If neither has expired qualifications, sort by name
+    return a.FullName.localeCompare(b.FullName);
   });
+
   const totalItems = filteredEmployees.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
@@ -105,15 +135,35 @@ export default function StatisticsModal({
           </button>
         </div>
 
+        {/* Filters */}
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex flex-wrap gap-4">
+            <select
+              value={selectedDepartment}
+              onChange={(e) => setSelectedDepartment(e.target.value)}
+              className="rounded-md border-gray-300 dark:border-gray-600 text-sm"
+            >
+              <option value="all">Alle Abteilungen</option>
+              {departmentsData?.map((dept) => (
+                <option key={dept.ID} value={dept.Department}>
+                  {dept.Department}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         <div className="flex-1 overflow-auto min-h-0 p-4 sm:p-6">
-          {paginatedEmployees.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Keine Mitarbeiter gefunden
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
+        {paginatedEmployees.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {type === "pending" 
+                ? "Keine Mitarbeiter mit abgelaufenen Qualifikationen gefunden"
+                : "Keine Mitarbeiter gefunden"}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
               <div className="inline-block min-w-full align-middle">
                 <div className="overflow-hidden border border-gray-200 dark:border-gray-700 sm:rounded-lg">
                   <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -126,15 +176,12 @@ export default function StatisticsModal({
                           Abteilung
                         </th>
                         <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
-                          Qualifikationen
-                        </th>
-                        <th className="px-3 py-2 text-left text-xs sm:text-sm font-semibold text-gray-900 dark:text-white">
-                          Status
+                          Qualifikationen & Status
                         </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-[#141616]">
-                      {paginatedEmployees.map((employee) => {
+                        {paginatedEmployees.map((employee) => {
                         if (!employee) return null;
 
                         const department = departmentsData?.find(
@@ -148,43 +195,21 @@ export default function StatisticsModal({
                               .join("")
                           : "??";
 
-                        // Get qualification status for display
-                        const qualStatus = employeeQuals.map((qual: any) => {
-                          const expiryDate = new Date(qual.ToQualifyUntil);
-                          const now = new Date();
-                          const twoMonthsFromNow = new Date();
-                          twoMonthsFromNow.setMonth(now.getMonth() + 2);
+                          const displayQuals = type === "pending"
+                  ? employeeQuals.filter((qual: any) => {
+                      const expiryDate = new Date(qual.ToQualifyUntil);
+                      return expiryDate <= new Date();
+                    })
+                  : employeeQuals;
 
-                          if (expiryDate <= now) {
-                            return {
-                              status: "expired",
-                              icon: AlertCircle,
-                              text: "Abgelaufen",
-                              class: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-                            };
-                          } else if (expiryDate <= twoMonthsFromNow) {
-                            return {
-                              status: "expiring",
-                              icon: Clock,
-                              text: "Läuft bald ab",
-                              class: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-                            };
-                          } else {
-                            return {
-                              status: "active",
-                              icon: CheckCircle,
-                              text: "Aktiv",
-                              class: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-                            };
-                          }
-                        });
-
-                        return (
-                          <tr
-                            key={employee.ID}
-                            className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-                            onClick={() => setSelectedEmployee(employee)}
-                          >
+                  return (
+                    <tr
+                      key={employee.ID}
+                      className={`hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${
+                        type === "pending" ? "bg-red-50 dark:bg-red-900/10" : ""
+                      }`}
+                      onClick={() => setSelectedEmployee(employee)}
+                    >
                             <td className="whitespace-nowrap py-2 pl-4 pr-3 sm:pl-6">
                               <div className="flex items-center">
                                 <div className="h-8 w-8 flex-shrink-0 rounded-full bg-primary text-white flex items-center justify-center">
@@ -205,33 +230,61 @@ export default function StatisticsModal({
                             <td className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm text-gray-900 dark:text-white">
                               {department?.Department || "-"}
                             </td>
-                            <td className="px-3 py-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                              <div className="space-y-1">
-                                {employeeQuals.map((qual: any, index: number) => {
-                                  const qualification = qualificationsData?.find(
-                                    (q) => q.ID === parseInt(qual.QualificationID)
-                                  );
-                                  return (
-                                    <div key={index} className="flex items-center">
-                                      <Award className="h-4 w-4 mr-1 text-primary" />
-                                      <span>{qualification?.Name || 'Unbekannte Qualifikation'}</span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </td>
                             <td className="px-3 py-2">
-                              <div className="space-y-1">
-                                {qualStatus.map((status : any, index : any) => {
-                                  const StatusIcon = status.icon;
+                              <div className="space-y-2">
+                              {displayQuals.map((qual: any, index: number) => {
+                          const qualification = qualificationsData?.find(
+                            (q) => q.ID === parseInt(qual.QualificationID)
+                          );
+                                  
+                                  const expiryDate = new Date(qual.ToQualifyUntil);
+                                  const now = new Date();
+                                  const thirtyDaysFromNow = new Date();
+                                  thirtyDaysFromNow.setDate(now.getDate() + 30);
+                                  const daysExpired = Math.floor((now.getTime() - expiryDate.getTime()) / (1000 * 60 * 60 * 24));
+
+                                  let status;
+                                  if (expiryDate <= now) {
+                                    status = {
+                                      icon: AlertCircle,
+                                      text: "Abgelaufen",
+                                      class: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                                    };
+                                  } else if (expiryDate <= thirtyDaysFromNow) {
+                                    status = {
+                                      icon: Clock,
+                                      text: "Läuft bald ab",
+                                      class: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                                    };
+                                  } else {
+                                    status = {
+                                      icon: CheckCircle,
+                                      text: "Aktiv",
+                                      class: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                    };
+                                  }
+
+
                                   return (
-                                    <span
-                                      key={index}
-                                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${status.class}`}
-                                    >
-                                      <StatusIcon className="h-3 w-3 mr-1" />
-                                      {status.text}
-                                    </span>
+                                    <div key={index} className="flex items-center justify-between">
+                                      <div className="flex items-center">
+                                        <Award className="h-4 w-4 mr-1 text-primary" />
+                                        <span className="text-sm text-gray-900 dark:text-white">
+                                          {qualification?.Name || 'Unbekannte Qualifikation'}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center space-x-2">
+                                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                                          {type === "pending" 
+                                            ? `Abgelaufen seit ${daysExpired} Tagen`
+                                            : `Gültig bis: ${formatDate(qual.ToQualifyUntil)}`}
+                                        </span>
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                                          <AlertCircle className="h-3 w-3 mr-1" />
+                                          Abgelaufen
+                                        </span>
+                                      </div>
+                                    </div>
                                   );
                                 })}
                               </div>
@@ -274,7 +327,7 @@ export default function StatisticsModal({
                   onClick={() =>
                     setCurrentPage((prev) => Math.min(prev + 1, totalPages))
                   }
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage >= totalPages}
                   className="inline-flex items-center px-3 py-1 border border-gray-300 dark:border-gray-600 text-xs sm:text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Weiter
