@@ -4,9 +4,9 @@ import { toast } from 'sonner';
 const API_URL = 'http://localhost:5000/api';
 
 interface EmployeeQualification {
-  id: string;
-  employeeID: string;
-  qualificationID: string;
+  ID: string;
+  EmployeeID: string;
+  QualificationID: string;
   qualifiedFrom: string;
   toQualifyUntil: string;
   isQualifiedUntil: string;
@@ -30,14 +30,17 @@ export const useEmployeeQualifications = (employeeId?: string) => {
       if (!response.ok) {
         throw new Error('Failed to fetch employee qualifications');
       }
+
       const data = await response.json();
-      
+      if(!employeeId){
+        return data;
+      }
       // Transform the data into a map of employeeId -> qualifications[]
       return data.reduce((acc: Record<string, EmployeeQualification[]>, qual: EmployeeQualification) => {
-        if (!acc[qual.employeeID]) {
-          acc[qual.employeeID] = [];
+        if (!acc[qual.EmployeeID]) {
+          acc[qual.EmployeeID] = [];
         }
-        acc[qual.employeeID].push(qual);
+        acc[qual.EmployeeID].push(qual);
         return acc;
       }, {});
     },

@@ -1,3 +1,4 @@
+import React from 'react';
 import { useState } from "react";
 import {
   X,
@@ -46,13 +47,15 @@ export default function StatisticsModal({
   const { data: jobTitlesData } = useJobTitles();
   const { data: qualificationsData } = useQualifications();
   const { data: allEmployeeQualifications } = useEmployeeQualifications();
-
+  console.log(allEmployeeQualifications);
   const itemsPerPage = 10;
-
 
   // Filter employees based on their qualification status and selected filters
   const filteredEmployees = employees.filter((employee) => {
-    const employeeQuals = allEmployeeQualifications?.[employee.ID] || [];
+    // Get qualifications for this employee, handling the undefined case
+    const employeeQuals = allEmployeeQualifications && allEmployeeQualifications[employee.ID] 
+      ? allEmployeeQualifications[employee.ID] 
+      : [];
     
     // Department filter
     if (selectedDepartment !== 'all' && employee.Department !== selectedDepartment) {
@@ -85,8 +88,12 @@ export default function StatisticsModal({
     }
   }).sort((a, b) => {
     // Sort by most recently expired qualifications first
-    const aQuals = allEmployeeQualifications?.[a.ID] || [];
-    const bQuals = allEmployeeQualifications?.[b.ID] || [];
+    const aQuals = allEmployeeQualifications && allEmployeeQualifications[a.ID] 
+      ? allEmployeeQualifications[a.ID] 
+      : [];
+    const bQuals = allEmployeeQualifications && allEmployeeQualifications[b.ID]
+      ? allEmployeeQualifications[b.ID]
+      : [];
     
     const aExpiredDates = aQuals
       .map((qual: any) => new Date(qual.ToQualifyUntil))
@@ -188,7 +195,10 @@ export default function StatisticsModal({
                           (d) => d.Department === employee.Department,
                         );
 
-                        const employeeQuals = allEmployeeQualifications?.[employee.ID] || [];
+                        const employeeQuals = allEmployeeQualifications && allEmployeeQualifications[employee.ID] 
+                          ? allEmployeeQualifications[employee.ID] 
+                          : [];
+
                         const initials = employee.FullName
                           ? employee.FullName.split(" ")
                               .map((n: string) => n[0])
@@ -263,7 +273,6 @@ export default function StatisticsModal({
                                       class: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                                     };
                                   }
-
 
                                   return (
                                     <div key={index} className="flex items-center justify-between">
