@@ -115,6 +115,30 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
     });
   }).length || 0;
 
+   // Calculate qualification statistics
+   const qualificationStats = employeesData?.data.reduce((stats: any, employee) => {
+    const qualifications = allEmployeeQualifications[employee.ID] || [];
+    
+    qualifications.forEach((qual: any) => {
+      if (!qual.toQualifyUntil) return;
+      
+      const expiryDate = new Date(qual.toQualifyUntil);
+      const now = new Date();
+      const twoMonthsFromNow = new Date();
+      twoMonthsFromNow.setMonth(now.getMonth() + 2);
+  
+      if (expiryDate <= now) {
+        stats.expired++;
+      } else if (expiryDate <= twoMonthsFromNow) {
+        stats.expiring++;
+      } else {
+        stats.active++;
+      }
+    });
+  
+    return stats;
+  }, { active: 0, expiring: 0, expired: 0 });
+
   const pendingEmployees = totalEmployees - completedEmployees;
 
   const statCards = [
@@ -125,24 +149,24 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
       icon: Users,
       color: 'text-blue-500'
     },
-    {
+    { 
       type: 'completed',
-      name: 'Qualifiziert',
-      value: completedEmployees,
+      name: 'Qualifiziert', 
+      value: qualificationStats?.active || 0,
       icon: CheckCircle,
       color: 'text-green-500'
     },
     {
-      type: 'pending',
-      name: 'Ausstehend',
-      value: pendingEmployees,
+      type: 'expiring',
+      name: 'Ablaufend',
+      value: qualificationStats?.expiring || 0,
       icon: Clock,
       color: 'text-yellow-500'
     },
     {
-      type: 'expiring',
-      name: 'Ablaufend',
-      value: expiringEmployees,
+      type: 'pending',
+      name: 'Abgelaufen',
+      value: qualificationStats?.expired || 0,
       icon: AlertCircle,
       color: 'text-red-500'
     }

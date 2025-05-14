@@ -70,7 +70,7 @@ export default function StatisticsModal({
       case "pending":
         // Show employees with expired qualifications
         return employeeQuals.some((qual: any) => {
-          const expiryDate = new Date(qual.ToQualifyUntil);
+          const expiryDate = new Date(qual.toQualifyUntil);
           return expiryDate <= new Date();
         });
 
@@ -220,7 +220,7 @@ export default function StatisticsModal({
                             </td>
                             <td className="px-3 py-2">
                               <div className="space-y-1">
-                                {qualStatus.map((status, index) => {
+                                {qualStatus.map((status : any, index : any) => {
                                   const StatusIcon = status.icon;
                                   return (
                                     <span

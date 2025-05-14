@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Download, Upload, Bug } from 'lucide-react';
+import { Users, Unlock, Lock } from 'lucide-react';
 import type { Employee, EmployeeFilters } from '../types';
 import EmployeeDetails from '../components/employees/EmployeeDetails';
 import AddUserModal from '../components/employees/AddUserModal';
@@ -16,11 +16,6 @@ type FilterType = 'all' | 'employees' | 'supervisors' | 'active' | 'inactive';
 
 const ITEMS_PER_PAGE = 10;
 
-// Debug function
-const debugLog = (message: string, data?: any) => {
-  console.log(`[Employees] ${message}`, data || '');
-};
-
 export default function Employees() {
   const dispatch = useDispatch<AppDispatch>();
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,7 +26,6 @@ export default function Employees() {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState<string>('SurName');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [showDebug, setShowDebug] = useState(false);
   const { employee: currentEmployee } = useSelector((state: RootState) => state.auth);
   const isHRAdmin = hasHRPermissions(currentEmployee);
 
@@ -42,8 +36,9 @@ export default function Employees() {
       sortBy,
       sortOrder,
       department: currentEmployee?.role === 'supervisor' ? currentEmployee.DepartmentID?.toString() : undefined,
+      search: searchTerm
     };
-  }, [sortBy, sortOrder, currentEmployee]);
+  }, [sortBy, sortOrder, currentEmployee, searchTerm]);
 
   const { 
     data: employeesData, 
@@ -64,7 +59,6 @@ export default function Employees() {
         const directReports = filtered.filter(emp => emp.SupervisorID?.toString() === supervisorId);
         const subordinateIds = directReports.map(emp => emp.ID.toString());
         
-        // Get subordinates of supervisors who report to this supervisor
         const supervisorSubordinates = directReports
           .filter(emp => emp.role === 'supervisor')
           .flatMap(supervisor => getAllSubordinates(supervisor.ID.toString()));
@@ -74,33 +68,22 @@ export default function Employees() {
 
       const subordinateIds = getAllSubordinates(currentEmployee.ID.toString());
       filtered = filtered.filter(emp => 
-        emp.ID.toString() === currentEmployee.ID.toString() || // Include the supervisor themselves
+        emp.ID.toString() === currentEmployee.ID.toString() || 
         subordinateIds.includes(emp.ID.toString())
       );
     }
 
+    // Apply role and status filters
     return filtered.filter(employee => {
-      // Search term filtering
-      const searchLower = searchTerm.toLowerCase();
-      const matchesSearch = !searchTerm || 
-        employee.FirstName?.toLowerCase().includes(searchLower) ||
-        employee.SurName?.toLowerCase().includes(searchLower) ||
-        employee.FullName?.toLowerCase().includes(searchLower) ||
-        employee.eMail?.toLowerCase().includes(searchLower) ||
-        employee.Department?.toLowerCase().includes(searchLower) ||
-        employee.StaffNumber?.toString().includes(searchLower);
-
-      // Role filtering
       const matchesRole = activeFilter === 'all' ||
         (activeFilter === 'employees' && employee.role === 'employee') ||
         (activeFilter === 'supervisors' && employee.role === 'supervisor');
 
-      // Active status filtering
       const matchesStatus = activeFilter === 'all' ||
         (activeFilter === 'active' && employee.isActive) ||
         (activeFilter === 'inactive' && !employee.isActive);
 
-      return matchesSearch && matchesRole && matchesStatus;
+      return matchesRole && matchesStatus;
     }).sort((a, b) => {
       const aValue = a[sortBy as keyof Employee];
       const bValue = b[sortBy as keyof Employee];
@@ -110,14 +93,14 @@ export default function Employees() {
       const comparison = String(aValue).localeCompare(String(bValue));
       return sortOrder === 'asc' ? comparison : -comparison;
     });
-  }, [employeesData?.data, searchTerm, activeFilter, sortBy, sortOrder, currentEmployee]);
+  }, [employeesData?.data, activeFilter, sortBy, sortOrder, currentEmployee]);
 
   // Pagination calculation
   const paginatedEmployees = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     return filteredEmployees.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [filteredEmployees, currentPage]);
-
+console.log(filteredEmployees);
   const totalPages = Math.ceil(filteredEmployees.length / ITEMS_PER_PAGE);
 
   const updateEmployee = useUpdateEmployee();
@@ -129,11 +112,9 @@ export default function Employees() {
 
   const handleUpdateEmployee = async (id: string, data: Partial<Employee>) => {
     try {
-      debugLog('Updating employee', { id, data });
       await updateEmployee.mutateAsync({ id, data });
       toast.success('Mitarbeiter erfolgreich aktualisiert');
     } catch (error) {
-      debugLog('Error updating employee', error);
       toast.error('Fehler beim Aktualisieren des Mitarbeiters');
     }
   };
@@ -141,7 +122,6 @@ export default function Employees() {
   const handleToggleActive = async (e: React.MouseEvent, employeeId: string) => {
     e.stopPropagation();
     try {
-      debugLog('Toggling employee active status', employeeId);
       const employee = employeesData?.data.find((emp: Employee) => emp.ID.toString() === employeeId);
       if (employee) {
         const newActiveStatus = !employee.isActive;
@@ -173,7 +153,6 @@ export default function Employees() {
   }
 
   if (error) {
-    debugLog('Error loading employees', error);
     return (
       <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
         <p className="text-lg text-red-500">Fehler beim Laden der Mitarbeiter</p>
@@ -191,62 +170,96 @@ export default function Employees() {
               onSearchChange={handleSearchChange}
               activeFilter={activeFilter}
             />
-            <div className="flex gap-2">
-              {isHRAdmin && (
-                <>
-                  {/* <button className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121212] hover:bg-gray-50 dark:hover:bg-gray-600">
-                    <Upload className="h-5 w-5 mr-2" />
-                    Import
-                  </button> */}
-                  <button className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121212] hover:bg-gray-50 dark:hover:bg-gray-600">
-                    <Download className="h-5 w-5 mr-2" />
-                    Export
-                  </button>
-                </>
-              )}
-              <button
-                onClick={() => setShowDebug(!showDebug)}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121212] hover:bg-gray-50 dark:hover:bg-gray-600"
-              >
-                <Bug className="h-5 w-5 mr-2" />
-                Debug
-              </button>
-            </div>
           </div>
         </div>
 
-        {showDebug && (
-          <div className="p-4 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Debug Information</h3>
-            <pre className="text-xs overflow-auto max-h-40 bg-white dark:bg-gray-900 p-2 rounded">
-              {JSON.stringify(
-                {
-                  totalEmployees: employeesData?.data.length,
-                  filteredCount: filteredEmployees.length,
-                  paginatedCount: paginatedEmployees.length,
-                  currentPage,
-                  totalPages,
-                  searchTerm,
-                  activeFilter,
-                  sortBy,
-                  sortOrder,
-                  isFetching,
-                },
-                null,
-                2
-              )}
-            </pre>
-          </div>
-        )}
-
         <div className="overflow-x-auto">
-          {paginatedEmployees.length > 0 ? (
-            <EmployeeList
-              onSelectEmployee={setSelectedEmployee}
-              onToggleActive={handleToggleActive}
-              isHRAdmin={isHRAdmin}
-              currentEmployee={currentEmployee}
-            />
+          {filteredEmployees.length > 0 ? (
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-[#181818]">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Mitarbeiter
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Personal-Nr.
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Abteilung
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Position
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Status
+                  </th>
+                  {(isHRAdmin || currentEmployee?.role === 'supervisor') && (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Aktionen
+                    </th>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200 dark:divide-gray-700 dark:bg-[#141616]">
+                {paginatedEmployees.map((employee) => (
+                  <tr
+                    key={employee.ID}
+                    onClick={() => setSelectedEmployee(employee)}
+                    className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
+                          <span className="text-sm font-medium">
+                            {employee.FullName.split(' ').map((n) => n[0]).join('')}
+                          </span>
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            {employee.FullName}
+                          </div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            {employee.eMail}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      {employee.StaffNumber}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      {employee.Department}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      {employee.JobTitle}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        !employee.isActive
+                          ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                          : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                      }`}>
+                        {!employee.isActive ? 'Gesperrt' : 'Aktiv'}
+                      </span>
+                    </td>
+                    {(isHRAdmin || currentEmployee?.role === 'supervisor') && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <button
+                          onClick={(e) => handleToggleActive(e, employee.ID.toString())}
+                          className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                        >
+                          {!employee.isActive ? (
+                            <Unlock className="h-5 w-5" />
+                          ) : (
+                            <Lock className="h-5 w-5" />
+                          )}
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           ) : (
             <div className="text-center py-8">
               <p className="text-gray-500 dark:text-gray-400">Keine Mitarbeiter gefunden</p>
