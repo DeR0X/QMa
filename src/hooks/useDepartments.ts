@@ -20,7 +20,7 @@ async function fetchDepartments(params: DepartmentsParams = {}): Promise<Departm
   if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
 
   const queryString = queryParams.toString();
-  const url = `${API_BASE_URL}/departments${queryString ? `?${queryString}` : ''}`;
+  const url = `${API_BASE_URL}/viewDepartments${queryString ? `?${queryString}` : ''}`;
 
   try {
     const response = await fetch(url, {

@@ -41,11 +41,14 @@ export default function TrainingHistory() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedDocument, setSelectedDocument] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showOnlyOwnQualifications, setShowOnlyOwnQualifications] = useState(!isHR);
 
   const { data: employeesData } = useEmployees();
   const { data: qualificationsData } = useQualifications();
   const { data: departmentsData } = useDepartments();
-  const { data: employeeQualificationsData } = useEmployeeQualifications(selectedEmployee || '');
+  const { data: employeeQualificationsData } = useEmployeeQualifications(
+    showOnlyOwnQualifications ? employee?.ID.toString() : selectedEmployee || ''
+  );
 
   const employees = employeesData?.data || [];
   const qualifications = qualificationsData || [];
@@ -54,7 +57,15 @@ export default function TrainingHistory() {
   const filteredQualifications = useMemo(() => {
     if (!employeeQualificationsData) return [];
 
-    return employeeQualificationsData.filter(qual => {
+    console.log(employeeQualificationsData);
+    // Sort qualifications by QualifiedFrom date in descending order (newest first)
+    const sortedQualifications = [...employeeQualificationsData].sort((a: any, b: any) => {
+      const dateA = new Date(a.qualifiedFrom || 0);
+      const dateB = new Date(b.qualifiedFrom || 0);
+      return dateB.getTime() - dateA.getTime();
+    });
+
+    return sortedQualifications.filter((qual: any) => {
       const qualification = qualifications.find(q => q.ID?.toString() === qual.QualificationID);
       if (!qualification) return false;
 
@@ -154,6 +165,18 @@ export default function TrainingHistory() {
                       </option>
                     ))}
                 </select>
+
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={showOnlyOwnQualifications}
+                    onChange={(e) => setShowOnlyOwnQualifications(e.target.checked)}
+                    className="rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <span className="text-sm text-gray-600 dark:text-gray-300">
+                    Nur eigene Qualifikationen anzeigen
+                  </span>
+                </label>
               </>
             )}
 
@@ -192,13 +215,13 @@ export default function TrainingHistory() {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-[#121212] divide-y divide-gray-200 dark:divide-gray-700">
-              {paginatedQualifications.map((qual) => {
+              {paginatedQualifications.map((qual: any) => {
                 const qualification = qualifications.find(q => q.ID?.toString() === qual.QualificationID);
                 const status = getQualificationStatus(qual.toQualifyUntil);
                 const StatusIcon = status.icon;
 
                 return (
-                  <tr key={qual.ID}>
+                  <tr key={`${qual.ID}-${qual.qualifiedFrom}`} className="hover:bg-gray-50 dark:hover:bg-[#181818]">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-gray-900 dark:text-white">
