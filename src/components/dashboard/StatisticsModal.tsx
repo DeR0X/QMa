@@ -120,10 +120,19 @@ export default function StatisticsModal({
   let expiredQualifications: any[] = [];
   if (type === 'pending' && Array.isArray(allEmployeeQualifications)) {
     expiredQualifications = allEmployeeQualifications.filter((qual: any) => {
-      const expiryDate = new Date(qual.ToQualifyUntil || qual.toQualifyUntil);
+      const expiryDate = new Date(qual.toQualifyUntil);
       return expiryDate <= now;
     });
   }
+
+  let expiringQualifications: any[] = [];
+  if (type === 'expiring' && Array.isArray(allEmployeeQualifications)) {
+    expiringQualifications = allEmployeeQualifications.filter((qual: any) => {
+      const expiryDate = new Date(qual.toQualifyUntil);
+      return expiryDate >= now;
+    });
+  }
+
 
   // Hilfsfunktion, um Mitarbeiter zu einer Qualifikation zu finden
   const findEmployeeByQual = (qual: any) => {
@@ -171,6 +180,34 @@ export default function StatisticsModal({
                 const employee = findEmployeeByQual(qual);
                 return (
                   <li key={qual.ID} className="p-2 rounded-lg bg-red-50 dark:bg-red-900/10 flex flex-col md:flex-row md:items-center md:justify-between cursor-pointer"
+                    onClick={() => {
+                      setSelectedExpiredQual(qualification || qual);
+                      setSelectedExpiredEmployee(employee);
+                    }}
+                  >
+                    <div>
+                      <span className="font-medium text-gray-900 dark:text-white">{qualification?.Name || 'Unbekannte Qualifikation'}</span>
+                      <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">(Mitarbeiter: {employee?.FullName || employee?.EmployeeID})</span>
+                      <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">Personalnummer: {employee?.StaffNumber || '-'}</span>
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Gültig bis: {formatDate(qual.ToQualifyUntil || qual.toQualifyUntil)}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+        {type === 'expiring' && expiringQualifications.length > 0 && (
+          <div>
+            <h3 className="text-lg font-semibold mb-2">Alle ablaufende Qualifikationen</h3>
+            <ul className="space-y-2">
+              {expiringQualifications.map((qual: any) => {
+                const qualification = qualificationsData?.find(q => q.ID === parseInt(qual.QualificationID));
+                const employee = findEmployeeByQual(qual);
+                return (
+                  <li key={qual.ID} className="p-2 rounded-lg bg-yellow-50 dark:bg-yellow-600/10 flex flex-col md:flex-row md:items-center md:justify-between cursor-pointer"
                     onClick={() => {
                       setSelectedExpiredQual(qualification || qual);
                       setSelectedExpiredEmployee(employee);
@@ -308,13 +345,18 @@ export default function StatisticsModal({
         </div>
 
         <div className="flex-1 overflow-auto p-4 sm:p-6">
-          {type === "pending" && expiredQualifications.length > 0 ? (
+          {(type === "pending" && expiredQualifications.length > 0) ||
+           (type === "expiring" && expiringQualifications.length > 0) ? (
             renderContent()
           ) : filteredEmployees.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 {type === "pending" 
                   ? "Keine abgelaufenen Qualifikationen gefunden"
+                  : type === "expiring"
+                  ? "Keine ablaufenden Qualifikationen in den nächsten 2 Monaten gefunden"
+                  : type === "completed"
+                  ? "Keine aktiven Qualifikationen gefunden"
                   : "Keine Mitarbeiter gefunden"}
               </p>
             </div>

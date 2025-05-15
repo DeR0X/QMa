@@ -190,11 +190,11 @@ export default function EmployeeDetails({
     const employeeQual = employeeQualificationsData.find(
       (eq : any) => eq.QualificationID === qualId,
     );
+
     if (!employeeQual) return "inactive";
 
-    if (!employeeQual.IsQualifiedUntil) return "inactive";
-
-    const expiryDate = new Date(employeeQual.IsQualifiedUntil);
+    if (!employeeQual.isQualifiedUntil) return "inactive";
+    const expiryDate = new Date(employeeQual.isQualifiedUntil);
     const today = new Date();
     const twoMonthsFromNow = new Date();
     twoMonthsFromNow.setMonth(today.getMonth() + 2);
@@ -264,7 +264,8 @@ export default function EmployeeDetails({
 
   const getQualificationName = (qualId: string) => {
     if (!qualificationsData) return "Unbekannte Qualifikation";
-    const qualification = qualificationsData.find(q => q.ID?.toString() === qualId);
+    const qualification = qualificationsData.find(q => q.ID?.toString() === qualId.toString());
+    console.log(qualification);
     return qualification ? qualification.Name : "Unbekannte Qualifikation";
   };
 
@@ -413,7 +414,6 @@ export default function EmployeeDetails({
                       {userQualifications.map((qual : any) => {
                         if (!qual.QualificationID) return null;
                         const status = getQualificationStatus(qual.QualificationID);
-
                         return (
                           <div
                             key={qual.QualificationID}
@@ -428,11 +428,11 @@ export default function EmployeeDetails({
                               <div className="mt-2 space-y-1">
                                 <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
                                   <Clock className="h-4 w-4 mr-1" />
-                                  Qualifiziert seit: {qual.QualifiedFrom ? formatDate(qual.QualifiedFrom) : "noch nicht vergeben"}
+                                  Qualifiziert seit: {qual.qualifiedFrom ? formatDate(qual.qualifiedFrom) : "noch nicht vergeben"}
                                 </p>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
                                   <AlertCircle className="h-4 w-4 mr-1" />
-                                  Gültig bis: {qual.ToQualifyUntil ? formatDate(qual.ToQualifyUntil) : "noch nicht vergeben"}
+                                  Gültig bis: {qual.toQualifyUntil ? formatDate(qual.toQualifyUntil) : "noch nicht vergeben"}
                                 </p>
                               </div>
                             </div>
