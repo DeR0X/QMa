@@ -32,7 +32,7 @@ import { RootState } from "../../store";
 import { hasPermission } from "../../store/slices/authSlice";
 import type { Employee, Qualification, Training } from "../../types";
 import { toast } from "sonner";
-import { formatDate } from "../../lib/utils";
+import { formatDate, getLatestQualifications } from "../../lib/utils";
 import { useJobTitles } from "../../hooks/useJobTitles";
 import { useDepartments } from "../../hooks/useDepartments";
 import {
@@ -182,7 +182,7 @@ export default function EmployeeDetails({
     }
   };
 
-  const employeeQualifications = employeeQualificationsData || [];
+  const employeeQualifications = getLatestQualifications(employeeQualificationsData || []);
 
   const getQualificationStatus = (qualId: string) => {
     if (!employeeQualificationsData) return "inactive";
@@ -411,7 +411,7 @@ export default function EmployeeDetails({
                     </div>
 
                     <div className="space-y-6">
-                      {userQualifications.map((qual : any) => {
+                      {employeeQualifications.map((qual : any) => {
                         if (!qual.QualificationID) return null;
                         const status = getQualificationStatus(qual.QualificationID);
                         return (
@@ -445,7 +445,7 @@ export default function EmployeeDetails({
                         );
                       })}
 
-                      {userQualifications.length === 0 && (
+                      {employeeQualifications.length === 0 && (
                         <p className="text-center text-gray-500 dark:text-gray-400">
                           Keine Qualifikationen vorhanden
                         </p>

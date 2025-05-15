@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import { useQuery } from '@tanstack/react-query';
 import { GraduationCap, Calendar, Award, Building2, CheckCircle, Clock, AlertCircle, Info } from 'lucide-react';
 import { RootState } from '../store';
-import { formatDate, calculateExpirationDate, isExpiringSoon } from '../lib/utils';
+import { formatDate, calculateExpirationDate, isExpiringSoon, getLatestQualifications } from '../lib/utils';
 import { hasPermission } from '../store/slices/authSlice';
 import { sendQualificationExpiryNotification } from '../lib/notifications';
 import TrainingStatistics from '../components/dashboard/TrainingStatistics';
@@ -54,7 +54,7 @@ export default function Dashboard() {
   }
 
   const jobTitle = employee.JobTitle;
-  const userQualifications = employeeQualificationsData || [];
+  const userQualifications = getLatestQualifications(employeeQualificationsData || []);
 
   const stats = [
     { 
@@ -240,7 +240,7 @@ export default function Dashboard() {
                     </div>
                     <div className="ml-0 sm:ml-4 mt-2 sm:mt-0">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles(status.status)}`}>
-                        {status.isExpired ? 'Abgelaufen' : qual.isExpiringSoon ? `${qual.daysUntilExpiry } Tage` : 'Gültig'}
+                        {status.isExpired ? 'Abgelaufen' : status.isExpiringSoon ? `${status.daysUntilExpiry} Tage` : 'Gültig'}
                       </span>
                     </div>
                   </div>

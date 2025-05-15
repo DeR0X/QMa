@@ -17,7 +17,7 @@ import {
   Clock,
   Filter,
 } from "lucide-react";
-import { formatDate } from "../../lib/utils";
+import { formatDate, getLatestQualifications } from "../../lib/utils";
 import EmployeeDetails from "../employees/EmployeeDetails";
 import { useEmployeeQualifications } from "../../hooks/useEmployeeQualifications";
 import { useDepartments } from "../../hooks/useDepartments";
@@ -77,9 +77,9 @@ export default function StatisticsModal({
   const [selectedExpiredEmployee, setSelectedExpiredEmployee] = useState<any | null>(null);
   // Filter employees based on their qualification status and selected filters
   const filteredEmployees = employees.filter((employee) => {
-    // Get qualifications for this employee
+    // Get qualifications for this employee and get only the latest ones
     const employeeQuals = Array.isArray(allEmployeeQualifications)
-      ? allEmployeeQualifications.filter((qual: any) => qual.EmployeeID == employee.ID)
+      ? getLatestQualifications(allEmployeeQualifications.filter((qual: any) => qual.EmployeeID == employee.ID))
       : [];
 
     // Department filter
@@ -119,18 +119,20 @@ export default function StatisticsModal({
   const now = new Date();
   let expiredQualifications: any[] = [];
   if (type === 'pending' && Array.isArray(allEmployeeQualifications)) {
-    expiredQualifications = allEmployeeQualifications.filter((qual: any) => {
+    expiredQualifications = getLatestQualifications(allEmployeeQualifications.filter((qual: any) => {
       const expiryDate = new Date(qual.toQualifyUntil);
       return expiryDate <= now;
-    });
+    }));
   }
 
   let expiringQualifications: any[] = [];
   if (type === 'expiring' && Array.isArray(allEmployeeQualifications)) {
-    expiringQualifications = allEmployeeQualifications.filter((qual: any) => {
+    const twoMonthsFromNow = new Date();
+    twoMonthsFromNow.setMonth(now.getMonth() + 2);
+    expiringQualifications = getLatestQualifications(allEmployeeQualifications.filter((qual: any) => {
       const expiryDate = new Date(qual.toQualifyUntil);
-      return expiryDate >= now;
-    });
+      return expiryDate <= twoMonthsFromNow && expiryDate > now;
+    }));
   }
 
 
@@ -229,11 +231,12 @@ export default function StatisticsModal({
         )}
         {filteredEmployees.map((employee) => {
           const employeeQuals = Array.isArray(allEmployeeQualifications)
-            ? allEmployeeQualifications.filter((qual: any) => qual.EmployeeID == employee.ID)
+            ? getLatestQualifications(allEmployeeQualifications.filter((qual: any) => qual.EmployeeID == employee.ID))
             : [];
 
           const relevantQuals = employeeQuals.filter((qual: any) => {
-            const expiryDate = new Date(qual.ToQualifyUntil || qual.toQualifyUntil);
+            if (!qual.toQualifyUntil) return false;
+            const expiryDate = new Date(qual.toQualifyUntil);
             const now = new Date();
             const twoMonthsFromNow = new Date();
             twoMonthsFromNow.setMonth(now.getMonth() + 2);
@@ -242,9 +245,9 @@ export default function StatisticsModal({
               case "pending":
                 return expiryDate <= now;
               case "expiring":
-                return expiryDate > now && expiryDate <= twoMonthsFromNow;
+                return expiryDate <= twoMonthsFromNow && expiryDate > now;
               case "completed":
-                return expiryDate > twoMonthsFromNow;
+                return expiryDate > now;
               default:
                 return true;
             }
@@ -367,7 +370,7 @@ export default function StatisticsModal({
                   <h3 className="text-lg font-semibold mb-2">Ablaufende Qualifikationen (nächste 2 Monate)</h3>
                   {filteredEmployees.map((employee) => {
                     const employeeQuals = Array.isArray(allEmployeeQualifications)
-                      ? allEmployeeQualifications.filter((qual: any) => qual.EmployeeID == employee.ID)
+                      ? getLatestQualifications(allEmployeeQualifications.filter((qual: any) => qual.EmployeeID == employee.ID))
                       : [];
 
                     const relevantQuals = employeeQuals.filter((qual: any) => {

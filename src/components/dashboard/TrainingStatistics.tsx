@@ -29,6 +29,7 @@ import type { EmployeeFilters } from '../../types';
 import EmployeeDetails from '../employees/EmployeeDetails';
 import { toast } from 'sonner';
 import type { RootState } from '../../store';
+import { getLatestQualifications } from '../../lib/utils';
 
 interface Props {
   departmentFilter?: string;
@@ -245,9 +246,9 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
   const processedQualIds = new Set<string>();
 
   // Calculate qualification statistics
-  const qualificationStats = (Array.isArray(allEmployeeQualifications) ? allEmployeeQualifications : [])
+  const qualificationStats = (Array.isArray(allEmployeeQualifications) ? getLatestQualifications(allEmployeeQualifications) : [])
     .reduce((stats: any, qual: any) => {
-      if (!qual.toQualifyUntil) return stats;
+      if (!qual?.toQualifyUntil) return stats;
       const expiryDate = new Date(qual.toQualifyUntil);
       const now = new Date();
       const twoMonthsFromNow = new Date();
@@ -328,9 +329,9 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
       employeesData?.data.filter(emp => emp.DepartmentID?.toString() === dept.ID.toString()) || []
     );
     
-    const qualStats = (Array.isArray(allEmployeeQualifications) ? allEmployeeQualifications : [])
+    const qualStats = (Array.isArray(allEmployeeQualifications) ? getLatestQualifications(allEmployeeQualifications) : [])
       .reduce((stats: any, qual: any) => {
-        if (!qual.toQualifyUntil) return stats;
+        if (!qual?.toQualifyUntil) return stats;
         const expiryDate = new Date(qual.toQualifyUntil);
         const now = new Date();
         const twoMonthsFromNow = new Date();
@@ -684,10 +685,12 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
                                 .filter(e => e.DepartmentID?.toString() === dept.ID.toString())
                                 .filter(report => report) || []
                             ).map((employee, index) => {
-                              const quals = (Array.isArray(allEmployeeQualifications) ? allEmployeeQualifications : [])
-                                .filter(q => q.ID === employee.QualificationID);
+                              const quals = getLatestQualifications(
+                                (Array.isArray(allEmployeeQualifications) ? allEmployeeQualifications : [])
+                                  .filter(q => q.EmployeeID === employee.ID)
+                              );
                               const qualStats = quals.reduce((stats: any, qual: any) => {
-                                if (!qual.toQualifyUntil) return stats;
+                                if (!qual?.toQualifyUntil) return stats;
                                 
                                 const expiryDate = new Date(qual.toQualifyUntil);
                                 const now = new Date();
