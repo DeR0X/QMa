@@ -7,7 +7,7 @@ export interface Qualification {
   ValidityInMonth: number;
   IsMandatory: boolean;
   RequiredQualifications: string[];
-  AssignmentType: "jobTitle" | "additionalFunction" | "mandatory";
+  AssignmentType: "Job" | "Zusatz" | "Pflicht";
   JobTitleID?: string[];
   JobTitle?: string;
   AdditionalSkillID?: number;
@@ -102,7 +102,7 @@ export const qualificationsApi = {
 
       // Wenn JobTitles ausgewählt wurden, erstelle die Verknüpfungen mit der neuen qualificationId
       if (
-        data.AssignmentType === "jobTitle" &&
+        data.AssignmentType === "Job" &&
         data.JobTitleID &&
         data.JobTitleID.length > 0
       ) {
@@ -124,7 +124,7 @@ export const qualificationsApi = {
 
       // Wenn AdditionalFunctions ausgewählt wurden, erstelle die Verknüpfungen mit der neuen qualificationId
       if (
-        data.AssignmentType === "additionalFunction" &&
+        data.AssignmentType === "Zusatz" &&
         data.AdditionalFunctionID &&
         data.AdditionalFunctionID.length > 0
       ) {
@@ -191,7 +191,7 @@ export const qualificationsApi = {
         },
         body: JSON.stringify({
           ...data,
-          IsMandatory: data.AssignmentType === "mandatory" ? 1 : 0,
+          IsMandatory: data.AssignmentType === "Pflicht" ? 1 : 0,
         }),
       });
 
@@ -203,7 +203,7 @@ export const qualificationsApi = {
       const updatedQualification = await response.json();
 
       // Aktualisiere JobTitle-Verknüpfungen
-      if (data.AssignmentType === "jobTitle" && data.JobTitleID) {
+      if (data.AssignmentType === "Job" && data.JobTitleID) {
         // Lösche zuerst alle bestehenden Verknüpfungen
         await fetch(
           `${API_URL}/job-titles-qualifications/qualification/${id}`,
@@ -231,7 +231,7 @@ export const qualificationsApi = {
 
       // Aktualisiere AdditionalFunction-Verknüpfungen
       if (
-        data.AssignmentType === "additionalFunction" &&
+        data.AssignmentType === "Zusatz" &&
         data.AdditionalFunctionID
       ) {
         // Lösche zuerst alle bestehenden Verknüpfungen

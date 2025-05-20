@@ -59,7 +59,7 @@ export const employeeApi = {
 
   async updateEmployee(id: string, data: Partial<Employee>) {
     const response = await fetch(`${API_BASE_URL}/employees/${id}`, {
-      method: 'PATCH',
+      method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },

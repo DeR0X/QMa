@@ -56,20 +56,7 @@ export interface QualificationHistory {
   approvedBy: string;
 }
 
-export interface Training {
-  id: string;
-  title: string;
-  description: string;
-  qualificationID: string;
-  qualification_TrainerID: string;
-  isForEntireDepartment: boolean;
-  department: string;
-  duration: string;
-  isMandatory: boolean;
-  trainingDate: string;
-  qualificationIds: string[];
-  completed: boolean;
-}
+export type { Training } from '../types';
 
 export interface TrainingBooking {
   id: string;
@@ -103,9 +90,11 @@ export interface EmployeeQualification {
 }
 
 export interface QualificationTrainer {
-  id: string;
-  qualificationID: string;
-  employeeID: string;
+  ID: number;
+  EmployeeID: number;
+  QualificationID: string;
+  QualificationName: string;
+  QualificationDescription: string;
 }
 
 export interface EmployeeQualificationTraining {

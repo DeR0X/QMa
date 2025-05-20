@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { 
   Search, Filter, Calendar, Clock, MapPin, CheckCircle, XCircle, 
-  AlertCircle, GraduationCap, Plus, Award, Info, X
+  AlertCircle, GraduationCap, Plus, Award, Info, X, User, Edit2, Trash2
 } from 'lucide-react';
 import { RootState, AppDispatch } from '../store';
-import { Training } from '../types';
+import type { Training, QualificationTrainer } from '../types';
 import { formatDate, formatDuration } from '../lib/utils';
 import { toast } from 'sonner';
 import AddTrainingModal from '../components/trainings/AddTrainigModal';
@@ -13,16 +14,37 @@ import { hasHRPermissions } from '../store/slices/authSlice';
 import { addNotification } from '../store/slices/notificationSlice';
 import { useEmployees } from '../hooks/useEmployees';
 import { useTrainings } from '../hooks/useTrainings';
-import { useBookings } from '../hooks/useBookings';
 import { useQualifications } from '../hooks/useQualifications';
+import { useQualificationViews, type QualificationView } from '../hooks/useQualificationView';
+import { useQualificationTrainersByIds } from '../hooks/useQualificationTrainers';
+
+// Define the Employee type
+interface Employee {
+  ID: number;
+  FullName: string;
+  DepartmentID?: number;
+  role?: string;
+  SupervisorID?: number;
+  AccessRight?: string;
+  AccessRightID?: number;
+}
 
 export default function Trainings() {
   const dispatch = useDispatch<AppDispatch>();
+  const queryClient = useQueryClient();
   const { employee } = useSelector((state: RootState) => state.auth);
-  const { data: employees = [] } = useEmployees();
+  const { data: employeesData } = useEmployees({ limit: 1000 });
+  const employees = Array.isArray(employeesData?.data) ? employeesData.data : [];
   const { data: trainings = [] } = useTrainings();
-  const { data: bookings = [] } = useBookings();
   const { data: qualifications = [] } = useQualifications();
+
+  // Fetch all qualification views at once
+  const qualificationIds = trainings.map(t => t.QualificationID);
+  const { data: qualificationViews = {} } = useQualificationViews(qualificationIds);
+
+  // Fetch all qualification trainers at once
+  const qualificationTrainerIds = trainings.map(t => t.Qualification_TrainerID);
+  const { data: qualificationTrainers = {} } = useQualificationTrainersByIds(qualificationTrainerIds);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTraining, setSelectedTraining] = useState<Training | null>(null);
@@ -30,6 +52,7 @@ export default function Trainings() {
   const [showUpcomingOnly, setShowUpcomingOnly] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedQualification, setSelectedQualification] = useState<string | null>(null);
+  const [editingTraining, setEditingTraining] = useState<Training | null>(null);
 
   if (!employee) return null;
 
@@ -37,151 +60,169 @@ export default function Trainings() {
   const isSupervisor = employee.role === 'supervisor';
   const canCreateTraining = isHR || isSupervisor;
 
-  const userBookings = bookings.filter(booking => booking.userId === employee.ID.toString());
-
   const filteredTrainings = trainings.filter(training => {
-    const matchesSearch = training.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      training.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesMandatory = showMandatoryOnly ? training.isMandatory : true;
-    return matchesSearch && matchesMandatory;
+    if (!training) return false;
+    
+    const title = training.Name?.toLowerCase() || '';
+    const description = training.Description?.toLowerCase() || '';
+    const searchLower = searchTerm.toLowerCase();
+    
+    const qualificationView = qualificationViews[training.QualificationID];
+    const isMandatory = qualificationView?.Herkunft === 'Pflicht';
+    
+    const matchesSearch = title.includes(searchLower) || 
+                         description.includes(searchLower);
+    const matchesQualification = !selectedQualification || 
+                               training.QualificationID.toString() === selectedQualification;
+    const matchesMandatory = !showMandatoryOnly || isMandatory;
+    
+    return matchesSearch && matchesQualification && matchesMandatory;
   });
 
-  const handleBookSession = async (training: Training, sessionId: string) => {
-    const existingBooking = userBookings.find(
-      b => b.trainingId === training.id && ['ausstehend', 'genehmigt'].includes(b.status)
-    );
-    if (existingBooking) {
-      toast.error('Sie haben bereits eine Buchung für diese Schulung');
-      return;
-    }
+  type StatusType = 'ausstehend' | 'genehmigt' | 'abgelehnt' | 'abgeschlossen';
 
-    // Notify the supervisor
-    const supervisor = employee.SupervisorID ? 
-      employees.find(e => e.ID === employee.SupervisorID) : 
-      null;
-      
-    if (supervisor) {
-      dispatch(addNotification({
-        userId: supervisor.ID.toString(),
-        type: 'info',
-        title: 'Neue Schulungsbuchung',
-        message: `${employee.FullName} hat sich für die Schulung "${training.title}" angemeldet und wartet auf Genehmigung.`,
-      }));
-    }
-
-    // Notify HR
-    const hrEmployees = employees.filter(e => e.role === 'HR');
-    hrEmployees.forEach(hrEmployee => {
-      dispatch(addNotification({
-        userId: hrEmployee.ID.toString(),
-        type: 'info',
-        title: 'Neue Schulungsbuchung',
-        message: `${employee.FullName} hat sich für die Schulung "${training.title}" angemeldet. Supervisor: ${supervisor?.FullName || 'Nicht zugewiesen'}`,
-      }));
-    });
-
-    // Notify the employee
-    dispatch(addNotification({
-      userId: employee.ID.toString(),
-      type: 'success',
-      title: 'Schulung gebucht',
-      message: `Ihre Buchung für "${training.title}" wurde erfolgreich eingereicht und wartet auf Genehmigung.`,
-    }));
-
-    toast.success('Schulungssitzung erfolgreich gebucht! Warten auf Genehmigung.');
-  };
-
-  const handleAddTraining = (newTraining: Omit<Training, 'id'> & { targetAudience?: string[] }) => {
-    // Notify affected employees
-    const affectedEmployees = employees.filter(emp => {
-      // Check if targetAudience exists and if emp.DepartmentID is defined
-      const matchesDepartment = newTraining.targetAudience && emp.DepartmentID !== undefined && 
-        newTraining.targetAudience.includes(emp.DepartmentID.toString());
-      return matchesDepartment || newTraining.isMandatory;
-    });
-
-    affectedEmployees.forEach(employee => {
-      dispatch(addNotification({
-        userId: employee.ID.toString(),
-        type: 'info',
-        title: 'Neue Schulung verfügbar',
-        message: `Eine neue Schulung "${newTraining.title}" ist für Sie verfügbar. ${
-          newTraining.isMandatory ? 'Dies ist eine Pflichtschulung.' : 'Schauen Sie sich die Details an und buchen Sie bei Interesse einen Termin.'
-        }`,
-      }));
-    });
-
-    // Notify HR about new training creation
-    if (!isHR) {
-      const hrEmployees = employees.filter(e => e.role === 'hr');
-      hrEmployees.forEach(hrEmployee => {
-        dispatch(addNotification({
-          userId: hrEmployee.ID.toString(),
-          type: 'info',
-          title: 'Neue Schulung erstellt',
-          message: `${employee.FullName} hat eine neue Schulung "${newTraining.title}" erstellt.`,
-        }));
-      });
-    }
-
-    toast.success('Schulung erfolgreich erstellt');
-    setShowAddModal(false);
-  };
-
-  const getBookingStatus = (training: Training) => {
-    const booking = userBookings.find(b => b.trainingId === training.id);
-    if (!booking) return null;
-    const statusColors = {
-      ausstehend: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200',
-      genehmigt: 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200',
-      abgelehnt: 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200',
-      abgeschlossen: 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200',
-    };
-    const statusIcons = {
-      ausstehend: AlertCircle,
+  const getStatusIcon = (status: StatusType) => {
+    const icons: Record<StatusType, typeof Calendar> = {
+      ausstehend: Calendar,
       genehmigt: CheckCircle,
-      abgelehnt: XCircle,
-      abgeschlossen: CheckCircle,
+      abgelehnt: X,
+      abgeschlossen: Award
     };
-    const StatusIcon = statusIcons[booking.status];
-    return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[booking.status]}`}>
-        <StatusIcon className="w-4 h-4 mr-1" />
-        {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-      </span>
-    );
+    return icons[status] || Info;
   };
 
-  // Mock-Funktion für Schulungstermine
+  const getStatusColor = (status: StatusType) => {
+    const colors: Record<StatusType, string> = {
+      ausstehend: 'text-yellow-500',
+      genehmigt: 'text-green-500',
+      abgelehnt: 'text-red-500',
+      abgeschlossen: 'text-blue-500'
+    };
+    return colors[status] || 'text-gray-500';
+  };
+
   const getTrainingSessions = (training: Training) => {
-    const sessions = [
-      {
-        id: '1',
-        date: '2024-04-15T09:00:00',
-        location: 'Schulungsraum A',
-        availableSpots: 10,
-        trainer: 'Max Mustermann'
-      },
-      {
-        id: '2',
-        date: '2024-04-22T14:00:00',
-        location: 'Schulungsraum B',
-        availableSpots: 8,
-        trainer: 'Anna Schmidt'
-      },
-      {
-        id: '3',
-        date: '2024-05-05T10:00:00',
-        location: 'Online',
-        availableSpots: 15,
-        trainer: 'Thomas Weber'
+    if (!training) return [];
+    return [{
+      id: training.ID,
+      date: new Date(training.TrainingDate),
+      status: training.completed ? 'abgeschlossen' as StatusType : 'ausstehend' as StatusType
+    }];
+  };
+
+  const handleAddTraining = async (newTraining: Omit<Training, 'ID'> & { targetAudience?: string[] }) => {
+    try {
+      if (!Array.isArray(employees)) {
+        console.error('Employees is not an array');
+        return;
       }
-    ];
-    return sessions;
+
+      const qualificationView = qualificationViews[newTraining.QualificationID];
+      const isMandatory = qualificationView?.Herkunft === 'Pflicht';
+
+      // Notify affected employees
+      const affectedEmployees = employees.filter(emp => {
+        if (!emp || !emp.DepartmentID) return false;
+        const matchesDepartment = newTraining.targetAudience && 
+          newTraining.targetAudience.includes(emp.DepartmentID.toString());
+        return matchesDepartment || isMandatory;
+      });
+
+      affectedEmployees.forEach(employee => {
+        if (employee && employee.ID) {
+          dispatch(addNotification({
+            userId: employee.ID.toString(),
+            type: 'info',
+            title: 'Neue Schulung verfügbar',
+            message: `Eine neue Schulung "${newTraining.Name}" ist für Sie verfügbar. ${
+              isMandatory ? 'Dies ist eine Pflichtschulung.' : 'Schauen Sie sich die Details an.'
+            }`,
+          }));
+        }
+      });
+
+      // Notify HR about new training creation
+      if (!isHR) {
+        const hrEmployees = (employees as Employee[]).filter(e => e && e.AccessRight === 'hr');
+        hrEmployees.forEach(hrEmployee => {
+          if (hrEmployee && hrEmployee.ID) {
+            dispatch(addNotification({
+              userId: hrEmployee.ID.toString(),
+              type: 'info',
+              title: 'Neue Schulung erstellt',
+              message: `${employee.FullName} hat eine neue Schulung "${newTraining.Name}" erstellt.`,
+            }));
+          }
+        });
+      }
+
+      // Invalidate and refetch trainings
+      await queryClient.invalidateQueries({ queryKey: ['trainings'] });
+      toast.success('Schulung erfolgreich erstellt');
+      setShowAddModal(false);
+    } catch (error) {
+      console.error('Error in handleAddTraining:', error);
+      toast.error('Fehler beim Erstellen der Schulung');
+    }
+  };
+
+  const deleteTrainingMutation = useMutation({
+    mutationFn: async (trainingId: number) => {
+      const response = await fetch(`http://localhost:5000/api/trainings/${trainingId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Fehler beim Löschen des Trainings');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trainings'] });
+      toast.success('Training erfolgreich gelöscht');
+    },
+    onError: (error) => {
+      console.error('Fehler beim Löschen des Trainings:', error);
+      toast.error('Fehler beim Löschen des Trainings');
+    }
+  });
+
+  const updateTrainingMutation = useMutation({
+    mutationFn: async (updatedTraining: Training) => {
+      const response = await fetch(`http://localhost:5000/api/trainings/${updatedTraining.ID}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedTraining),
+      });
+      if (!response.ok) throw new Error('Fehler beim Aktualisieren des Trainings');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trainings'] });
+      toast.success('Training erfolgreich aktualisiert');
+      setEditingTraining(null);
+      setShowAddModal(false);
+    },
+    onError: (error) => {
+      console.error('Fehler beim Aktualisieren des Trainings:', error);
+      toast.error('Fehler beim Aktualisieren des Trainings');
+    }
+  });
+
+  const handleDeleteTraining = async (trainingId: number) => {
+    if (!window.confirm('Möchten Sie diese Schulung wirklich löschen?')) return;
+    deleteTrainingMutation.mutate(trainingId);
+  };
+
+  const handleEditTraining = (training: Training) => {
+    setEditingTraining(training);
+  };
+
+  const handleUpdateTraining = async (updatedTraining: Training) => {
+    updateTrainingMutation.mutate(updatedTraining);
   };
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="container mx-auto px-4 py-8">
       {/* Header – mobile-first: standardmäßig gestapelt, ab sm: in einer Zeile */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -236,150 +277,87 @@ export default function Trainings() {
 
         {/* Trainingsliste */}
         <div className="grid grid-cols-1 gap-6 p-4 sm:p-6">
-          {filteredTrainings.map((training) => {
+          {filteredTrainings.map(training => {
+            const qualificationView = qualificationViews[training.QualificationID];
+            const isMandatory = qualificationView?.Herkunft === 'Pflicht';
+            const trainer = qualificationTrainers[training.Qualification_TrainerID];
+            const trainerEmployee = trainer ? employees.find(e => e.ID === trainer.EmployeeID) : null;
             
             return (
-              <div
-                key={training.id}
-                className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow"
-              >
-                <div className="p-4 sm:p-6">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div key={training.ID} className="bg-white rounded-lg shadow-md p-6 mb-4">
+                <div className="flex justify-between items-start">
+                  <div className="space-y-4 flex-1">
                     <div>
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-white break-words">
-                        {training.title}
-                      </h3>
-                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 break-words">
-                        {training.description}
-                      </p>
-                      
+                      <div className="flex items-center space-x-2">
+                        <h3 className="text-lg font-semibold text-gray-900">{training.Name}</h3>
+                        {isMandatory && (
+                          <span className="px-2 py-1 text-xs font-medium text-red-600 bg-red-100 rounded-full">
+                            Pflicht
+                          </span>
+                        )}
+                        {!isMandatory && qualificationView?.Herkunft && (
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            qualificationView.Herkunft === 'Job' 
+                              ? 'text-blue-600 bg-blue-100'
+                              : 'text-green-600 bg-green-100'
+                          }`}>
+                            {qualificationView.Herkunft === 'Job' ? 'Job' : 'Zusatz'}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-gray-600 mt-1">{training.Description}</p>
+                    </div>
 
-                      {/* Qualifikationen */}
-                      <div className="mt-4">
-                        <h4 className="text-sm font-medium text-gray-900 dark:text-white flex items-center">
-                          <Award className="h-4 w-4 mr-2" />
-                          Erreichbare Qualifikationen:
-                        </h4>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                        </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-500">
+                      <div className="flex items-center space-x-2">
+                        <User className="h-5 w-5 text-gray-400" />
+                        <span>
+                          Trainer: {trainerEmployee ? trainerEmployee.FullName : 'Nicht zugewiesen'}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Award className="h-5 w-5 text-gray-400" />
+                        <span>
+                          Qualifikation: {qualificationView?.Name || 'Unbekannt'}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                      {training.isMandatory && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">
-                          Pflichtschulung
+                  </div>
+
+                  {canCreateTraining && (
+                    <div className="flex space-x-2 ml-4">
+                      <button
+                        onClick={() => handleEditTraining(training)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"
+                      >
+                        <Edit2 className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTraining(training.ID)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-full"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  {getTrainingSessions(training).map(session => {
+                    const status = session.status as StatusType;
+                    const StatusIcon = getStatusIcon(status);
+                    return (
+                      <div key={session.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        <div className="flex items-center space-x-2">
+                          <StatusIcon className={`w-5 h-5 ${getStatusColor(status)}`} />
+                          <span>{session.date.toLocaleDateString()}</span>
+                        </div>
+                        <span className={`text-sm ${getStatusColor(status)}`}>
+                          {status}
                         </span>
-                      )}
-                      {getBookingStatus(training)}
-                    </div>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-500 dark:text-gray-400">
-                    <div className="flex items-center">
-                      <Clock className="h-5 w-5 mr-2" />
-                      <span>Dauer: {training.duration}</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-6">
-                    <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
-                      Verfügbare Termine
-                    </h4>
-                    {/* Desktop-Ansicht: */}
-                    <div className="hidden md:grid md:grid-cols-2 md:gap-6">
-                      {getTrainingSessions(training).map((session) => (
-                        <div
-                          key={session.id}
-                          className="p-4 bg-gray-50 dark:bg-[#181818] rounded-lg flex items-center justify-between"
-                        >
-                          <div className="flex items-center space-x-4">
-                            <Calendar className="h-5 w-5 text-gray-400" />
-                            <div>
-                              <p className="text-sm font-medium text-gray-900 dark:text-white break-words">
-                                {new Date(session.date).toLocaleDateString('de-DE', {
-                                  weekday: 'long',
-                                  year: 'numeric',
-                                  month: 'long',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </p>
-                              <div className="mt-1 flex items-center text-sm text-gray-500 dark:text-gray-400">
-                                <MapPin className="h-4 w-4 mr-1" />
-                                <span className="break-words">{session.location}</span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-4">
-                            <div className="text-right">
-                              <p className="text-sm text-gray-900 dark:text-white break-words">
-                                {session.trainer}
-                              </p>
-                              <p className="text-sm text-gray-500 dark:text-gray-400 break-words">
-                                {session.availableSpots} Plätze verfügbar
-                              </p>
-                            </div>
-                            <button
-                              onClick={() => handleBookSession(training, session.id)}
-                              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
-                              disabled={!session.availableSpots}
-                            >
-                              Buchen
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    {/* Mobile-Ansicht: */}
-                    <div className="md:hidden space-y-4">
-                      {getTrainingSessions(training).map((session) => (
-                        <div
-                          key={session.id}
-                          className="flex flex-col sm:flex-row items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg space-y-4 sm:space-y-0"
-                        >
-                          <div className="flex items-center space-x-4 w-full">
-                            <div>
-                              <Calendar className="h-5 w-5 text-gray-400" />
-                            </div>
-                            <div className="w-full">
-                              <p className="text-sm font-medium text-gray-900 dark:text-white break-words">
-                                {new Date(session.date).toLocaleDateString('de-DE', {
-                                  weekday: 'long',
-                                  year: 'numeric',
-                                  month: 'long',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </p>
-                              <div className="mt-1 flex items-center text-sm text-gray-500 dark:text-gray-400">
-                                <MapPin className="h-4 w-4 mr-1" />
-                                <span className="break-words">{session.location}</span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
-                            <div className="text-center sm:text-right w-full">
-                              <p className="text-sm text-gray-900 dark:text-white break-words">
-                                {session.trainer}
-                              </p>
-                              <p className="text-sm text-gray-500 dark:text-gray-400 break-words">
-                                {session.availableSpots} Plätze verfügbar
-                              </p>
-                            </div>
-                            <button
-                              onClick={() => handleBookSession(training, session.id)}
-                              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
-                              disabled={!session.availableSpots}
-                            >
-                              Buchen
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -387,11 +365,22 @@ export default function Trainings() {
         </div>
       </div>
 
-      {showAddModal && (
+      {/* Add Training Modal - only show when adding a new training */}
+      {showAddModal && !editingTraining && (
         <AddTrainingModal
           onClose={() => setShowAddModal(false)}
           onAdd={handleAddTraining}
           userDepartment={isSupervisor ? employee.DepartmentID?.toString() : undefined}
+        />
+      )}
+
+      {/* Edit Training Modal - only show when editing an existing training */}
+      {editingTraining && (
+        <AddTrainingModal
+          onClose={() => setEditingTraining(null)}
+          onAdd={handleUpdateTraining}
+          userDepartment={isSupervisor ? employee.DepartmentID?.toString() : undefined}
+          editingTraining={editingTraining}
         />
       )}
 

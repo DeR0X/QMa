@@ -114,7 +114,6 @@ export default function Employees() {
       await updateEmployee.mutateAsync({ id, data });
       toast.success('Mitarbeiter erfolgreich aktualisiert');
     } catch (error) {
-      toast.error('Fehler beim Aktualisieren des Mitarbeiters');
     }
   };
 

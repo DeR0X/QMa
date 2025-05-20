@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import {
   Users,
@@ -46,16 +46,20 @@ import {
 } from "../../hooks/useEmployeeSkills";
 import { useGetEmployeeSkills } from "../../hooks/useEmployeeSkills";
 import { useTrainings } from "../../hooks/useTrainings";
+import { useQualificationTrainers } from '../../hooks/useQualificationTrainers';
+import type { Qualification as QualificationApi } from "../../services/qualificationsApi";
 
 interface Props {
   employee: Employee;
   onClose: () => void;
   onUpdate: (data: Partial<Employee>) => void;
   approvals: Array<{ trainingId: string; date: string; status: string }>;
-  trainings: Array<{ id: string; title: string }>;
+  trainings: Training[];
   handleApproveTraining: (trainingId: string) => void;
   handleRejectTraining: (trainingId: string) => void;
 }
+
+type QualificationWithRequiredID = QualificationApi & { ID: number };
 
 export default function EmployeeDetails({
   employee,
@@ -67,7 +71,7 @@ export default function EmployeeDetails({
   handleRejectTraining,
 }: Props) {
   const [activeTab, setActiveTab] = useState<
-    "info" | "qualifications" | "documents" | "approvals" | "trainer"
+    "info" | "qualifications" | "trainings" | "documents" | "approvals" | "trainer"
   >("info");
   const [showPositionModal, setShowPositionModal] = useState(false);
   const [selectedTrainings, setSelectedTrainings] = useState<string[]>(
@@ -92,6 +96,55 @@ export default function EmployeeDetails({
   const addEmployeeSkill = useAddEmployeeSkill();
   const deleteEmployeeSkill = useDeleteEmployeeSkill();
   const { data: employeeSkills, isLoading: isLoadingSkills } = useGetEmployeeSkills(employee.ID.toString());
+  const { data: trainerQualifications, addTrainer, removeTrainer } = useQualificationTrainers(employee.ID.toString());
+  const [selectedQualificationTrainers, setSelectedQualificationTrainers] = useState<string[]>([]);
+  const [canBeTrainer, setCanBeTrainer] = useState(false);
+
+  // Update selectedQualificationTrainers and canBeTrainer when trainerQualifications changes
+  useEffect(() => {
+    if (!trainerQualifications) {
+      return;
+    }
+
+    if (Array.isArray(trainerQualifications)) {
+      // Extract qualification IDs from the API response
+      const qualificationIds = trainerQualifications.map(tq => {
+        return tq.QualificationID.toString(); // Convert to string for consistent comparison
+      });
+      
+      setSelectedQualificationTrainers(qualificationIds);
+      
+      // Set trainer status based on whether there are any qualifications
+      const hasTrainerQualifications = qualificationIds.length > 0;
+      // Only update isTrainer if there are qualifications
+      if (hasTrainerQualifications) {
+        setIsTrainer(true);
+      }
+      // canBeTrainer is now true when there are NO qualifications
+      setCanBeTrainer(!hasTrainerQualifications);
+      
+      // Only update employee data if trainer status has actually changed
+      // and it's different from the current state
+      if (hasTrainerQualifications !== localEmployee.isTrainer && 
+          hasTrainerQualifications !== isTrainer) {
+        const updatedEmployee = {
+          ...localEmployee,
+          isTrainer: hasTrainerQualifications,
+          trainerFor: hasTrainerQualifications ? selectedTrainings : [],
+        };
+        
+        setLocalEmployee(updatedEmployee);
+        // Only call onUpdate if we're actually changing the trainer status
+        if (hasTrainerQualifications !== localEmployee.isTrainer) {
+          onUpdate(updatedEmployee);
+        }
+      }
+    } else {
+      setSelectedQualificationTrainers([]);
+      setIsTrainer(false);
+      setCanBeTrainer(true); // Enable toggle when no qualifications
+    }
+  }, [trainerQualifications]); // Remove dependencies that cause unnecessary updates
 
   const getDepartmentName = (departmentId: number | null) => {
     if (!departmentId) return "Keine Abteilung";
@@ -116,10 +169,11 @@ export default function EmployeeDetails({
   const tabs = [
     { id: "info", label: "Information" },
     { id: "qualifications", label: "Qualifikationen" },
+    { id: "trainings", label: "Schulungen" },
     { id: "documents", label: "Dokumente" },
     ...(isHRAdmin ? [{ id: "trainer", label: "Trainer-Status" }] : []),
   ].filter(Boolean) as Array<{
-    id: "info" | "qualifications" | "documents" | "approvals" | "trainer";
+    id: "info" | "qualifications" | "trainings" | "documents" | "approvals" | "trainer";
     label: string;
   }>;
 
@@ -131,7 +185,6 @@ export default function EmployeeDetails({
       });
       setShowPositionModal(false);
     } catch (error) {
-      console.error("Error adding skill:", error);
     }
   };
 
@@ -142,7 +195,6 @@ export default function EmployeeDetails({
         skillId: skillId,
       });
     } catch (error) {
-      console.error("Error deleting skill:", error);
     }
   };
 
@@ -178,7 +230,6 @@ export default function EmployeeDetails({
       toast.success("Qualifikation erfolgreich hinzugefügt");
       setShowPositionModal(false);
     } catch (error) {
-      toast.error("Fehler beim Hinzufügen der Qualifikation");
     }
   };
 
@@ -233,17 +284,23 @@ export default function EmployeeDetails({
   };
 
   const handleTrainerStatusChange = (checked: boolean) => {
-    setIsTrainer(checked);
-    if (!checked) {
-      setSelectedTrainings([]);
+    if (selectedQualificationTrainers.length > 0) {
+      toast.error('Der Trainer-Status kann nicht geändert werden, solange Qualifikationen zugewiesen sind.');
+      return;
     }
+    
+    setIsTrainer(checked);
     const updatedEmployee = {
       ...localEmployee,
       isTrainer: checked,
       trainerFor: checked ? selectedTrainings : [],
     };
-    setLocalEmployee(updatedEmployee);
-    onUpdate(updatedEmployee);
+    
+    // Use setTimeout to break the update cycle
+    setTimeout(() => {
+      setLocalEmployee(updatedEmployee);
+      onUpdate(updatedEmployee);
+    }, 0);
   };
 
   const handleTrainingSelection = (trainingId: string) => {
@@ -265,7 +322,6 @@ export default function EmployeeDetails({
   const getQualificationName = (qualId: string) => {
     if (!qualificationsData) return "Unbekannte Qualifikation";
     const qualification = qualificationsData.find(q => q.ID?.toString() === qualId.toString());
-    console.log(qualification);
     return qualification ? qualification.Name : "Unbekannte Qualifikation";
   };
 
@@ -283,6 +339,102 @@ export default function EmployeeDetails({
       .split(" ")
       .map((n) => n[0])
       .join("");
+  };
+
+  const handleQualificationTrainerChange = async (qualificationId: string) => {
+    try {
+      const isAdding = !selectedQualificationTrainers.includes(qualificationId);
+      
+      if (isAdding) {
+        await addTrainer.mutateAsync({
+          employeeId: employee.ID.toString(),
+          qualificationId
+        });
+        setSelectedQualificationTrainers(prev => [...prev, qualificationId]);
+        toast.success('Trainer-Status für Qualifikation hinzugefügt');
+      } else {
+        await removeTrainer.mutateAsync({
+          employeeId: employee.ID.toString(),
+          qualificationId
+        });
+        setSelectedQualificationTrainers(prev => prev.filter(id => id !== qualificationId));
+        toast.success('Trainer-Status für Qualifikation entfernt');
+      }
+    } catch (error) {
+    }
+  };
+
+  const hasValidID = (qualification: QualificationApi): qualification is QualificationWithRequiredID => {
+    return typeof qualification.ID === 'number';
+  };
+
+  const renderQualificationCard = (qualification: QualificationApi) => {
+    if (typeof qualification.ID !== 'number') return null;
+    
+    const qualificationId = qualification.ID.toString();
+    const isSelected = selectedQualificationTrainers.includes(qualificationId);
+    
+    return (
+      <div
+        key={`qualification-${qualificationId}`}
+        onClick={() => handleQualificationTrainerChange(qualificationId)}
+        className={`p-4 rounded-lg border transition-all cursor-pointer
+          ${isSelected
+            ? "border-primary bg-primary/5 dark:bg-primary/10 hover:bg-primary/10 dark:hover:bg-primary/20"
+            : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
+          }`}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <h6 className="text-sm font-medium text-gray-900 dark:text-white">
+              {qualification.Name}
+            </h6>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              {qualification.Description}
+            </p>
+            <div className="mt-2 flex items-center gap-2">
+              {qualification.IsMandatory && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300">
+                  Pflichtqualifikation
+                </span>
+              )}
+              {qualification.JobTitle && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+                  {qualification.JobTitle}
+                </span>
+              )}
+              {qualification.AdditionalSkillName && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300">
+                  {qualification.AdditionalSkillName}
+                </span>
+              )}
+              {qualification.AssignmentType && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300">
+                  {qualification.AssignmentType}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="ml-4 flex items-center">
+            <div className={`h-5 w-5 rounded border-2 flex items-center justify-center
+              ${isSelected 
+                ? 'border-primary bg-primary text-white' 
+                : 'border-gray-300 dark:border-gray-600'
+              }`}
+            >
+              {isSelected && (
+                <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              )}
+            </div>
+            <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+              Als Trainer
+            </span>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   if (isLoadingQualifications || isLoadingEmployeeQualifications || isLoadingSkills) {
@@ -359,26 +511,26 @@ export default function EmployeeDetails({
                   <>
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                       {localEmployee.eMail && (
-                        <div className="flex items-center">
+                        <div key="email" className="flex items-center">
                           <Mail className="h-5 w-5 text-gray-400" />
                           <span className="ml-2 text-sm text-gray-900 dark:text-white">
                             {localEmployee.eMail}
                           </span>
                         </div>
                       )}
-                      <div className="flex items-center">
+                      <div key="staff-number" className="flex items-center">
                         <Users className="h-5 w-5 text-gray-400" />
                         <span className="ml-2 text-sm text-gray-900 dark:text-white">
                           Personal-Nr.: {localEmployee.StaffNumber}
                         </span>
                       </div>
-                      <div className="flex items-center">
+                      <div key="department" className="flex items-center">
                         <Building2 className="h-5 w-5 text-gray-400" />
                         <span className="ml-2 text-sm text-gray-900 dark:text-white">
                           Abteilung: {localEmployee.Department}
                         </span>
                       </div>
-                      <div className="flex items-center">
+                      <div key="position" className="flex items-center">
                         <Award className="h-5 w-5 text-gray-400" />
                         <span className="ml-2 text-sm text-gray-900 dark:text-white">
                           Position:{" "}
@@ -401,6 +553,7 @@ export default function EmployeeDetails({
                       </h4>
                       {isHRAdmin && (
                         <button
+                          key="add-qualification-button"
                           onClick={() => setShowPositionModal(true)}
                           className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a]"
                         >
@@ -411,12 +564,12 @@ export default function EmployeeDetails({
                     </div>
 
                     <div className="space-y-6">
-                      {employeeQualifications.map((qual : any) => {
+                      {employeeQualifications.map((qual: any) => {
                         if (!qual.QualificationID) return null;
                         const status = getQualificationStatus(qual.QualificationID);
                         return (
                           <div
-                            key={qual.QualificationID}
+                            key={`qualification-${qual.QualificationID}`}
                             className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg"
                           >
                             <div className="flex-1">
@@ -446,10 +599,88 @@ export default function EmployeeDetails({
                       })}
 
                       {employeeQualifications.length === 0 && (
-                        <p className="text-center text-gray-500 dark:text-gray-400">
+                        <p key="no-qualifications" className="text-center text-gray-500 dark:text-gray-400">
                           Keine Qualifikationen vorhanden
                         </p>
                       )}
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === "trainings" && (
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                      <h4 className="text-lg font-medium text-gray-900 dark:text-white">
+                        Schulungen
+                      </h4>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Aktive Schulungen */}
+                      <div className="space-y-3">
+                        <h6 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Aktive Schulungen
+                        </h6>
+                        <div className="space-y-2">
+                          {employeeTrainings?.filter(training => !training.completed).map(training => (
+                            <div
+                              key={`active-training-${training.ID}`}
+                              className="p-3 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20"
+                            >
+                              <div>
+                                <h6 className="text-sm font-medium text-gray-900 dark:text-white">
+                                  {training.Name}
+                                </h6>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                  {training.Description}
+                                </p>
+                                <div className="mt-2 flex items-center text-xs text-green-600 dark:text-green-400">
+                                  <Clock className="h-3 w-3 mr-1" />
+                                  In Bearbeitung
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {!employeeTrainings?.some(training => !training.completed) && (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                              Keine aktiven Schulungen
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Abgeschlossene Schulungen */}
+                      <div className="space-y-3">
+                        <h6 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Abgeschlossene Schulungen
+                        </h6>
+                        <div className="space-y-2">
+                          {employeeTrainings?.filter(training => training.completed).map(training => (
+                            <div
+                              key={`completed-training-${training.ID}`}
+                              className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50"
+                            >
+                              <div>
+                                <h6 className="text-sm font-medium text-gray-900 dark:text-white">
+                                  {training.Name}
+                                </h6>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                  {training.Description}
+                                </p>
+                                <div className="mt-2 flex items-center text-xs text-gray-500 dark:text-gray-400">
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  Abgeschlossen
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {!employeeTrainings?.some(training => training.completed) && (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                              Keine abgeschlossenen Schulungen
+                            </p>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -466,7 +697,7 @@ export default function EmployeeDetails({
                     <div className="space-y-4">
                       {approvals.map((approval) => {
                         const training = trainingsData?.find(
-                          (t: Training) => t.id === approval.trainingId,
+                          (t: Training) => t.ID.toString() === approval.trainingId,
                         );
                         return (
                           <div
@@ -475,7 +706,7 @@ export default function EmployeeDetails({
                           >
                             <div>
                               <h4 className="text-sm font-medium text-gray-900 dark:text-white">
-                                {training?.title}
+                                {training?.Name}
                               </h4>
                               <p className="text-sm text-gray-500 dark:text-gray-400">
                                 Beantragt am{" "}
@@ -527,80 +758,208 @@ export default function EmployeeDetails({
                       <h4 className="text-lg font-medium text-gray-900 dark:text-white">
                         Trainer-Verwaltung
                       </h4>
-                      <label className="flex items-center space-x-2">
+                      <div 
+                        key="trainer-status-toggle"
+                        onClick={() => !selectedQualificationTrainers.length && handleTrainerStatusChange(!isTrainer)}
+                        className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors cursor-pointer
+                          ${selectedQualificationTrainers.length > 0 
+                            ? 'opacity-50 cursor-not-allowed border-gray-200 dark:border-gray-700' 
+                            : 'hover:bg-gray-50 dark:hover:bg-gray-800 border-gray-200 dark:border-gray-700'
+                          }`}
+                      >
                         <input
                           type="checkbox"
                           checked={isTrainer}
-                          onChange={(e) =>
-                            handleTrainerStatusChange(e.target.checked)
-                          }
-                          className="rounded border-gray-300 text-primary focus:ring-primary"
+                          onChange={(e) => handleTrainerStatusChange(e.target.checked)}
+                          disabled={selectedQualificationTrainers.length > 0}
+                          className={`rounded border-gray-300 text-primary focus:ring-primary h-5 w-5
+                            ${selectedQualificationTrainers.length > 0 ? 'cursor-not-allowed' : ''}`}
                         />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">
-                          Als Trainer aktivieren
-                        </span>
-                      </label>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Als Trainer aktivieren
+                          </span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {selectedQualificationTrainers.length > 0 
+                              ? 'Trainer-Status kann nicht geändert werden, solange Qualifikationen zugewiesen sind'
+                              : 'Klicken Sie hier, um den Trainer-Status zu aktivieren/deaktivieren'}
+                          </span>
+                        </div>
+                      </div>
                     </div>
 
                     {isTrainer && (
-                      <div className="space-y-6">
-                        <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          Schulungen, die dieser Trainer durchführen kann:
-                        </h5>
-
-                        <div className="grid grid-cols-1 gap-4">
-                          {trainingsData?.map((training: Training) => (
-                            <div
-                              key={training.id}
-                              className={`p-4 rounded-lg border transition-all ${
-                                selectedTrainings.includes(training.id)
-                                  ? "border-primary bg-primary/5 dark:bg-primary/10"
-                                  : "border-gray-200 dark:border-gray-700"
-                              }`}
-                            >
-                              <div className="flex items-start space-x-4">
-                                <div className="flex-shrink-0 pt-1">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedTrainings.includes(
-                                      training.id,
-                                    )}
-                                    onChange={() =>
-                                      handleTrainingSelection(training.id)
-                                    }
-                                    className="rounded border-gray-300 text-primary focus:ring-primary"
-                                  />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between">
-                                    <p className="font-medium text-gray-900 dark:text-white">
-                                      {training.title}
-                                    </p>
-                                    <span
-                                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                        training.isMandatory
-                                          ? "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300"
-                                          : "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300"
-                                      }`}
-                                    >
-                                      {training.isMandatory
-                                        ? "Pflicht"
-                                        : "Optional"}
-                                    </span>
-                                  </div>
-                                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                    {training.description}
-                                  </p>
-                                  <div className="mt-2 flex flex-wrap gap-4 text-sm">
-                                    <div className="flex items-center text-gray-500 dark:text-gray-400">
-                                      <Timer className="h-4 w-4 mr-1" />
-                                      {training.duration}
+                      <div className="space-y-8">
+                        {/* Qualifikationen Sektion */}
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center">
+                            <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                              Qualifikationen als Trainer
+                            </h5>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                {selectedQualificationTrainers.length} von {qualificationsData?.length || 0} Qualifikationen
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Aktive Qualifikationen */}
+                            <div className="space-y-3">
+                              <h6 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                Aktive Qualifikationen
+                              </h6>
+                              <div className="space-y-2">
+                                {qualificationsData?.filter(qual => 
+                                  selectedQualificationTrainers.includes(qual.ID?.toString() || '')
+                                ).map(qualification => (
+                                  <div
+                                    key={`active-qual-${qualification.ID}`}
+                                    className="p-3 rounded-lg border border-primary/20 bg-primary/5 dark:bg-primary/10"
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <h6 className="text-sm font-medium text-gray-900 dark:text-white">
+                                          {qualification.Name}
+                                        </h6>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                          {qualification.Description}
+                                        </p>
+                                      </div>
+                                      <button
+                                        onClick={() => handleQualificationTrainerChange(qualification.ID?.toString() || '')}
+                                        className="p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400"
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </button>
                                     </div>
                                   </div>
-                                </div>
+                                ))}
+                                {selectedQualificationTrainers.length === 0 && (
+                                  <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                                    Keine aktiven Qualifikationen
+                                  </p>
+                                )}
                               </div>
                             </div>
-                          ))}
+
+                            {/* Verfügbare Qualifikationen */}
+                            <div className="space-y-3">
+                              <h6 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                Verfügbare Qualifikationen
+                              </h6>
+                              <div className="space-y-2">
+                                {qualificationsData?.filter(qual => 
+                                  !selectedQualificationTrainers.includes(qual.ID?.toString() || '')
+                                ).map(qualification => (
+                                  <div
+                                    key={`available-qual-${qualification.ID}`}
+                                    onClick={() => handleQualificationTrainerChange(qualification.ID?.toString() || '')}
+                                    className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-primary/50 dark:hover:border-primary/50 cursor-pointer transition-colors"
+                                  >
+                                    <div>
+                                      <h6 className="text-sm font-medium text-gray-900 dark:text-white">
+                                        {qualification.Name}
+                                      </h6>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        {qualification.Description}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ))}
+                                {qualificationsData?.length === selectedQualificationTrainers.length && (
+                                  <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                                    Keine weiteren Qualifikationen verfügbar
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Schulungen Sektion */}
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center">
+                            <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                              Durchgeführte Schulungen
+                            </h5>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Aktive Schulungen */}
+                            <div className="space-y-3">
+                              <h6 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                Aktive Schulungen
+                              </h6>
+                              <div className="space-y-2">
+                                {trainingsData?.filter(training => 
+                                  selectedTrainings.includes(training.ID.toString()) && !training.completed
+                                ).map(training => (
+                                  <div
+                                    key={`active-training-${training.ID}`}
+                                    className="p-3 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20"
+                                  >
+                                    <div>
+                                      <h6 className="text-sm font-medium text-gray-900 dark:text-white">
+                                        {training.Name}
+                                      </h6>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        {training.Description}
+                                      </p>
+                                      <div className="mt-2 flex items-center text-xs text-green-600 dark:text-green-400">
+                                        <Clock className="h-3 w-3 mr-1" />
+                                        In Bearbeitung
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                                {!trainingsData?.some(training => 
+                                  selectedTrainings.includes(training.ID.toString()) && !training.completed
+                                ) && (
+                                  <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                                    Keine aktiven Schulungen
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Abgeschlossene Schulungen */}
+                            <div className="space-y-3">
+                              <h6 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                Abgeschlossene Schulungen
+                              </h6>
+                              <div className="space-y-2">
+                                {trainingsData?.filter(training => 
+                                  selectedTrainings.includes(training.ID.toString()) && training.completed
+                                ).map(training => (
+                                  <div
+                                    key={`completed-training-${training.ID}`}
+                                    className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50"
+                                  >
+                                    <div>
+                                      <h6 className="text-sm font-medium text-gray-900 dark:text-white">
+                                        {training.Name}
+                                      </h6>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        {training.Description}
+                                      </p>
+                                      <div className="mt-2 flex items-center text-xs text-gray-500 dark:text-gray-400">
+                                        <CheckCircle className="h-3 w-3 mr-1" />
+                                        Abgeschlossen
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                                {!trainingsData?.some(training => 
+                                  selectedTrainings.includes(training.ID.toString()) && training.completed
+                                ) && (
+                                  <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                                    Keine abgeschlossenen Schulungen
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )}
