@@ -8,9 +8,9 @@ export interface Department {
 }
 
 export interface JobTitle {
-  id: string;
-  jobTitle: string;
-  description: string;
+  ID: string;
+  JobTitle: string;
+  Description: string;
   qualificationIDs: string[];
 }
 
@@ -29,21 +29,21 @@ export interface Employee {
   Supervisor: string;
   isActive: boolean;
   PasswordHash: string;
-  AccessRightID: number;
   AccessRight: string;
   role?: string;
   isTrainer?: boolean;
   trainerFor?: string[];
+  isSupervisor: number; // 1 for supervisor, 0 for non-supervisor
 }
 
 export interface Qualification {
   id: string;
   name: string;
   description: string;
-  requiredQualifications: string[];
   validityInMonth: number;
   isMandatory: boolean;
   expireInDays?: string;
+  herkunft?: 'Pflicht' | 'Job' | 'Zusatz';
 }
 
 export interface QualificationHistory {
@@ -56,7 +56,22 @@ export interface QualificationHistory {
   approvedBy: string;
 }
 
-export type { Training } from '../types';
+export interface Training {
+  ID: number;
+  Name: string;
+  Description: string;
+  completed: boolean;
+  completedDate?: string;
+  qualificationID?: string;
+  qualification_TrainerID?: string;
+  department?: string;
+  isMandatory: boolean;
+  trainingDate?: string;
+  qualificationIds?: string[];
+  isAssigned?: boolean;
+  location?: string;
+  maxParticipants?: number;
+}
 
 export interface TrainingBooking {
   id: string;
@@ -78,6 +93,8 @@ export interface TrainingDocument {
   uploadedAt: string;
   fileUrl: string;
   description?: string;
+  categoryId?: number;
+  tags?: string;
 }
 
 export interface EmployeeQualification {

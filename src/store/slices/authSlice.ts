@@ -1,6 +1,7 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import type { Employee } from "../../types";
 import { accessRightsApi } from "../../services/accessRightsApi";
+import { buildApiUrl, API_BASE_URL_V2 } from '../../config/api';
 
 interface AuthState {
   employee: Employee | null;
@@ -77,19 +78,28 @@ const authSlice = createSlice({
         let role = 'employee';
         let accessRight = 'EMPLOYEE';
 
+        // First determine the base role and access right
         if (accessRights.includes('admin')) {
           role = 'admin';
-          accessRight = 'ADMIN';
+          accessRight = 'admin';
         } else if (accessRights.includes('hr')) {
           role = 'hr';
-          accessRight = 'HR';
-        } else if (accessRights.includes('supervisor')) {
-          role = 'supervisor';
-          accessRight = 'SUPERVISOR';
+          accessRight = 'hr';
         }
 
-        state.employee.role = role;
-        state.employee.AccessRight = accessRight;
+        // Supervisor status is handled separately and independently
+        // It doesn't modify the accessRight, only adds to the role name
+        // We preserve the isSupervisor value from the login data
+        if (state.employee.isSupervisor === 1) {
+          role = role === 'employee' ? 'supervisor' : `${role}_supervisor`;
+        }
+
+        // Update only the role and AccessRight, preserve other properties
+        state.employee = {
+          ...state.employee,
+          role,
+          AccessRight: accessRight
+        };
       }
       localStorage.setItem("auth", JSON.stringify(state));
     },
@@ -117,7 +127,13 @@ export const toggleUserActive = (userId: string, isActive: boolean) => ({
 
 export const hasHRPermissions = (employee: Employee | null) => {
   if (!employee) return false;
-  return employee.role === 'hr' || employee.role === 'admin';
+  const accessRight = employee.AccessRight?.toString().toLowerCase();
+  return accessRight === "hr" || accessRight === "admin" || accessRight === "2" || accessRight === "3";
+};
+
+export const hasSupervisorPermissions = (employee: Employee | null) => {
+  if (!employee) return false;
+  return employee.isSupervisor === 1; // Admin (1) or Supervisor (3)
 };
 
 export const hasPermission = (
@@ -125,28 +141,43 @@ export const hasPermission = (
   permission: string,
 ) => {
   if (!employee) return false;
-  const role = employee.role;
+  const accessRight = employee.AccessRight?.toString().toLowerCase();
+  const isSupervisor = employee.isSupervisor === 1;
 
-  switch (role) {
-    case "admin":
-      return true;
-    case "hr":
-      return ["employees", "trainings", "qualifications", "documents", "dashboard", "additional"].includes(
-        permission,
-      );
-    case "supervisor":
-      return ["employees", "trainings", "documents", "dashboard", "additional"].includes(permission);
-    default:
-      return ["trainings", "documents", "dashboard"].includes(permission);
+  // Special case for admin permission check
+  if (permission === 'admin') {
+    return accessRight === 'admin' || accessRight === '3';
   }
+
+  // Special case for qualifications_or_supervisor permission
+  if (permission === 'qualifications_or_supervisor') {
+    return accessRight === 'hr' || accessRight === 'admin' || accessRight === '2' || accessRight === '3' || isSupervisor;
+  }
+
+  // Define base permissions for each level
+  const employeePermissions = ["trainings", "dashboard"];
+  const supervisorPermissions = [...employeePermissions, "employees", "additional", "documents"];
+  const hrPermissions = [...supervisorPermissions, "qualifications"];
+  const adminPermissions = [...hrPermissions, "password"];
+
+  // Admin has all permissions
+  if (accessRight === "admin" || accessRight === "3") return true;
+  // HR has all permissions except password management
+  if (accessRight === "hr" || accessRight === "2") return permission !== "password";
+  // Supervisor permissions
+  if (isSupervisor) {
+    return supervisorPermissions.includes(permission);
+  }
+  
+  return employeePermissions.includes(permission);
 };
 
 export const login = (Username: string, password: string) => async (dispatch: any) => {
   dispatch(loginStart());
 
   try {
-    // Login request
-    const response = await fetch("http://localhost:5000/api/v2/auth/login", {
+    // Login request - send plain password, server will handle bcrypt comparison
+    const response = await fetch(`${API_BASE_URL_V2}/auth/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -154,22 +185,61 @@ export const login = (Username: string, password: string) => async (dispatch: an
       body: JSON.stringify({ Username, password }),
     });
 
-    if (!response.ok) {
+    // Always try to parse JSON response, even for error status codes
+    let data;
+    try {
+      data = await response.json();
+    } catch (parseError) {
+      // If JSON parsing fails, throw a generic error
       throw new Error("Ungültige Anmeldedaten");
     }
 
-    const data = await response.json();
+    console.log('Login API response:', data);
 
+    // Check if the response indicates success
     if (!response.ok || !data.success) {
-      throw new Error(data.message || "Ungültige Anmeldedaten");
+      // For authentication failures, show a user-friendly message
+      if (response.status === 401 || response.status === 403) {
+        throw new Error("Personal Nummer oder Passwort falsch");
+      }
+      // For other errors, use the server message or fallback
+      throw new Error(data.message || data.error || "Ungültige Anmeldedaten");
     }
 
     if (!data.user) {
       throw new Error("Ungültige Anmeldedaten");
     }
 
+    // Check if user is active
+    if (data.user.isActive === 0) {
+      throw new Error("Ihr Konto ist deaktiviert. Bitte wenden Sie sich an die Personalabteilung.");
+    }
+
     // Store the token and user data
     localStorage.setItem('token', data.token);
+    
+    // Fetch all employees from ViewEmployees and find the specific employee
+    const employeeResponse = await fetch(`${API_BASE_URL_V2}/employees-view`);
+    if (!employeeResponse.ok) {
+      throw new Error("Fehler beim Laden der Mitarbeiterdaten");
+    }
+    const responseData = await employeeResponse.json();
+    console.log('API Response:', responseData);
+    
+    // Check if we have a data property (common API response structure)
+    const employeesData = responseData.data || responseData;
+    if (!Array.isArray(employeesData)) {
+      console.error('Unexpected API response structure:', responseData);
+      throw new Error("Unerwartetes Format der Mitarbeiterdaten");
+    }
+    
+    const employeeData = employeesData.find((emp: any) => emp.ID === data.user.id);
+    
+    if (!employeeData) {
+      throw new Error("Mitarbeiterdaten nicht gefunden");
+    }
+    
+    console.log('Found employee data:', employeeData);
     
     const userData = {
       ID: data.user.id,
@@ -184,12 +254,14 @@ export const login = (Username: string, password: string) => async (dispatch: an
       JobTitleID: data.user.jobTitleID,
       SupervisorID: data.user.supervisorID,
       Supervisor: data.user.supervisor || '',
-      AccessRightID: data.user.accessRightID || 0,
-      AccessRight: 'EMPLOYEE', // Will be updated when access rights are fetched
-      role: 'employee', // Will be updated when access rights are fetched
+      AccessRight: data.user.accessRightsID || 0,
+      role: 'employee',
       PasswordHash: data.user.passwordHash,
       isActive: data.user.isActive,
+      isSupervisor: employeeData.isSupervisor || 0, // Get supervisor status from ViewEmployees
     };
+    
+    console.log('Processed user data:', userData);
     
     // First dispatch login success to set the basic user data
     dispatch(loginSuccess(userData));

@@ -6,6 +6,7 @@ import { login } from "../../store/slices/authSlice";
 import { toast } from "sonner";
 import { RootState } from "../../store";
 import { useTheme } from "../../components/theme-provider";
+import Logo from "../shared/Logo";
 
 export default function LoginForm() {
   const [staffNumber, setStaffNumber] = useState("");
@@ -31,7 +32,10 @@ export default function LoginForm() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-[#121212]">
-      <header className="flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-[#121212] px-4 shadow-sm">
+      <header className="flex h-16 shrink-0 items-center justify-between px-6 border-b border-gray-200 dark:border-gray-800">
+        {/* Logo in Header */}
+          <Logo size="md" />
+        
         <div className="flex flex-1 justify-end">
           <button
             type="button"
@@ -55,7 +59,7 @@ export default function LoginForm() {
               Melden Sie sich mit Ihrem Konto an
             </h2>
             <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-              Verwenden Sie Ihre Personal Nummer, um auf die Q-Matrix
+              Verwenden Sie Ihre Personalnummer, um auf die Q-Matrix
               zuzugreifen
             </p>
           </div>
@@ -89,7 +93,7 @@ export default function LoginForm() {
             <div className="rounded-md shadow-sm -space-y-px">
               <div>
                 <label htmlFor="staff-number" className="sr-only">
-                  Personal Nummer
+                  Personalnummer
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -99,9 +103,10 @@ export default function LoginForm() {
                     id="staff-number"
                     name="staff-number"
                     type="text"
+                    autoComplete="off"
                     required
                     className="appearance-none rounded-none relative block w-full px-3 py-2 pl-10 border border-gray-300 dark:border-gray-800 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-t-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm bg-white dark:bg-[#121212]"
-                    placeholder="Personal Nummer"
+                    placeholder="Personalnummer"
                     value={staffNumber}
                     onChange={(e) => setStaffNumber(e.target.value)}
                   />
@@ -134,7 +139,7 @@ export default function LoginForm() {
               <button
                 type="submit"
                 disabled={loading}
-                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md bg-primary text-white hover:bg-primary/90 dark:bg-[#121212] dark:text-white dark:hover:bg-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed dark:ring-offset-[#121212] dark:border-gray-800"
+                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md bg-primary text-white hover:bg-primary/90 dark:bg-[#121212] dark:text-white dark:hover:bg-[#2a2a2a] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed dark:ring-offset-[#121212] dark:border-gray-800 transition-all duration-200 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20"
               >
                 {loading ? "Anmeldung läuft..." : "Anmelden"}
               </button>

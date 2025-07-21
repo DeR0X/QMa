@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { buildApiUrl } from '../config/api';
 
 export interface QualificationView {
   ID: number;
@@ -13,26 +14,36 @@ export interface QualificationView {
 
 export function useQualificationViews(qualificationIds: number[]) {
   return useQuery<Record<number, QualificationView>>({
-    queryKey: ['qualificationViews', qualificationIds],
+    queryKey: ['qualificationViews', qualificationIds.sort().join(',')],
     queryFn: async () => {
       if (!qualificationIds.length) return {};
       
-      const views: Record<number, QualificationView> = {};
-      await Promise.all(
-        qualificationIds.map(async (id) => {
           try {
-            const response = await fetch(`http://localhost:5000/api/v2/qualification-view/${id}`);
-            if (!response.ok) throw new Error(`Failed to fetch qualification view for ID ${id}`);
-            const data = await response.json();
-            views[id] = data;
+        // Fetch ALL qualification views in a single API call instead of one per ID
+            const response = await fetch(buildApiUrl(`/qualification-view/`, 'v2'));
+        if (!response.ok) throw new Error('Failed to fetch qualification views');
+        
+        const allViews = await response.json();
+        
+        // Filter and map the data to only include requested IDs
+        const views: Record<number, QualificationView> = {};
+        if (Array.isArray(allViews)) {
+          allViews.forEach(view => {
+            if (qualificationIds.includes(view.ID)) {
+              views[view.ID] = view;
+            }
+          });
+        }
+        
+        return views;
           } catch (error) {
-            console.error(`Error fetching qualification view for ID ${id}:`, error);
+        console.error('Error fetching qualification views:', error);
+        throw error;
           }
-        })
-      );
-      return views;
     },
-    enabled: qualificationIds.length > 0
+    enabled: qualificationIds.length > 0,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
 }
 

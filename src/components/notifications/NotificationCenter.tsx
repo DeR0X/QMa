@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Bell, Check } from 'lucide-react';
 import { RootState } from '../../store';
@@ -9,9 +9,34 @@ export default function NotificationCenter() {
   const dispatch = useDispatch();
   const { employee } = useSelector((state: RootState) => state.auth);
   const notifications = useSelector((state: RootState) => 
-    state.notifications.notifications.filter(n => n.userId === employee?.id)
+    state.notifications.notifications.filter(n => n.userId === employee?.ID?.toString())
   );
   const unreadCount = notifications.filter(n => !n.read).length;
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    function handleEscapeKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleEscapeKey);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [isOpen]);
 
   const handleMarkAsRead = (id: string) => {
     dispatch(markAsRead(id));
@@ -19,12 +44,12 @@ export default function NotificationCenter() {
 
   const handleClearAll = () => {
     if (employee) {
-      dispatch(clearNotifications(employee.id));
+      dispatch(clearNotifications(employee.ID.toString()));
     }
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 text-gray-400 hover:text-gray-500 focus:outline-none"
@@ -36,7 +61,7 @@ export default function NotificationCenter() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 rounded-md bg-white dark:bg-[#121212] shadow-lg ring-1 ring-black ring-opacity-5">
+        <div className="absolute right-0 mt-2 w-80 rounded-md bg-white dark:bg-[#121212] shadow-lg ring-1 ring-black ring-opacity-5 z-50">
           <div className="p-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium text-gray-900 dark:text-white">

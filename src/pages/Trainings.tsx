@@ -1,22 +1,27 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { useQueryClient, useMutation } from '@tanstack/react-query';
+import { useQueryClient, useMutation, useQuery } from '@tanstack/react-query';
 import { 
   Search, Filter, Calendar, Clock, MapPin, CheckCircle, XCircle, 
-  AlertCircle, GraduationCap, Plus, Award, Info, X, User, Edit2, Trash2
+  AlertCircle, GraduationCap, Plus, Award, Info, X, User, Edit2, Trash2, Building2, FileText, ChevronDown, ChevronUp, Users,
+  Bolt,
+  Zap
 } from 'lucide-react';
 import { RootState, AppDispatch } from '../store';
 import type { Training, QualificationTrainer } from '../types';
 import { formatDate, formatDuration } from '../lib/utils';
 import { toast } from 'sonner';
 import AddTrainingModal from '../components/trainings/AddTrainigModal';
-import { hasHRPermissions } from '../store/slices/authSlice';
+import TrainingDocumentUploader from '../components/trainings/TrainingDocumentUploader';
+import { hasHRPermissions, hasSupervisorPermissions, hasPermission } from '../store/slices/authSlice';
 import { addNotification } from '../store/slices/notificationSlice';
 import { useEmployees } from '../hooks/useEmployees';
 import { useTrainings } from '../hooks/useTrainings';
 import { useQualifications } from '../hooks/useQualifications';
 import { useQualificationViews, type QualificationView } from '../hooks/useQualificationView';
 import { useQualificationTrainersByIds } from '../hooks/useQualificationTrainers';
+import { API_BASE_URL } from '../config/api';
+import QuickTrainingModal from '../components/trainings/QuickTrainingModal';
 
 // Define the Employee type
 interface Employee {
@@ -29,6 +34,13 @@ interface Employee {
   AccessRightID?: number;
 }
 
+interface Participant {
+  id: number;
+  name: string;
+  trainingName: string;
+  trainingDescription: string;
+}
+
 export default function Trainings() {
   const dispatch = useDispatch<AppDispatch>();
   const queryClient = useQueryClient();
@@ -37,46 +49,143 @@ export default function Trainings() {
   const employees = Array.isArray(employeesData?.data) ? employeesData.data : [];
   const { data: trainings = [] } = useTrainings();
   const { data: qualifications = [] } = useQualifications();
+  const { data: trainingParticipantsData = [] } = useQuery({
+    queryKey: ['trainingParticipants'],
+    queryFn: async () => {
+      const response = await fetch(`${API_BASE_URL}/trainings-employee`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch training participants');
+      }
+      return response.json();
+    }
+  });
 
-  // Fetch all qualification views at once
-  const qualificationIds = trainings.map(t => t.QualificationID);
+  if (!employee) return null;
+  
+  const isHR = hasHRPermissions(employee);
+  const isAdmin = hasPermission(employee, 'admin');
+  const isSupervisor = employee.isSupervisor === 1;
+  const canCreateTraining = isHR || isSupervisor;
+  const canRemoveParticipants = isHR || isAdmin; // Only HR and Admin can remove participants
+
+
+
+  // Fetch all qualification views at once - memoized to prevent unnecessary re-renders
+  const qualificationIds = useMemo(() => 
+    trainings
+      .map(t => t.qualificationID)
+      .filter((id): id is string => id !== undefined)
+      .map(id => parseInt(id)),
+    [trainings]
+  );
   const { data: qualificationViews = {} } = useQualificationViews(qualificationIds);
 
-  // Fetch all qualification trainers at once
-  const qualificationTrainerIds = trainings.map(t => t.Qualification_TrainerID);
+  // Fetch all qualification trainers at once - memoized to prevent unnecessary re-renders
+  const qualificationTrainerIds = useMemo(() =>
+    trainings
+      .map(t => t.qualification_TrainerID)
+      .filter((id): id is string => id !== undefined)
+      .map(id => parseInt(id)),
+    [trainings]
+  );
   const { data: qualificationTrainers = {} } = useQualificationTrainersByIds(qualificationTrainerIds);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTraining, setSelectedTraining] = useState<Training | null>(null);
-  const [showMandatoryOnly, setShowMandatoryOnly] = useState(false);
-  const [showUpcomingOnly, setShowUpcomingOnly] = useState(false);
+  const [showOverdueOnly, setShowOverdueOnly] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedQualification, setSelectedQualification] = useState<string | null>(null);
   const [editingTraining, setEditingTraining] = useState<Training | null>(null);
+  const [showDocumentUploader, setShowDocumentUploader] = useState(false);
+  const [selectedTrainingForDocs, setSelectedTrainingForDocs] = useState<Training | null>(null);
+  const [showQuickModal, setShowQuickModal] = useState(false);
+  const [expandedTrainingId, setExpandedTrainingId] = useState<number | null>(null);
+  const [showParticipantsModal, setShowParticipantsModal] = useState(false);
+  const [selectedTrainingForParticipants, setSelectedTrainingForParticipants] = useState<Training | null>(null);
 
-  if (!employee) return null;
+  // Filter employees based on supervisor role
+  const filteredEmployees = useMemo(() => {
+    if (!employees) return [];
+    
+    if (isHR) {
+      return employees;
+    }
 
-  const isHR = hasHRPermissions(employee);
-  const isSupervisor = employee.role === 'supervisor';
-  const canCreateTraining = isHR || isSupervisor;
+    if (employee.isSupervisor === 1) {
+      // Show employees where the current user is their supervisor (using StaffNumber), plus the supervisor themselves
+      const supervisedEmployees = employees.filter(emp => 
+        emp.SupervisorID?.toString() === employee.StaffNumber?.toString()
+      );
+      
+      // Add the supervisor themselves if not already in the list
+      const supervisorInList = supervisedEmployees.some(emp => emp.ID.toString() === employee.ID.toString());
+      if (!supervisorInList) {
+        const supervisorData = employees.find(emp => emp.ID.toString() === employee.ID.toString());
+        if (supervisorData) {
+          supervisedEmployees.push(supervisorData);
+        }
+      }
+      
+      return supervisedEmployees;
+    }
 
+    // Regular employees only see themselves
+    return employees.filter(emp => 
+      emp.ID.toString() === employee?.ID.toString()
+    );
+  }, [employees, isHR, employee]);
+
+  // Update the filtered trainings to include supervisor's team and regular employee access
   const filteredTrainings = trainings.filter(training => {
     if (!training) return false;
+    
+    // Filter out completed trainings
+    if (training.completed) return false;
     
     const title = training.Name?.toLowerCase() || '';
     const description = training.Description?.toLowerCase() || '';
     const searchLower = searchTerm.toLowerCase();
     
-    const qualificationView = qualificationViews[training.QualificationID];
+    const qualificationView = training.qualificationID ? qualificationViews[parseInt(training.qualificationID)] : undefined;
     const isMandatory = qualificationView?.Herkunft === 'Pflicht';
+    
+    // Check if training is overdue (date is today or in the past AND not completed)
+    const isOverdue = training.trainingDate && !training.completed && 
+                     new Date(training.trainingDate) <= new Date();
     
     const matchesSearch = title.includes(searchLower) || 
                          description.includes(searchLower);
     const matchesQualification = !selectedQualification || 
-                               training.QualificationID.toString() === selectedQualification;
-    const matchesMandatory = !showMandatoryOnly || isMandatory;
+                               training.qualificationID?.toString() === selectedQualification;
+    const matchesOverdue = !showOverdueOnly || isOverdue;
     
-    return matchesSearch && matchesQualification && matchesMandatory;
+    // Base filtering for search and qualification criteria
+    const baseMatch = matchesSearch && matchesQualification && matchesOverdue;
+    
+    // HR can see all trainings
+    if (isHR) {
+      return baseMatch;
+    }
+    
+    // If user is a supervisor, show trainings for their team
+    if (employee.isSupervisor === 1) {
+      const isForTeamDepartment = !training.department || 
+                                 training.department === employee.Department ||
+                                 filteredEmployees.some(emp => emp.Department === training.department);
+      return baseMatch && isForTeamDepartment;
+    }
+    
+    // Regular employees can see:
+    // 1. Mandatory trainings (Pflicht)
+    // 2. Trainings targeted to their department
+    // 3. All other trainings (for general visibility)
+    const isForEmployeeDepartment = !training.department || 
+                                   training.department === employee.Department;
+    
+    // Show training if it's mandatory, for their department, or if no specific department targeting (general training)
+    const isRelevantToEmployee = isMandatory || isForEmployeeDepartment;
+    
+    return baseMatch && isRelevantToEmployee;
   });
 
   type StatusType = 'ausstehend' | 'genehmigt' | 'abgelehnt' | 'abgeschlossen';
@@ -101,12 +210,21 @@ export default function Trainings() {
     return colors[status] || 'text-gray-500';
   };
 
+  // Helper function to get the correct date for a training
+  const getTrainingDate = (training: Training) => {
+    if (training.completed && training.completedDate) {
+      return training.completedDate;
+    }
+    return training.trainingDate;
+  };
+
   const getTrainingSessions = (training: Training) => {
     if (!training) return [];
     return [{
       id: training.ID,
-      date: new Date(training.TrainingDate),
-      status: training.completed ? 'abgeschlossen' as StatusType : 'ausstehend' as StatusType
+      date: new Date(getTrainingDate(training) || ''),
+      status: training.completed ? 'abgeschlossen' as StatusType : 'ausstehend' as StatusType,
+      isAssigned: training.isAssigned || false
     }];
   };
 
@@ -117,7 +235,7 @@ export default function Trainings() {
         return;
       }
 
-      const qualificationView = qualificationViews[newTraining.QualificationID];
+      const qualificationView = newTraining.qualificationID ? qualificationViews[parseInt(newTraining.qualificationID)] : undefined;
       const isMandatory = qualificationView?.Herkunft === 'Pflicht';
 
       // Notify affected employees
@@ -156,8 +274,20 @@ export default function Trainings() {
         });
       }
 
-      // Invalidate and refetch trainings
-      await queryClient.invalidateQueries({ queryKey: ['trainings'] });
+      // Save current scroll position before cache invalidation
+      const scrollPosition = window.scrollY;
+      
+      // Invalidate and refetch trainings and training participants
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['trainings'] }),
+        queryClient.invalidateQueries({ queryKey: ['trainingParticipants'] })
+      ]);
+      
+      // Restore scroll position after a short delay to allow for re-render
+      setTimeout(() => {
+        window.scrollTo(0, scrollPosition);
+      }, 100);
+      
       toast.success('Schulung erfolgreich erstellt');
       setShowAddModal(false);
     } catch (error) {
@@ -168,14 +298,23 @@ export default function Trainings() {
 
   const deleteTrainingMutation = useMutation({
     mutationFn: async (trainingId: number) => {
-      const response = await fetch(`http://localhost:5000/api/trainings/${trainingId}`, {
+      const response = await fetch(`${API_BASE_URL}/trainings/${trainingId}`, {
         method: 'DELETE',
       });
       if (!response.ok) throw new Error('Fehler beim Löschen des Trainings');
       return response.json();
     },
     onSuccess: () => {
+      // Save current scroll position before cache invalidation
+      const scrollPosition = window.scrollY;
+      
       queryClient.invalidateQueries({ queryKey: ['trainings'] });
+      
+      // Restore scroll position after a short delay to allow for re-render
+      setTimeout(() => {
+        window.scrollTo(0, scrollPosition);
+      }, 100);
+      
       toast.success('Training erfolgreich gelöscht');
     },
     onError: (error) => {
@@ -186,7 +325,7 @@ export default function Trainings() {
 
   const updateTrainingMutation = useMutation({
     mutationFn: async (updatedTraining: Training) => {
-      const response = await fetch(`http://localhost:5000/api/trainings/${updatedTraining.ID}`, {
+      const response = await fetch(`${API_BASE_URL}/trainings/${updatedTraining.ID}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -197,7 +336,16 @@ export default function Trainings() {
       return response.json();
     },
     onSuccess: () => {
+      // Save current scroll position before cache invalidation
+      const scrollPosition = window.scrollY;
+      
       queryClient.invalidateQueries({ queryKey: ['trainings'] });
+      
+      // Restore scroll position after a short delay to allow for re-render
+      setTimeout(() => {
+        window.scrollTo(0, scrollPosition);
+      }, 100);
+      
       toast.success('Training erfolgreich aktualisiert');
       setEditingTraining(null);
       setShowAddModal(false);
@@ -218,37 +366,274 @@ export default function Trainings() {
   };
 
   const handleUpdateTraining = async (updatedTraining: Training) => {
-    updateTrainingMutation.mutate(updatedTraining);
+    const trainingData: Training = {
+      ID: updatedTraining.ID,
+      Name: updatedTraining.Name,
+      Description: updatedTraining.Description,
+      qualificationID: updatedTraining.qualificationID,
+      qualification_TrainerID: updatedTraining.qualification_TrainerID,
+      trainingDate: updatedTraining.trainingDate,
+      completed: updatedTraining.completed,
+      department: updatedTraining.department,
+      isMandatory: updatedTraining.isMandatory,
+      qualificationIds: updatedTraining.qualificationIds,
+      isAssigned: updatedTraining.isAssigned
+    };
+    updateTrainingMutation.mutate(trainingData);
+  };
+
+  const handleDocumentUpload = async (documents: any[]) => {
+    try {
+      // Handle document upload logic here
+      // You can add your document upload implementation
+    } catch (error) {
+      toast.error('Fehler beim Hochladen der Dokumente');
+    }
+  };
+
+  const handleTrainingComplete = async (trainingId: number, completionDate?: string) => {
+    try {
+      // Update training status to completed with the specified completion date
+      const currentDate = completionDate || new Date().toISOString().split('T')[0];
+      const response = await fetch(`${API_BASE_URL}/trainings/${trainingId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          completed: true,
+          completedDate: currentDate,
+          trainingDate: currentDate // Update the training date to the completion date
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Fehler beim Aktualisieren des Schulungsstatus');
+      }
+
+      // Try to update participant qualifications
+      let updatedCount = 0;
+      
+      // Find the training to get its qualification
+      const training = trainings.find(t => t.ID === trainingId);
+      if (training && training.qualificationID) {
+        try {
+          // Get training participants
+          const participantsResponse = await fetch(`${API_BASE_URL}/trainings-employee`);
+          const allAssignments = await participantsResponse.json();
+          const trainingParticipants = allAssignments.filter(
+            (assignment: any) => assignment.TrainingID === trainingId
+          );
+
+
+          // Get qualification details to calculate validity
+          const qualification = qualifications.find(q => q.ID?.toString() === training.qualificationID);
+          if (qualification) {
+
+            // Calculate qualification validity dates
+            const qualifiedFromDate = completionDate || new Date().toISOString().split('T')[0];
+            const qualifiedFrom = new Date(qualifiedFromDate);
+            const isQualifiedUntil = new Date(qualifiedFrom);
+            
+            // Check if qualification never expires (999 months)
+            if (qualification.ValidityInMonth === 999) {
+              // Set to a very far future date (e.g., 100 years from now)
+              isQualifiedUntil.setFullYear(isQualifiedUntil.getFullYear() + 100);
+            } else {
+              isQualifiedUntil.setMonth(isQualifiedUntil.getMonth() + (qualification.ValidityInMonth || 12));
+            }
+            
+            const isQualifiedUntilString = isQualifiedUntil.toISOString();
+            console.log("isQualifiedUntilString: " + isQualifiedUntilString);
+
+
+            // Update qualifications for each participant
+            for (const participant of trainingParticipants) {
+              try {
+                const updateResponse = await fetch(`${API_BASE_URL}/employee-qualifications`, {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    employeeId: participant.EmployeeID.toString(),
+                    qualificationId: qualification.ID,
+                    qualifiedFrom: new Date().toISOString(),
+                    toQualifyUntil: new Date(Date.now() + qualification.ValidityInMonth * 30 * 24 * 60 * 60 * 1000).toISOString(),
+                    isQualifiedUntil: isQualifiedUntilString
+                  }),
+                });
+
+                if (!updateResponse.ok) {
+                  throw new Error(`Failed to update qualification for employee ${participant.EmployeeID}`);
+                }
+              } catch (error) {
+                toast.error(`Fehler beim Aktualisieren der Qualifikation für Mitarbeiter ${participant.EmployeeID}`);
+              }
+            }
+          } else {
+            toast.error('Training nicht gefunden oder keine Qualifikation zugeordnet');
+          }
+        } catch (error) {
+          console.error('Error updating participant qualifications:', error);
+        }
+      } else {
+        console.log('Training not found or no qualification associated');
+      }
+
+      // Save current scroll position before cache invalidation
+      const scrollPosition = window.scrollY;
+      
+      // Refresh trainings and qualifications data
+      queryClient.invalidateQueries({ queryKey: ['trainings'] });
+      queryClient.invalidateQueries({ queryKey: ['employeeQualifications'] });
+      
+      // Restore scroll position after a short delay to allow for re-render
+      setTimeout(() => {
+        window.scrollTo(0, scrollPosition);
+      }, 100);
+      
+      const formattedDate = completionDate 
+        ? new Date(completionDate).toLocaleDateString('de-DE')
+        : 'heute';
+      
+      if (updatedCount > 0) {
+        toast.success(`Schulung als abgeschlossen markiert (${formattedDate}) und Qualifikationen von ${updatedCount} Teilnehmer(n) aktualisiert`);
+      } else {
+        toast.success(`Schulung als abgeschlossen markiert (${formattedDate})`);
+      }
+    } catch (error) {
+      console.error('Error updating training status:', error);
+      toast.error('Fehler beim Markieren der Schulung als abgeschlossen');
+    }
+  };
+
+  const handleManageDocuments = (training: Training) => {
+    setSelectedTrainingForDocs(training);
+    setShowDocumentUploader(true);
+  };
+
+  // Calculate overdue trainings count
+  const overdueTrainingsCount = trainings.filter(training => 
+    training.trainingDate && !training.completed && 
+    new Date(training.trainingDate) <= new Date() && new Date().toISOString().split('T')[0] === training.trainingDate
+  ).length;
+
+  // Add function to get participant count for a training
+  const getParticipantCount = (trainingId: number) => {
+    return trainingParticipantsData.filter(
+      (participant: any) => participant.TrainingID === trainingId
+    ).length;
+  };
+
+  // Update the getParticipantDetails function with proper typing
+  const getParticipantDetails = (trainingId: number): Participant[] => {
+    return trainingParticipantsData
+      .filter((participant: any) => participant.TrainingID === trainingId)
+      .map((participant: any): Participant => ({
+        id: participant.EmployeeID,
+        name: `${participant.FirstName} ${participant.SurName}`,
+        trainingName: participant.TrainingName,
+        trainingDescription: participant.TrainingDescription
+      }));
+  };
+
+  const handleToggleParticipants = (trainingId: number) => {
+    setExpandedTrainingId(expandedTrainingId === trainingId ? null : trainingId);
+  };
+
+  const handleShowParticipantsModal = (training: Training) => {
+    setSelectedTrainingForParticipants(training);
+    setShowParticipantsModal(true);
+  };
+
+  const removeParticipantMutation = useMutation({
+    mutationFn: async ({ employeeId, trainingId }: { employeeId: number; trainingId: number }) => {
+      const response = await fetch(`${API_BASE_URL}/trainings-employee/${employeeId}/${trainingId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        throw new Error('Fehler beim Entfernen des Teilnehmers');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['trainingParticipants'] });
+      toast.success('Teilnehmer erfolgreich entfernt');
+    },
+    onError: (error) => {
+      console.error('Fehler beim Entfernen des Teilnehmers:', error);
+      toast.error('Fehler beim Entfernen des Teilnehmers');
+    }
+  });
+
+  const handleRemoveParticipant = async (employeeId: number, trainingId: number, employeeName: string) => {
+    // Only HR and Admin users can remove participants
+    if (!canRemoveParticipants) {
+      toast.error('Nur HR-Mitarbeiter und Administratoren können Teilnehmer entfernen');
+      console.log('Permission check failed:', { 
+        isSupervisor, 
+        isHR, 
+        isAdmin, 
+        employeeRole: employee.role,
+        employeeAccessRight: employee.AccessRight,
+        employeeIsSupervisor: employee.isSupervisor,
+        canRemoveParticipants
+      });
+      return;
+    }
+
+    if (!window.confirm(`Möchten Sie ${employeeName} wirklich aus dieser Schulung entfernen?`)) {
+      return;
+    }
+    removeParticipantMutation.mutate({ employeeId, trainingId });
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header – mobile-first: standardmäßig gestapelt, ab sm: in einer Zeile */}
+    <div className="space-y-6 p-4 sm:p-6">
+      {/* Page Title */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
             Verfügbare Schulungen
           </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Durchsuchen und buchen Sie Schulungen für Ihre berufliche Entwicklung
-          </p>
+          <div className="mt-1 flex items-center space-x-4">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Durchsuchen Sie Schulungen für Ihre berufliche Entwicklung
+            </p>
+            {overdueTrainingsCount > 0 && (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300">
+                <AlertCircle className="h-3 w-3 mr-1" />
+                {overdueTrainingsCount} überfällig
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           {canCreateTraining && (
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              Neue Schulung
-            </button>
+            <>
+              <button
+                onClick={() => setShowQuickModal(true)}
+                className="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#2a2a2a] dark:border-gray-700 transition-all duration-200 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20"
+              >
+                <Zap className="h-5 w-5 mr-2" />
+                Schulung dokumentieren
+              </button>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="inline-flex items-center px-3 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:border-gray-700 transition-all duration-200 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20 dark:hover:bg-[#2a2a2a]"
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                Schulung planen
+              </button>
+            </>
           )}
           <GraduationCap className="h-8 w-8 text-primary" />
         </div>
       </div>
 
       {/* Such- und Filterbereich */}
-      <div className="bg-white dark:bg-[#121212] shadow rounded-lg">
+      <div className="bg-white dark:bg-[#121212] shadow rounded-lg border border-gray-200 dark:border-gray-700">
         <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex flex-col gap-4 sm:flex-row">
             <div className="flex-1 relative">
@@ -261,54 +646,82 @@ export default function Trainings() {
                 className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
               />
             </div>
-            <div className="flex items-center space-x-4">
-              <label className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
-                <input
-                  type="checkbox"
-                  checked={showMandatoryOnly}
-                  onChange={(e) => setShowMandatoryOnly(e.target.checked)}
-                  className="rounded border-gray-300 text-primary focus:ring-primary"
-                />
-                <span>Nur Pflichtschulungen</span>
-              </label>
-            </div>
+
           </div>
         </div>
 
         {/* Trainingsliste */}
         <div className="grid grid-cols-1 gap-6 p-4 sm:p-6">
           {filteredTrainings.map(training => {
-            const qualificationView = qualificationViews[training.QualificationID];
+            if (!training) return null;
+            
+            const qualificationView = training.qualificationID ? qualificationViews[parseInt(training.qualificationID)] : undefined;
             const isMandatory = qualificationView?.Herkunft === 'Pflicht';
-            const trainer = qualificationTrainers[training.Qualification_TrainerID];
+            const trainer = training.qualification_TrainerID ? qualificationTrainers[parseInt(training.qualification_TrainerID)] : undefined;
             const trainerEmployee = trainer ? employees.find(e => e.ID === trainer.EmployeeID) : null;
+            const sessions = getTrainingSessions(training);
+            const hasAssignedEmployees = sessions.some(session => session.isAssigned);
+            const participantCount = getParticipantCount(training.ID);
+            const participants = getParticipantDetails(training.ID);
+            
+            // Check if training is overdue
+            let currentDate = new Date();
+            currentDate.setDate(currentDate.getDate() + 1);
+            const isOverdue = training.trainingDate && !training.completed && 
+                             new Date(training.trainingDate) <= currentDate && currentDate.toISOString().split('T')[0] === training.trainingDate;
+            
+            const isExpanded = expandedTrainingId === training.ID;
             
             return (
-              <div key={training.ID} className="bg-white rounded-lg shadow-md p-6 mb-4">
+              <div 
+                key={training.ID} 
+                className={`bg-white dark:bg-[#121212] rounded-lg transition-all duration-200 p-6 mb-4 border ${
+                  isOverdue 
+                    ? 'border-red-300 dark:border-red-800 bg-red-50/50 dark:bg-red-900/10' 
+                    : 'border-gray-200 dark:border-gray-700/50'
+                }`}
+              >
                 <div className="flex justify-between items-start">
                   <div className="space-y-4 flex-1">
                     <div>
                       <div className="flex items-center space-x-2">
-                        <h3 className="text-lg font-semibold text-gray-900">{training.Name}</h3>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{training.Name}</h3>
                         {isMandatory && (
-                          <span className="px-2 py-1 text-xs font-medium text-red-600 bg-red-100 rounded-full">
+                          <span className="px-2 py-1 text-xs font-medium text-red-600 bg-red-100 dark:bg-red-900/20 dark:text-red-400 rounded-full">
                             Pflicht
                           </span>
                         )}
                         {!isMandatory && qualificationView?.Herkunft && (
                           <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                             qualificationView.Herkunft === 'Job' 
-                              ? 'text-blue-600 bg-blue-100'
-                              : 'text-green-600 bg-green-100'
+                              ? 'text-blue-600 bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400'
+                              : 'text-purple-600 bg-purple-200 dark:bg-purple-900/20 dark:text-purple-400'
                           }`}>
-                            {qualificationView.Herkunft === 'Job' ? 'Job' : 'Zusatz'}
+                            {qualificationView.Herkunft === 'Job' ? 'Position' : 'Zusatz'}
+                          </span>
+                        )}
+                        {hasAssignedEmployees && (
+                          <span className="px-2 py-1 text-xs font-medium text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-400 rounded-full">
+                            Zugewiesen
+                          </span>
+                        )}
+                        {isOverdue && (
+                          <span className="px-2 py-1 text-xs font-medium text-red-600 bg-red-100 dark:bg-red-900/20 dark:text-red-400 rounded-full flex items-center">
+                            <AlertCircle className="h-3 w-3 mr-1" />
+                            Überfällig
+                          </span>
+                        )}
+                        {(isHR || isAdmin || isSupervisor) && (
+                          <span className="px-2 py-1 text-xs font-medium text-blue-600 bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 rounded-full flex items-center">
+                            <User className="h-3 w-3 mr-1" />
+                            {participantCount} Teilnehmer
                           </span>
                         )}
                       </div>
-                      <p className="text-gray-600 mt-1">{training.Description}</p>
+                      <p className="text-gray-600 dark:text-gray-400 mt-1">{training.Description}</p>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-500">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-500 dark:text-gray-400">
                       <div className="flex items-center space-x-2">
                         <User className="h-5 w-5 text-gray-400" />
                         <span>
@@ -321,20 +734,45 @@ export default function Trainings() {
                           Qualifikation: {qualificationView?.Name || 'Unbekannt'}
                         </span>
                       </div>
+                      {training.department && (
+                        <div className="flex items-center space-x-2">
+                          <Building2 className="h-5 w-5 text-gray-400" />
+                          <span>
+                            Abteilung: {training.department}
+                          </span>
+                        </div>
+                      )}
+                      {(isHR || isAdmin || isSupervisor) && (
+                        <div className="flex items-center space-x-2">
+                          <User className="h-5 w-5 text-gray-400" />
+                          <span>
+                            Teilnehmer: {participantCount} {participantCount === 1 ? 'Mitarbeiter' : 'Mitarbeiter'}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   {canCreateTraining && (
                     <div className="flex space-x-2 ml-4">
                       <button
+                        onClick={() => handleManageDocuments(training)}
+                        className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-all duration-200 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20"
+                        title="Dokumente verwalten - Schulung wird automatisch als abgeschlossen markiert"
+                      >
+                        <FileText className="w-5 h-5" />
+                      </button>
+                      <button
                         onClick={() => handleEditTraining(training)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"
+                        className="p-2 text-gray-400 hover:text-primary dark:hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-800 rounded-full transition-all duration-200 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20"
+                        title="Schulung bearbeiten"
                       >
                         <Edit2 className="w-5 h-5" />
                       </button>
                       <button
                         onClick={() => handleDeleteTraining(training.ID)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-full"
+                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all duration-200 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20"
+                        title="Schulung löschen"
                       >
                         <Trash2 className="w-5 h-5" />
                       </button>
@@ -343,22 +781,98 @@ export default function Trainings() {
                 </div>
 
                 <div className="mt-4 space-y-2">
-                  {getTrainingSessions(training).map(session => {
+                  {sessions.map(session => {
                     const status = session.status as StatusType;
                     const StatusIcon = getStatusIcon(status);
                     return (
-                      <div key={session.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                        <div className="flex items-center space-x-2">
+                      <div key={session.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#181818] rounded-lg">
+                        <div className="flex items-center space-x-3">
                           <StatusIcon className={`w-5 h-5 ${getStatusColor(status)}`} />
-                          <span>{session.date.toLocaleDateString()}</span>
+                          <div>
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">
+                              {session.date.toLocaleDateString()}
+                            </span>
+                            {session.isAssigned && (
+                              <span className="ml-2 text-xs text-yellow-600 dark:text-yellow-400">
+                                (Zugewiesen)
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <span className={`text-sm ${getStatusColor(status)}`}>
-                          {status}
+                        <span className={`text-sm font-medium ${getStatusColor(status)}`}>
+                          {status === 'ausstehend' ? 'Ausstehend' : 
+                           status === 'abgeschlossen' ? 'Abgeschlossen' : status}
                         </span>
                       </div>
                     );
                   })}
                 </div>
+
+                {/* Replace the existing participants section with collapsible version */}
+                {(isHR || isAdmin || isSupervisor) && participants.length > 0 && (
+                  <div className="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+                    <div className="flex items-center justify-between">
+                      <button
+                        onClick={() => handleToggleParticipants(training.ID)}
+                        className="flex items-center space-x-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary"
+                      >
+                        <Users className="h-4 w-4" />
+                        <span>Teilnehmende Mitarbeiter ({participants.length})</span>
+                        {isExpanded ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleShowParticipantsModal(training)}
+                        className="text-sm text-primary hover:text-primary/80 dark:text-primary dark:hover:text-primary/80"
+                      >
+                        Alle anzeigen
+                      </button>
+                    </div>
+                    
+                    {/* Collapsible participants list */}
+                    {isExpanded && (
+                      <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                        {participants.slice(0, 6).map((participant) => (
+                          <div 
+                            key={participant.id}
+                            className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-md group"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <User className="h-4 w-4 text-gray-400" />
+                              <span className="text-sm text-gray-600 dark:text-gray-300">
+                                {participant.name}
+                              </span>
+                            </div>
+                            {/* Only show remove button for HR or Admin users */}
+                            {canRemoveParticipants && (
+                              <button
+                                onClick={() => handleRemoveParticipant(
+                                  participant.id, 
+                                  training.ID,
+                                  participant.name
+                                )}
+                                className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Teilnehmer entfernen"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        {participants.length > 6 && (
+                          <div className="flex items-center justify-center p-2 bg-gray-50 dark:bg-gray-800 rounded-md">
+                            <span className="text-sm text-gray-500 dark:text-gray-400">
+                              +{participants.length - 6} weitere
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -370,7 +884,7 @@ export default function Trainings() {
         <AddTrainingModal
           onClose={() => setShowAddModal(false)}
           onAdd={handleAddTraining}
-          userDepartment={isSupervisor ? employee.DepartmentID?.toString() : undefined}
+          userDepartment={employee.isSupervisor === 1 ? employee.DepartmentID?.toString() : undefined}
         />
       )}
 
@@ -379,7 +893,7 @@ export default function Trainings() {
         <AddTrainingModal
           onClose={() => setEditingTraining(null)}
           onAdd={handleUpdateTraining}
-          userDepartment={isSupervisor ? employee.DepartmentID?.toString() : undefined}
+          userDepartment={employee.isSupervisor === 1 ? employee.DepartmentID?.toString() : undefined}
           editingTraining={editingTraining}
         />
       )}
@@ -422,7 +936,7 @@ export default function Trainings() {
                     <ul className="mt-2 space-y-2 text-sm text-gray-500 dark:text-gray-400">
                       <li className="flex items-center">
                         <Clock className="h-4 w-4 mr-2" />
-                        Gültigkeitsdauer: {qualification.ValidityInMonth} Monate
+                        Gültigkeitsdauer: {qualification.ValidityInMonth >= 999 ? 'Läuft nie ab' : `${qualification.ValidityInMonth} Monate`}
                       </li>
                       <li className="flex items-center">
                         <AlertCircle className="h-4 w-4 mr-2" />
@@ -433,6 +947,98 @@ export default function Trainings() {
                 </div>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* Document Uploader Modal */}
+      {showDocumentUploader && selectedTrainingForDocs && (
+        <TrainingDocumentUploader
+          training={selectedTrainingForDocs}
+          onClose={() => {
+            setShowDocumentUploader(false);
+            setSelectedTrainingForDocs(null);
+          }}
+          onUpload={handleDocumentUpload}
+          onTrainingComplete={handleTrainingComplete}
+        />
+      )}
+
+      {/* Quick Training Modal */}
+      {showQuickModal && (
+        <QuickTrainingModal
+          onClose={() => setShowQuickModal(false)}
+          onAdd={handleAddTraining}
+          userDepartment={employee.isSupervisor === 1 ? employee.DepartmentID?.toString() : undefined}
+        />
+      )}
+
+      {/* Participants Modal */}
+      {showParticipantsModal && selectedTrainingForParticipants && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-2xl w-full m-4 max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                  Teilnehmende Mitarbeiter
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {selectedTrainingForParticipants.Name}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowParticipantsModal(false);
+                  setSelectedTrainingForParticipants(null);
+                }}
+                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="overflow-y-auto flex-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {getParticipantDetails(selectedTrainingForParticipants.ID).map((participant) => (
+                  <div 
+                    key={participant.id}
+                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-md group"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <User className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm text-gray-600 dark:text-gray-300">
+                        {participant.name}
+                      </span>
+                    </div>
+                    {/* Only show remove button for HR or Admin users */}
+                    {canRemoveParticipants && (
+                      <button
+                        onClick={() => handleRemoveParticipant(
+                          participant.id, 
+                          selectedTrainingForParticipants.ID,
+                          participant.name
+                        )}
+                        className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Teilnehmer entfernen"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Gesamt: {getParticipantDetails(selectedTrainingForParticipants.ID).length} Teilnehmer
+                </p>
+                <p className="text-xs text-gray-400 dark:text-gray-500">
+                  {canRemoveParticipants ? 'Hover über einen Teilnehmer zum Entfernen' : 'Nur HR und Administratoren können Teilnehmer entfernen'}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       )}

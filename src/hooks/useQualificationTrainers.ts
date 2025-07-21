@@ -1,8 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { qualificationTrainersApi } from '../services/apiClient';
 import type { QualificationTrainer } from '../types';
-
-const API_URL = 'http://localhost:5000/api/qualification-trainers';
 
 export function useQualificationTrainers(employeeId?: string) {
   const queryClient = useQueryClient();
@@ -10,15 +8,12 @@ export function useQualificationTrainers(employeeId?: string) {
   const { data, isLoading, error } = useQuery({
     queryKey: ['qualificationTrainers', employeeId],
     queryFn: async () => {
-      if (!employeeId) {
-        console.warn('No employeeId provided to useQualificationTrainers');
-        return [];
-      }
+      if (!employeeId) return [];
       
       console.log('Fetching qualification trainers for employee:', employeeId);
-      const response = await axios.get(`${API_URL}/employee/${employeeId}`);
-      console.log('API Response:', response.data);
-      return response.data as QualificationTrainer[];
+      const data = await qualificationTrainersApi.get<QualificationTrainer[]>(`/employee/${employeeId}`);
+      console.log('API Response:', data);
+      return data as QualificationTrainer[];
     },
     enabled: !!employeeId
   });
@@ -28,14 +23,17 @@ export function useQualificationTrainers(employeeId?: string) {
       if (!employeeId) {
         throw new Error('Employee ID is required');
       }
-      const response = await axios.post(API_URL, {
+      return await qualificationTrainersApi.post<any>('/', {
         employeeId,
         qualificationId
       });
-      return response.data;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['qualificationTrainers', variables.employeeId] });
+      // Invalidate all trainer-related queries
+      queryClient.invalidateQueries({ queryKey: ['qualificationTrainers'] });
+      queryClient.invalidateQueries({ queryKey: ['allQualificationTrainers'] });
+      queryClient.invalidateQueries({ queryKey: ['qualificationTrainersByQualificationId'] });
+      queryClient.invalidateQueries({ queryKey: ['qualificationTrainersByIds'] });
     }
   });
 
@@ -44,15 +42,19 @@ export function useQualificationTrainers(employeeId?: string) {
       if (!employeeId) {
         throw new Error('Employee ID is required');
       }
-      await axios.delete(`${API_URL}/remove`, {
-        data: {
+      await qualificationTrainersApi.delete<any>('/remove', {
+        body: {
           employeeId,
           qualificationId
         }
       });
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['qualificationTrainers', variables.employeeId] });
+      // Invalidate all trainer-related queries
+      queryClient.invalidateQueries({ queryKey: ['qualificationTrainers'] });
+      queryClient.invalidateQueries({ queryKey: ['allQualificationTrainers'] });
+      queryClient.invalidateQueries({ queryKey: ['qualificationTrainersByQualificationId'] });
+      queryClient.invalidateQueries({ queryKey: ['qualificationTrainersByIds'] });
     }
   });
 
@@ -67,25 +69,64 @@ export function useQualificationTrainers(employeeId?: string) {
 
 export function useQualificationTrainersByIds(qualificationTrainerIds: number[]) {
   return useQuery<Record<number, QualificationTrainer>>({
-    queryKey: ['qualificationTrainersByIds', qualificationTrainerIds],
+    queryKey: ['qualificationTrainersByIds', qualificationTrainerIds.sort().join(',')],
     queryFn: async () => {
       if (!qualificationTrainerIds.length) return {};
       
+      try {
+        // Fetch ALL qualification trainers in a single API call instead of one per ID
+        const allTrainers = await qualificationTrainersApi.get<QualificationTrainer[]>('/');
+        
+        // Filter and map the data to only include requested IDs
       const trainers: Record<number, QualificationTrainer> = {};
-      await Promise.all(
-        qualificationTrainerIds.map(async (id) => {
-          try {
-            const response = await fetch(`http://localhost:5000/api/qualification-trainers/${id}`);
-            if (!response.ok) throw new Error(`Failed to fetch qualification trainer for ID ${id}`);
-            const data = await response.json();
-            trainers[id] = data;
+        if (Array.isArray(allTrainers)) {
+          allTrainers.forEach(trainer => {
+            if (qualificationTrainerIds.includes(trainer.ID)) {
+              trainers[trainer.ID] = trainer;
+            }
+          });
+        }
+        
+        return trainers;
           } catch (error) {
-            console.error(`Error fetching qualification trainer for ID ${id}:`, error);
-          }
-        })
-      );
-      return trainers;
+        console.error('Error fetching qualification trainers:', error);
+        throw error;
+      }
     },
-    enabled: qualificationTrainerIds.length > 0
+    enabled: qualificationTrainerIds.length > 0,
+    staleTime: 0, // Daten sind sofort veraltet und werden bei jedem Aufruf neu geladen
+    refetchOnWindowFocus: true, // Daten werden neu geladen wenn das Fenster den Fokus erhält
+    refetchOnMount: true, // Daten werden neu geladen wenn die Komponente gemountet wird
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
-} 
+}
+
+// Hook to get all qualification trainers (replaces direct API calls in modals)
+export function useAllQualificationTrainers() {
+  return useQuery<QualificationTrainer[]>({
+    queryKey: ['allQualificationTrainers'],
+    queryFn: async () => {
+      return await qualificationTrainersApi.get<QualificationTrainer[]>('/');
+    },
+    staleTime: 0, // Daten sind sofort veraltet und werden bei jedem Aufruf neu geladen
+    refetchOnWindowFocus: true, // Daten werden neu geladen wenn das Fenster den Fokus erhält
+    refetchOnMount: true, // Daten werden neu geladen wenn die Komponente gemountet wird
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+  });
+}
+
+// Hook to get trainers for a specific qualification
+export function useQualificationTrainersByQualificationId(qualificationId: number | string | undefined) {
+  return useQuery<QualificationTrainer[]>({
+    queryKey: ['qualificationTrainersByQualificationId', qualificationId],
+    queryFn: async () => {
+      if (!qualificationId) return [];
+      return await qualificationTrainersApi.get<QualificationTrainer[]>(`/qualification/${qualificationId}`);
+    },
+    enabled: !!qualificationId,
+    staleTime: 0, // Daten sind sofort veraltet und werden bei jedem Aufruf neu geladen
+    refetchOnWindowFocus: true, // Daten werden neu geladen wenn das Fenster den Fokus erhält
+    refetchOnMount: true, // Daten werden neu geladen wenn die Komponente gemountet wird
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+  });
+}

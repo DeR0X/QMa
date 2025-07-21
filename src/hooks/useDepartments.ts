@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import apiClient from '../services/apiClient';
 
 interface Department {
   ID: number;
@@ -12,35 +13,16 @@ interface DepartmentsParams {
   sortOrder?: 'asc' | 'desc';
 }
 
-const API_BASE_URL = 'http://localhost:5000/api';
-
 async function fetchDepartments(params: DepartmentsParams = {}): Promise<Department[]> {
   const queryParams = new URLSearchParams();
   if (params.sortBy) queryParams.append('sortBy', params.sortBy);
   if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
 
   const queryString = queryParams.toString();
-  const url = `${API_BASE_URL}/viewDepartments${queryString ? `?${queryString}` : ''}`;
+  const endpoint = `/viewDepartments${queryString ? `?${queryString}` : ''}`;
 
   try {
-    const response = await fetch(url, {
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch departments: ${response.status} ${response.statusText}`);
-    }
-
-    // Ensure we're getting JSON
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      throw new Error(`Expected JSON response but got ${contentType}`);
-    }
-
-    const data = await response.json();
+    const data = await apiClient.get<Department[]>(endpoint);
     return Array.isArray(data) ? data : [data];
   } catch (error) {
     console.error('Error fetching departments:', error);

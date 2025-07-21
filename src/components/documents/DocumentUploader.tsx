@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Upload, X, FileText } from 'lucide-react';
 import { toast } from 'sonner';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 
 interface DocumentUploaderProps {
   trainingId: string;
@@ -12,6 +13,9 @@ export default function DocumentUploader({ trainingId, onClose, onUpload }: Docu
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [description, setDescription] = useState('');
   const [isDragging, setIsDragging] = useState(false);
+
+  // Prevent background scrolling when modal is open
+  useBodyScrollLock(true);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();

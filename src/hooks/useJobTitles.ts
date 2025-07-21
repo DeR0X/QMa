@@ -1,13 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEmployees } from './useEmployees';
 import type { JobTitle } from '../types';
+import apiClient from '../services/apiClient';
 
 interface JobTitlesParams {
   sortBy?: 'id' | 'jobTitle' | 'description';
   sortOrder?: 'asc' | 'desc';
 }
-
-const API_BASE_URL = 'http://localhost:5000/api';
 
 // Central store for job titles data
 let jobTitlesStore: {
@@ -34,21 +33,10 @@ async function fetchJobTitles(params: JobTitlesParams = {}): Promise<JobTitle[]>
   if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
 
   const queryString = queryParams.toString();
-  const url = `${API_BASE_URL}/job-titles${queryString ? `?${queryString}` : ''}`;
+  const endpoint = `/job-titles${queryString ? `?${queryString}` : ''}`;
   
   try {
-    const response = await fetch(url, {
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch job titles: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
+    const data = await apiClient.get<JobTitle[]>(endpoint);
     return Array.isArray(data) ? data : [data];
   } catch (error) {
     console.error('Error fetching job titles:', error);
@@ -69,18 +57,23 @@ export function useJobTitles(params: JobTitlesParams = {}) {
 
       // Try to extract from employee data first
       if (employeesData?.data) {
-        const uniqueJobTitles = Array.from(
-          new Set(
-            employeesData.data
-              .filter(emp => emp.JobTitleID && emp.JobTitle)
-              .map(emp => ({
-                id: emp.JobTitleID.toString(),
-                jobTitle: emp.JobTitle,
-                description: emp.JobTitle,
+        const jobTitlesMap = new Map();
+        employeesData.data
+          .filter(emp => emp.JobTitleID && emp.JobTitle)
+          .forEach(emp => {
+            const id = emp.JobTitleID.toString();
+            console.log(`Creating job title: ID=${id}, JobTitle="${emp.JobTitle}"`);
+            if (!jobTitlesMap.has(id)) {
+              jobTitlesMap.set(id, {
+                ID: id,
+                JobTitle: emp.JobTitle,
+                Description: emp.JobTitle,
                 qualificationIDs: [] // Initialize with empty array since we don't have this data from employees
-              }))
-          )
-        );
+              });
+            }
+          });
+        
+        const uniqueJobTitles = Array.from(jobTitlesMap.values());
 
         // If we found job titles in employee data, cache and use them
         if (uniqueJobTitles.length > 0) {

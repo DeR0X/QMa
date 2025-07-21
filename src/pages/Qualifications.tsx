@@ -14,6 +14,10 @@ import {
   Star,
   Users,
   Trash2,
+  Link,
+  AlertTriangle,
+  Lock,
+  Eye,
 } from "lucide-react";
 import { RootState } from "../store";
 import { hasHRPermissions } from "../store/slices/authSlice";
@@ -26,7 +30,12 @@ import {
 } from "../hooks/useQualifications";
 import { useJobTitles } from "../hooks/useJobTitles";
 import { useAdditionalFunctions } from "../hooks/useAdditionalFunctions";
+import { useEmployeeQualifications } from "../hooks/useEmployeeQualifications";
+import { useTrainings } from "../hooks/useTrainings";
+import { useEmployees } from "../hooks/useEmployees";
 import type { Qualification } from "../services/qualificationsApi";
+import EmployeeDetails from "../components/employees/EmployeeDetails";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function Qualifications() {
   const { employee } = useSelector((state: RootState) => state.auth);
@@ -36,28 +45,129 @@ export default function Qualifications() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(
     null,
   );
+  const [selectedFilters, setSelectedFilters] = useState<Array<'Pflicht' | 'Job' | 'Zusatz'>>([]);
+  const [showAssignedEmployees, setShowAssignedEmployees] = useState<number | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
 
   const { data: qualifications, isLoading, error } = useQualifications();
   const { data: jobTitles, isLoading: isLoadingJobTitles } = useJobTitles();
   const { data: additionalFunctions, isLoading: isLoadingAdditionalFunctions } =
     useAdditionalFunctions();
+  const { data: allEmployeeQualifications } = useEmployeeQualifications();
+  const { data: allTrainings } = useTrainings();
+  const { data: employeesData } = useEmployees({ limit: 1000 });
 
   const createMutation = useCreateQualification();
   const updateMutation = useUpdateQualification();
   const deleteMutation = useDeleteQualification();
+  const queryClient = useQueryClient();
 
   const isHRAdmin = hasHRPermissions(employee);
   const isSupervisor = employee?.role === "supervisor";
 
+  // Function to get employees assigned to a qualification
+  const getAssignedEmployees = (qualificationId: number) => {
+    if (!allEmployeeQualifications || !Array.isArray(allEmployeeQualifications) || !employeesData?.data) {
+      return [];
+    }
+    
+    const assignedEmployeeIds = allEmployeeQualifications
+      .filter((eq: any) => 
+        eq && 
+        eq.QualificationID && 
+        eq.EmployeeID && 
+        eq.QualificationID.toString() === qualificationId.toString()
+      )
+      .map((eq: any) => eq.EmployeeID.toString());
+    
+    return employeesData.data.filter((emp: any) => 
+      assignedEmployeeIds.includes(emp.ID.toString())
+    );
+  };
+
+  // Function to check if a qualification is assigned to any employee
+  const isQualificationAssigned = (qualificationId: number) => {
+    if (!allEmployeeQualifications || !Array.isArray(allEmployeeQualifications)) {
+      return false;
+    }
+    
+    // Filter out any invalid entries and check for actual assignments
+    const validAssignments = allEmployeeQualifications.filter((eq: any) => 
+      eq && 
+      eq.QualificationID && 
+      eq.EmployeeID && 
+      eq.QualificationID.toString() === qualificationId.toString()
+    );
+    
+    return validAssignments.length > 0;
+  };
+
+  // Function to check if a qualification is used in any training
+  const isQualificationUsedInTraining = (qualificationId: number) => {
+    if (!allTrainings || !Array.isArray(allTrainings)) {
+      return false;
+    }
+    
+    return allTrainings.some((training: any) => 
+      training.qualificationID?.toString() === qualificationId.toString()
+    );
+  };
+
+  // Function to check if a qualification can be deleted
+  const canDeleteQualification = (qualification: Qualification) => {
+    // Pflichtqualifikationen können nie gelöscht werden
+    if (qualification.Herkunft === "Pflicht" || qualification.IsMandatory) {
+      return false;
+    }
+    
+    // Nur Zusatzqualifikationen die Mitarbeitern zugewiesen sind können nicht gelöscht werden
+    if (qualification.Herkunft === "Zusatz" && isQualificationAssigned(qualification.ID!)) {
+      return false;
+    }
+    
+    // Qualifikationen die in Trainings verwendet werden können nicht gelöscht werden
+    if (isQualificationUsedInTraining(qualification.ID!)) {
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Function to get deletion reason
+  const getDeletionReason = (qualification: Qualification) => {
+    if (qualification.Herkunft === "Pflicht" || qualification.IsMandatory) {
+      return "Pflichtqualifikationen können nicht gelöscht werden";
+    }
+    
+    if (qualification.Herkunft === "Zusatz" && isQualificationAssigned(qualification.ID!)) {
+      return "Diese Zusatzqualifikation ist Mitarbeitern zugewiesen und kann nicht gelöscht werden";
+    }
+    
+    if (isQualificationUsedInTraining(qualification.ID!)) {
+      return "Diese Qualifikation wird in Trainings verwendet und kann nicht gelöscht werden";
+    }
+    
+    return "";
+  };
+
   if (!isHRAdmin && !isSupervisor) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-4rem)] p-4">
-        <p className="text-lg text-gray-500 dark:text-gray-400">
-          Sie haben keine Berechtigung, diese Seite zu sehen.
-        </p>
+      <div className="bg-white dark:bg-[#181818] rounded-lg shadow p-6">
+        <div className="flex flex-col items-center justify-center h-64">
+          <AlertTriangle className="h-12 w-12 text-red-500 mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+            Zugriff verweigert
+          </h2>
+          <p className="text-gray-500 dark:text-gray-400">
+            Sie haben keine Berechtigung, diese Seite aufzurufen.
+          </p>
+        </div>
       </div>
     );
   }
+
+  
+
 
   if (isLoading || isLoadingJobTitles || isLoadingAdditionalFunctions) {
     return (
@@ -77,18 +187,36 @@ export default function Qualifications() {
     );
   }
 
-  const filteredQualifications =
-    qualifications?.filter(
-      (qual) =>
-        qual.Name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        qual.Description.toLowerCase().includes(searchTerm.toLowerCase()),
-    ) || [];
+  const filteredQualifications = qualifications?.filter(qual => {
+    const searchTermLower = searchTerm.toLowerCase();
+    const matchesSearch = qual.Name.toLowerCase().includes(searchTermLower) ||
+                         qual.Description.toLowerCase().includes(searchTermLower);
+    
+    // Wenn keine Filter ausgewählt sind, zeige alle an
+    if (selectedFilters.length === 0) {
+      return matchesSearch;
+    }
+    
+    // Filtere nach ausgewählten Typen
+    return matchesSearch && selectedFilters.includes(qual.Herkunft);
+  }) || [];
+
+  // Dedupliziere Qualifikationen basierend auf ID
+  const uniqueQualifications = filteredQualifications.reduce((acc, current) => {
+    const existingIndex = acc.findIndex(item => item.ID === current.ID);
+    if (existingIndex === -1) {
+      acc.push(current);
+    } else {
+      // Wenn eine Duplikat gefunden wird, behalte die neueste (basierend auf Name/Description)
+    }
+    return acc;
+  }, [] as typeof filteredQualifications);
 
   const getAssignmentInfo = (qualification: Qualification) => {
     switch (qualification.Herkunft) {
       case "Pflicht":
         return {
-          type: "mandatory",
+          type: "Pflicht",
           label: "Pflichtqualifikation",
           description: "Erforderlich für alle Mitarbeiter",
           icon: AlertCircle,
@@ -96,7 +224,7 @@ export default function Qualifications() {
         };
       case "Job":
         return {
-          type: "jobTitle",
+          type: "Job",
           label: "Positionsqualifikation",
           description: "An eine Position gebunden",
           icon: Briefcase,
@@ -105,7 +233,7 @@ export default function Qualifications() {
         };
       case "Zusatz":
         return {
-          type: "additionalFunction",
+          type: "Zusatz",
           label: "Zusatzqualifikation",
           description: "Zusätzliche Qualifikation",
           icon: Star,
@@ -139,10 +267,21 @@ export default function Qualifications() {
     if (!qualification.ID) return;
 
     try {
+      // Für Zusatzqualifikationen: Stelle sicher, dass nur die geänderten Zusatzfunktionen gesendet werden
+      if (qualification.Herkunft === "Zusatz") {
+        // Processing Zusatz qualification update
+      }
+      
       await updateMutation.mutateAsync({
         id: qualification.ID,
         data: qualification,
       });
+      
+      // Invalidate relevant queries to refresh the data
+      queryClient.invalidateQueries({ queryKey: ['qualifications'] });
+      queryClient.invalidateQueries({ queryKey: ['employeeQualifications'] });
+      queryClient.invalidateQueries({ queryKey: ['employeeSkills'] });
+      
       setEditingQual(null);
     } catch (error) {
       // Error handling is done in the mutation
@@ -173,7 +312,7 @@ export default function Qualifications() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <button
             onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700 transition-colors duration-200"
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#2a2a2a] dark:border-gray-700 transition-all duration-200 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20"
           >
             <Plus className="h-5 w-5 mr-2" />
             Neue Qualifikation
@@ -196,17 +335,84 @@ export default function Qualifications() {
                 className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
               />
             </div>
+
+            {/* Filter Options */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => {
+                  setSelectedFilters(prev => 
+                    prev.includes('Pflicht') 
+                      ? prev.filter(f => f !== 'Pflicht')
+                      : [...prev, 'Pflicht']
+                  );
+                }}
+                className={`inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium transition-all duration-200 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20
+                  ${selectedFilters.includes('Pflicht')
+                    ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-300 dark:border-red-700'
+                    : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                  }`}
+              >
+                <AlertCircle className="h-4 w-4 mr-1.5" />
+                Pflichtqualifikationen
+              </button>
+
+              <button
+                onClick={() => {
+                  setSelectedFilters(prev => 
+                    prev.includes('Job') 
+                      ? prev.filter(f => f !== 'Job')
+                      : [...prev, 'Job']
+                  );
+                }}
+                className={`inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium transition-all duration-200 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20
+                  ${selectedFilters.includes('Job')
+                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700'
+                    : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                  }`}
+              >
+                <Briefcase className="h-4 w-4 mr-1.5" />
+                Positionsqualifikationen
+              </button>
+
+              <button
+                onClick={() => {
+                  setSelectedFilters(prev => 
+                    prev.includes('Zusatz') 
+                      ? prev.filter(f => f !== 'Zusatz')
+                      : [...prev, 'Zusatz']
+                  );
+                }}
+                className={`inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium transition-all duration-200 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20
+                  ${selectedFilters.includes('Zusatz')
+                    ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-700'
+                    : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                  }`}
+              >
+                <Star className="h-4 w-4 mr-1.5" />
+                Zusatzfunktionen
+              </button>
+
+              {selectedFilters.length > 0 && (
+                <button
+                  onClick={() => setSelectedFilters([])}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20"
+                >
+                  <X className="h-4 w-4 mr-1.5" />
+                  Filter zurücksetzen
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Qualifications List */}
         <div className="grid grid-cols-1 gap-6 p-4 sm:p-6">
-          {filteredQualifications.map((qualification) => {
+          {uniqueQualifications.map((qualification, index) => {
             const assignmentInfo = getAssignmentInfo(qualification);
 
             return (
               <div
-                key={qualification.ID}
+                key={`${qualification.ID}-${index}`}
                 className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 p-6 group"
               >
                 <div className="flex flex-col gap-4">
@@ -224,13 +430,30 @@ export default function Qualifications() {
                             <Edit2 className="h-5 w-5" />
                           </button>
                           <button
-                            onClick={() =>
-                              qualification.ID &&
-                              setShowDeleteConfirm(qualification.ID)
-                            }
-                            className="text-red-400 hover:text-red-500 dark:hover:text-red-300">
+                            onClick={() => {
+                              if (canDeleteQualification(qualification) && qualification.ID) {
+                                setShowDeleteConfirm(qualification.ID);
+                              }
+                            }}
+                            disabled={!canDeleteQualification(qualification)}
+                            title={canDeleteQualification(qualification) ? "Qualifikation löschen" : getDeletionReason(qualification)}
+                            className={`transition-colors duration-200 ${
+                              canDeleteQualification(qualification)
+                                ? "text-red-400 hover:text-red-500 dark:hover:text-red-300 cursor-pointer"
+                                : "text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                            }`}
+                          >
                             <Trash2 className="h-5 w-5" />
                           </button>
+                          {qualification.Herkunft === "Zusatz" && isQualificationAssigned(qualification.ID!) && (
+                            <button
+                              onClick={() => setShowAssignedEmployees(qualification.ID!)}
+                              title="Zugewiesene Mitarbeiter anzeigen"
+                              className="text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 transition-colors duration-200"
+                            >
+                              <Eye className="h-5 w-5" />
+                            </button>
+                          )}
                         </div>
                       </div>
                       <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 break-words">
@@ -246,27 +469,47 @@ export default function Qualifications() {
                           {assignmentInfo.label}
                         </div>
 
-                        {/* Description Badge */}
-                        <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
-                          <Info className="h-4 w-4 mr-2" />
-                          {assignmentInfo.description}
+                        {/* Validity Period Badge */}
+                        <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+                          <Clock className="h-4 w-4 mr-2" />
+                          {qualification.ValidityInMonth >= 999 ? 'Läuft nie ab' :
+                           qualification.ValidityInMonth === 12 ? 'Jährlich' : 
+                           qualification.ValidityInMonth === 24 ? 'Zweijährlich' :
+                           qualification.ValidityInMonth === 36 ? 'Dreijährlich' :
+                           `${qualification.ValidityInMonth} Monate`}
                         </div>
 
-                        {/* Validity Period Badge */}
-                        <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300">
-                          <Clock className="h-4 w-4 mr-2" />
-                          Gültig für {qualification.ValidityInMonth} Monate
-                        </div>
-                        {qualification.Herkunft === "Job" && qualification.JobTitle && (
-                          <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
-                            <Briefcase className="h-4 w-4 mr-2" />
-                            Position: {qualification.JobTitle}
+                        {/* Mandatory Badge */}
+                        {qualification.IsMandatory && (
+                          <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300">
+                            <AlertCircle className="h-4 w-4 mr-2" />
+                            Pflichtqualifikation
                           </div>
                         )}
-                        {qualification.Herkunft === "Zusatz" && qualification.AdditionalSkillName && (
-                          <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300">
-                            <Star className="h-4 w-4 mr-2" />
-                            Zusatzfunktion: {qualification.AdditionalSkillName}
+
+                        {/* Job Title Badge */}
+                        {qualification.Herkunft === "Job" && qualification.JobTitle && (
+                          <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-300">
+                            <Briefcase className="h-4 w-4 mr-2" />
+                            {qualification.JobTitle}
+                          </div>
+                        )}
+
+                        {/* Additional Function Badges */}
+                        {qualification.Herkunft === "Zusatz" && qualification.AdditionalSkillNames && qualification.AdditionalSkillNames.length > 0 && (
+                          qualification.AdditionalSkillNames.map((skillName, index) => (
+                            <div key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300">
+                              <Star className="h-4 w-4 mr-2" />
+                              {skillName}
+                            </div>
+                          ))
+                        )}
+
+                        {/* Required Qualifications Badge */}
+                        {qualification.RequiredQualifications && qualification.RequiredQualifications.length > 0 && (
+                          <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300">
+                            <Link className="h-4 w-4 mr-2" />
+                            {qualification.RequiredQualifications.length} Voraussetzung{qualification.RequiredQualifications.length !== 1 ? 'en' : ''}
                           </div>
                         )}
                       </div>
@@ -277,14 +520,16 @@ export default function Qualifications() {
             );
           })}
 
-          {filteredQualifications.length === 0 && (
+          {uniqueQualifications.length === 0 && (
             <div className="text-center py-12">
               <Award className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
-                Keine Qualifikationen gefunden
+                {searchTerm ? "Keine Qualifikationen gefunden" : "Keine Qualifikationen vorhanden"}
               </h3>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Beginnen Sie damit, eine neue Qualifikation zu erstellen.
+                {searchTerm 
+                  ? "Versuchen Sie es mit einem anderen Suchbegriff."
+                  : "Beginnen Sie damit, eine neue Qualifikation zu erstellen."}
               </p>
             </div>
           )}
@@ -292,17 +537,29 @@ export default function Qualifications() {
       </div>
 
       {/* Add/Edit Modal */}
-      {(showAddModal || editingQual) && (
+      {showAddModal && (
         <QualificationForm
-          onSubmit={
-            editingQual ? handleEditQualification : handleAddQualification
-          }
-          initialData={editingQual}
-          onCancel={() => {
-            setShowAddModal(false);
-            setEditingQual(null);
-          }}
-          jobTitles={jobTitles || []}
+          onSubmit={handleAddQualification}
+          onCancel={() => setShowAddModal(false)}
+          jobTitles={jobTitles?.map(jt => ({
+            ID: jt.ID?.toString() || '',
+            JobTitle: jt.JobTitle || '',
+            description: jt.Description || null
+          })) || []}
+          additionalFunctions={additionalFunctions || []}
+        />
+      )}
+
+      {editingQual && (
+        <EditQualificationModal
+          qualification={editingQual}
+          onSubmit={handleEditQualification}
+          onCancel={() => setEditingQual(null)}
+          jobTitles={jobTitles?.map(jt => ({
+            ID: jt.ID?.toString() || '',
+            JobTitle: jt.JobTitle || '',
+            description: jt.Description || null
+          })) || []}
           additionalFunctions={additionalFunctions || []}
         />
       )}
@@ -335,6 +592,113 @@ export default function Qualifications() {
           </div>
         </div>
       )}
+
+      {/* Assigned Employees Modal */}
+      {showAssignedEmployees && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-hidden">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                Zugewiesene Mitarbeiter
+              </h3>
+              <button
+                onClick={() => setShowAssignedEmployees(null)}
+                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            {(() => {
+              const qualification = qualifications?.find(q => q.ID === showAssignedEmployees);
+              const assignedEmployees = getAssignedEmployees(showAssignedEmployees);
+              
+              return (
+                <div>
+                  <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">
+                      {qualification?.Name}
+                    </h4>
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      Diese Zusatzqualifikation ist {assignedEmployees.length} Mitarbeiter{assignedEmployees.length !== 1 ? 'n' : ''} zugewiesen und kann daher nicht gelöscht werden.
+                    </p>
+                  </div>
+                  
+                  <div className="max-h-[60vh] overflow-y-auto">
+                    {assignedEmployees.length > 0 ? (
+                      <div className="space-y-3">
+                        {assignedEmployees.map((emp: any) => (
+                          <div
+                            key={emp.ID}
+                            className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-200"
+                            onClick={() => setSelectedEmployee(emp)}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                                <Users className="h-4 w-4 text-primary" />
+                              </div>
+                              <div>
+                                <p className="font-medium text-gray-900 dark:text-white">
+                                  {emp.FullName || `${emp.FirstName} ${emp.LastName}`}
+                                </p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                  {emp.StaffNumber || emp.ID} • {emp.Department || 'Keine Abteilung'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              {emp.JobTitle || 'Keine Position'}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <Users className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                        <p className="text-gray-500 dark:text-gray-400">
+                          Keine Mitarbeiter zugewiesen
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="mt-6 flex justify-end">
+                    <button
+                      onClick={() => setShowAssignedEmployees(null)}
+                      className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                    >
+                      Schließen
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* Employee Details Modal */}
+      {selectedEmployee && (
+        <EmployeeDetails
+          employee={selectedEmployee}
+          onClose={() => setSelectedEmployee(null)}
+          onUpdate={(data) => {
+            // Update employee data if needed
+            // Invalidate queries to refresh the assigned employees list
+            if (showAssignedEmployees) {
+              // Invalidate and refetch relevant queries
+              queryClient.invalidateQueries({ queryKey: ['employeeQualifications'] });
+              queryClient.invalidateQueries({ queryKey: ['employeeSkills'] });
+              queryClient.invalidateQueries({ queryKey: ['employees'] });
+              queryClient.invalidateQueries({ queryKey: ['qualifications'] });
+            }
+          }}
+          approvals={[]}
+          trainings={[]}
+          handleApproveTraining={() => {}}
+          handleRejectTraining={() => {}}
+        />
+      )}
     </div>
   );
 }
@@ -343,7 +707,7 @@ interface QualificationFormProps {
   onSubmit: (data: any) => void;
   onCancel: () => void;
   initialData?: Qualification | null;
-  jobTitles: Array<{ id: string; obTitle: string; description: string | null }>;
+  jobTitles: Array<{ ID: string; JobTitle: string; description: string | null }>;
   additionalFunctions: Array<{ ID?: number; Name: string; Description: string }>;
 }
 
@@ -363,15 +727,17 @@ function QualificationForm({
     IsMandatory: initialData?.IsMandatory || false,
     AssignmentType:
       initialData?.Herkunft === "Pflicht"
-        ? "mandatory"
+        ? "Pflicht"
         : initialData?.Herkunft === "Job"
-          ? "jobTitle"
-          : initialData?.Herkunft === "Zusatz"
-            ? "additionalFunction"
-            : "jobTitle",
+          ? "Job" : "Zusatz",
     JobTitleID: initialData?.JobTitleID ? initialData.JobTitleID[0] : "",
-    AdditionalFunctionID: initialData?.AdditionalSkillID?.toString() || "",
+    AdditionalFunctionIDs: initialData?.AdditionalSkillID ? [initialData.AdditionalSkillID.toString()] : [],
   });
+
+  // Separate state for input value to handle the number input properly
+  const [inputValue, setInputValue] = useState(
+    initialData?.ValidityInMonth === 999 ? "" : (initialData?.ValidityInMonth || 12).toString()
+  );
 
   // Pre-select values when editing
   useEffect(() => {
@@ -382,17 +748,39 @@ function QualificationForm({
         AdditionalFunctionID: initialData.AdditionalSkillID?.toString() || "",
         AssignmentType:
           initialData.Herkunft === "Pflicht"
-            ? "mandatory"
+            ? "Pflicht"
             : initialData.Herkunft === "Job"
-              ? "jobTitle"
-              : "additionalFunction",
+              ? "Job"
+              : "Zusatz",
       }));
+      setInputValue(initialData.ValidityInMonth === 999 ? "" : initialData.ValidityInMonth.toString());
     }
   }, [initialData]);
 
+  // Handle checkbox change
+  const handleNeverExpiresChange = (checked: boolean) => {
+    if (checked) {
+      setFormData(prev => ({ ...prev, ValidityInMonth: 999 }));
+      setInputValue("");
+    } else {
+      const newValue = parseInt(inputValue) || 12;
+      setFormData(prev => ({ ...prev, ValidityInMonth: newValue }));
+      setInputValue(newValue.toString());
+    }
+  };
+
+  // Handle input change
+  const handleInputChange = (value: string) => {
+    setInputValue(value);
+    const numValue = parseInt(value);
+    if (!isNaN(numValue) && numValue > 0) {
+      setFormData(prev => ({ ...prev, ValidityInMonth: numValue }));
+    }
+  };
+
   const isStepComplete = (step: number) => {
     const newErrors: Record<string, string> = {};
-
+    
     switch (step) {
       case 1:
         if (!formData.Name.trim()) newErrors.name = "Name ist erforderlich";
@@ -401,25 +789,31 @@ function QualificationForm({
         break;
 
       case 2:
-        if (formData.ValidityInMonth <= 0) {
+        if (formData.ValidityInMonth === 999) {
+          // "Läuft nie ab" ist gültig
+          break;
+        }
+        if (!inputValue.trim()) {
+          newErrors.validityPeriod = "Gültigkeitsdauer ist erforderlich";
+        } else if (formData.ValidityInMonth <= 0) {
           newErrors.validityPeriod = "Gültigkeitsdauer muss größer als 0 sein";
         }
         break;
 
       case 3:
         switch (formData.AssignmentType) {
-          case "jobTitle":
+          case "Job":
             if (!formData.JobTitleID) {
               newErrors.jobTitles = "Eine Position muss ausgewählt werden";
             }
             break;
-          case "additionalFunction":
-            if (!formData.AdditionalFunctionID) {
+          case "Zusatz":
+            if (formData.AdditionalFunctionIDs.length === 0) {
               newErrors.additionalFunction =
-                "Eine Zusatzfunktion muss ausgewählt werden";
+                "Mindestens eine Zusatzfunktion muss ausgewählt werden";
             }
             break;
-          case "mandatory":
+          case "Pflicht":
             break;
         }
         break;
@@ -430,21 +824,58 @@ function QualificationForm({
 
   const canProceed = isStepComplete(activeStep);
 
+  // Check if all required fields are filled for final submission
+  const canSubmit = () => {
+    // Check basic required fields
+    if (!formData.Name.trim()) return false;
+    if (!formData.Description.trim()) return false;
+    
+    // Check validity period
+    if (formData.ValidityInMonth === 999) {
+      // "Läuft nie ab" is valid
+    } else if (!inputValue.trim() || formData.ValidityInMonth <= 0) {
+      return false;
+    }
+    
+    // Check assignment type requirements
+    switch (formData.AssignmentType) {
+      case "Job":
+        if (!formData.JobTitleID) return false;
+        break;
+      case "Zusatz":
+        if (formData.AdditionalFunctionIDs.length === 0) return false;
+        break;
+      case "Pflicht":
+        break;
+    }
+    
+    return true;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (activeStep === 3) {
+      // Final validation before submission
+      if (!canSubmit()) {
+        toast.error("Bitte füllen Sie alle erforderlichen Felder aus");
+        return;
+      }
+      
       const submitData = {
         ...formData,
+        // Set IsMandatory based on AssignmentType
+        IsMandatory: formData.AssignmentType === "Pflicht",
         // Convert single IDs to arrays for API compatibility
         JobTitleIDs:
-          formData.AssignmentType === "jobTitle" && formData.JobTitleID
+          formData.AssignmentType === "Job" && formData.JobTitleID
             ? [formData.JobTitleID]
             : [],
         AdditionalFunctionIDs:
-          formData.AssignmentType === "additionalFunction" &&
-          formData.AdditionalFunctionID
-            ? [formData.AdditionalFunctionID]
+          formData.AssignmentType === "Zusatz"
+            ? formData.AdditionalFunctionIDs
             : [],
+        // Set Herkunft based on AssignmentType
+        Herkunft: formData.AssignmentType as 'Pflicht' | 'Job' | 'Zusatz'
       };
       onSubmit(submitData);
     } else {
@@ -495,27 +926,41 @@ function QualificationForm({
         return (
           <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Gültigkeitsdauer (Monate)
+              <label htmlFor="validity" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Gültigkeitsdauer
               </label>
-              <div className="mt-2 relative">
-                <input
-                  type="number"
-                  required
-                  min="1"
-                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white"
-                  value={formData.ValidityInMonth}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      ValidityInMonth: parseInt(e.target.value) || 0,
-                    })
-                  }
-                />
-                <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                  Die Qualifikation muss nach {formData.ValidityInMonth} Monaten
-                  erneuert werden.
+              <div className="mt-2 flex gap-4">
+                <div className="flex-1">
+                  <input
+                    type="number"
+                    id="validity"
+                    min="1"
+                    disabled={formData.ValidityInMonth === 999}
+                    value={inputValue}
+                    onChange={(e) => handleInputChange(e.target.value)}
+                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#1a1a1a] dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-500"
+                    placeholder="z.B. 12"
+                  />
                 </div>
+                <div className="flex items-center">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.ValidityInMonth === 999}
+                      onChange={(e) => handleNeverExpiresChange(e.target.checked)}
+                      className="rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                      Läuft nie ab
+                    </span>
+                  </label>
+                </div>
+              </div>
+              <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                {formData.ValidityInMonth === 999 
+                  ? "Diese Qualifikation läuft nie ab und muss nicht erneuert werden."
+                  : `Die Qualifikation muss nach ${formData.ValidityInMonth} Monaten erneuert werden.`
+                }
               </div>
             </div>
 
@@ -532,6 +977,9 @@ function QualificationForm({
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   • Grundlegende Qualifikationen: 36 Monate
+                </p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  • Dauerhafte Qualifikationen: Läuft nie ab
                 </p>
               </div>
             </div>
@@ -552,25 +1000,25 @@ function QualificationForm({
                   onClick={() =>
                     setFormData({
                       ...formData,
-                      AssignmentType: "jobTitle",
-                      AdditionalFunctionID: "", // Clear other selection
+                      AssignmentType: "Job",
+                      AdditionalFunctionIDs: [], // Clear other selection
                     })
                   }
                   className={`p-4 rounded-lg border ${
-                    formData.AssignmentType === "jobTitle"
+                    formData.AssignmentType === "Job"
                       ? "border-primary bg-primary/5 dark:bg-primary/10"
                       : "border-gray-200 dark:border-gray-700"
                   } text-left`}
                 >
                   <Briefcase
                     className={`h-6 w-6 mb-2 ${
-                      formData.AssignmentType === "jobTitle"
+                      formData.AssignmentType === "Job"
                         ? "text-primary"
                         : "text-gray-400"
                     }`}
                   />
                   <h5 className="font-medium text-gray-900 dark:text-white">
-                    Jobtitel
+                    Position
                   </h5>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     An eine Position binden
@@ -582,19 +1030,19 @@ function QualificationForm({
                   onClick={() =>
                     setFormData({
                       ...formData,
-                      AssignmentType: "additionalFunction",
+                      AssignmentType: "Zusatz",
                       JobTitleID: "", // Clear other selection
                     })
                   }
                   className={`p-4 rounded-lg border ${
-                    formData.AssignmentType === "additionalFunction"
+                    formData.AssignmentType === "Zusatz"
                       ? "border-primary bg-primary/5 dark:bg-primary/10"
                       : "border-gray-200 dark:border-gray-700"
                   } text-left`}
                 >
                   <Star
                     className={`h-6 w-6 mb-2 ${
-                      formData.AssignmentType === "additionalFunction"
+                      formData.AssignmentType === "Zusatz"
                         ? "text-primary"
                         : "text-gray-400"
                     }`}
@@ -612,20 +1060,20 @@ function QualificationForm({
                   onClick={() =>
                     setFormData({
                       ...formData,
-                      AssignmentType: "mandatory",
+                      AssignmentType: "Pflicht",
                       JobTitleID: "", // Clear other selections
-                      AdditionalFunctionID: "",
+                      AdditionalFunctionIDs: [],
                     })
                   }
                   className={`p-4 rounded-lg border ${
-                    formData.AssignmentType === "mandatory"
+                    formData.AssignmentType === "Pflicht"
                       ? "border-primary bg-primary/5 dark:bg-primary/10"
                       : "border-gray-200 dark:border-gray-700"
                   } text-left`}
                 >
                   <AlertCircle
                     className={`h-6 w-6 mb-2 ${
-                      formData.AssignmentType === "mandatory"
+                      formData.AssignmentType === "Pflicht"
                         ? "text-primary"
                         : "text-gray-400"
                     }`}
@@ -640,7 +1088,7 @@ function QualificationForm({
               </div>
             </div>
 
-            {formData.AssignmentType === "jobTitle" && jobTitles && (
+            {formData.AssignmentType === "Job" && jobTitles && (
               <div className="space-y-4">
                 <h5 className="text-sm font-medium text-gray-900 dark:text-white">
                   Position auswählen
@@ -648,18 +1096,18 @@ function QualificationForm({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {jobTitles.map((jobTitle) => (
                     <label
-                      key={jobTitle.id}
+                      key={jobTitle.ID}
                       className={`p-4 rounded-lg border ${
-                        formData.JobTitleID === jobTitle.id
+                        formData.JobTitleID === jobTitle.ID
                           ? "border-primary bg-primary/5 dark:bg-primary/10"
                           : "border-gray-200 dark:border-gray-700"
                       } flex items-start space-x-3 cursor-pointer`}
                     >
                       <input
                         type="radio"
-                        name="jobTitle"
-                        value={jobTitle.id}
-                        checked={formData.JobTitleID === jobTitle.id}
+                        name="Job"
+                        value={jobTitle.ID}
+                        checked={formData.JobTitleID === jobTitle.ID}
                         onChange={(e) =>
                           setFormData({
                             ...formData,
@@ -679,7 +1127,7 @@ function QualificationForm({
               </div>
             )}
 
-            {formData.AssignmentType === "additionalFunction" &&
+            {formData.AssignmentType === "Zusatz" &&
               additionalFunctions && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-1 gap-4">
@@ -689,26 +1137,32 @@ function QualificationForm({
                           <label
                             key={func.ID}
                             className={`p-4 rounded-lg border ${
-                              formData.AdditionalFunctionID ===
-                              func.ID.toString()
+                              formData.AdditionalFunctionIDs.includes(
+                                func.ID?.toString() || ""
+                              )
                                 ? "border-primary bg-primary/5 dark:bg-primary/10"
                                 : "border-gray-200 dark:border-gray-700"
                             } flex items-start space-x-3 cursor-pointer`}
                           >
                             <input
-                              type="radio"
-                              name="additionalFunction"
-                              value={func.ID.toString()}
+                              type="checkbox"
+                              value={func.ID?.toString() || ""}
                               checked={
-                                formData.AdditionalFunctionID ===
-                                func.ID.toString()
+                                formData.AdditionalFunctionIDs.includes(
+                                  func.ID?.toString() || ""
+                                )
                               }
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  AdditionalFunctionID: e.target.value,
-                                })
-                              }
+                              onChange={(e) => {
+                                const funcId = func.ID?.toString();
+                                if (funcId) {
+                                  setFormData({
+                                    ...formData,
+                                    AdditionalFunctionIDs: e.target.checked
+                                      ? [...formData.AdditionalFunctionIDs, funcId]
+                                      : formData.AdditionalFunctionIDs.filter(id => id !== funcId),
+                                  });
+                                }
+                              }}
                               className="rounded-full border-gray-300 text-primary focus:ring-primary"
                             />
                             <div>
@@ -726,7 +1180,7 @@ function QualificationForm({
                 </div>
               )}
 
-            {formData.AssignmentType === "mandatory" && (
+            {formData.AssignmentType === "Pflicht" && (
               <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-900/50 rounded-lg p-4">
                 <div className="flex">
                   <AlertCircle className="h-5 w-5 text-yellow-400 mr-2" />
@@ -832,7 +1286,7 @@ function QualificationForm({
               <button
                 type="submit"
                 disabled={!canProceed}
-                className="px-4 py-2 border bordertransparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#2a2a2a] dark:border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {activeStep < 3
                   ? "Weiter"
@@ -843,6 +1297,329 @@ function QualificationForm({
             </div>
           </form>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Neues EditQualificationModal für das Bearbeiten
+function EditQualificationModal({
+  qualification,
+  onSubmit,
+  onCancel,
+  jobTitles,
+  additionalFunctions,
+}: {
+  qualification: Qualification;
+  onSubmit: (data: Qualification) => void;
+  onCancel: () => void;
+  jobTitles: Array<{ ID: string; JobTitle: string; description: string | null }>;
+  additionalFunctions: Array<{ ID?: number; Name: string; Description: string }>;
+}) {
+  const [formData, setFormData] = useState(() => {
+    // Finde die IDs basierend auf den Namen, falls AdditionalSkillIDs nicht verfügbar sind
+    let additionalSkillIDs: string[] = [];
+    
+    if (qualification.AdditionalSkillIDs && qualification.AdditionalSkillIDs.length > 0) {
+      // Verwende die IDs direkt, falls verfügbar
+      additionalSkillIDs = qualification.AdditionalSkillIDs.map(id => id.toString());
+    } else if (qualification.AdditionalSkillNames && qualification.AdditionalSkillNames.length > 0 && additionalFunctions.length > 0) {
+      // Finde die IDs basierend auf den Namen
+      additionalSkillIDs = additionalFunctions
+        .filter(func => func.ID && qualification.AdditionalSkillNames?.includes(func.Name))
+        .map(func => func.ID!.toString());
+    }
+    
+    return {
+      ID: qualification.ID,
+      Name: qualification.Name,
+      Description: qualification.Description,
+      ValidityInMonth: qualification.ValidityInMonth,
+      // Behalte die ursprünglichen Werte für AssignmentType und andere Felder
+      AssignmentType: qualification.Herkunft,
+      IsMandatory: qualification.IsMandatory,
+      JobTitleID: qualification.JobTitleID ? qualification.JobTitleID[0] : "",
+      AdditionalSkillIDs: additionalSkillIDs
+    };
+  });
+
+  // Separate state for input value to handle the number input properly
+  const [inputValue, setInputValue] = useState(
+    qualification.ValidityInMonth === 999 ? "" : qualification.ValidityInMonth.toString()
+  );
+
+  // Handle checkbox change
+  const handleNeverExpiresChange = (checked: boolean) => {
+    if (checked) {
+      setFormData(prev => ({ ...prev, ValidityInMonth: 999 }));
+      setInputValue("");
+    } else {
+      const newValue = parseInt(inputValue) || 12;
+      setFormData(prev => ({ ...prev, ValidityInMonth: newValue }));
+      setInputValue(newValue.toString());
+    }
+  };
+
+  // Handle input change
+  const handleInputChange = (value: string) => {
+    setInputValue(value);
+    const numValue = parseInt(value);
+    if (!isNaN(numValue) && numValue > 0) {
+      setFormData(prev => ({ ...prev, ValidityInMonth: numValue }));
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validation before submission
+    if (!formData.Name.trim()) {
+      toast.error("Name ist erforderlich");
+      return;
+    }
+    
+    if (!formData.Description.trim()) {
+      toast.error("Beschreibung ist erforderlich");
+      return;
+    }
+    
+    // Check validity period
+    if (formData.ValidityInMonth === 999) {
+      // "Läuft nie ab" is valid
+    } else if (!inputValue.trim() || formData.ValidityInMonth <= 0) {
+      toast.error("Gültigkeitsdauer ist erforderlich und muss größer als 0 sein");
+      return;
+    }
+    
+    // Validate job title for job qualifications
+    if (qualification.Herkunft === "Job" && !formData.JobTitleID) {
+      toast.error("Eine Position muss ausgewählt werden");
+      return;
+    }
+    
+    // Validate additional function for additional qualifications
+    if (qualification.Herkunft === "Zusatz" && formData.AdditionalSkillIDs.length === 0) {
+      toast.error("Mindestens eine Zusatzfunktion muss ausgewählt werden");
+      return;
+    }
+    
+    // Entferne doppelte IDs aus AdditionalFunctionIDs
+    const uniqueAdditionalFunctionIDs = qualification.Herkunft === "Zusatz" 
+      ? [...new Set(formData.AdditionalSkillIDs)]
+      : [];
+    
+    const updatedQualification = {
+      ...qualification, // Behalte alle ursprünglichen Werte
+      ...formData, // Überschreibe nur die bearbeiteten Felder
+      Herkunft: qualification.Herkunft, // Behalte den ursprünglichen AssignmentType
+      // Convert single IDs to arrays for API compatibility
+      JobTitleID: qualification.Herkunft === "Job" && formData.JobTitleID ? formData.JobTitleID : undefined,
+      AdditionalFunctionIDs: uniqueAdditionalFunctionIDs
+    };
+    
+    onSubmit(updatedQualification);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-[#121212] rounded-lg p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            Qualifikation bearbeiten
+          </h2>
+          <button
+            onClick={onCancel}
+            className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Name */}
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Name
+            </label>
+            <input
+              type="text"
+              id="name"
+              value={formData.Name}
+              onChange={(e) => setFormData(prev => ({ ...prev, Name: e.target.value }))}
+              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#1a1a1a] dark:text-white"
+              required
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Beschreibung
+            </label>
+            <textarea
+              id="description"
+              value={formData.Description}
+              onChange={(e) => setFormData(prev => ({ ...prev, Description: e.target.value }))}
+              rows={3}
+              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#1a1a1a] dark:text-white"
+            />
+          </div>
+
+          {/* Validity Period */}
+          <div>
+            <label htmlFor="validity" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Gültigkeitsdauer
+            </label>
+            <div className="mt-2 flex gap-4">
+              <div className="flex-1">
+                <input
+                  type="number"
+                  id="validity"
+                  min="1"
+                  disabled={formData.ValidityInMonth === 999}
+                  value={inputValue}
+                  onChange={(e) => handleInputChange(e.target.value)}
+                  className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#1a1a1a] dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-500"
+                  placeholder="z.B. 12"
+                />
+              </div>
+              <div className="flex items-center">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={formData.ValidityInMonth === 999}
+                    onChange={(e) => handleNeverExpiresChange(e.target.checked)}
+                    className="rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+                    Läuft nie ab
+                  </span>
+                </label>
+              </div>
+            </div>
+            <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              {formData.ValidityInMonth === 999 
+                ? "Diese Qualifikation läuft nie ab und muss nicht erneuert werden."
+                : `Die Qualifikation muss nach ${formData.ValidityInMonth} Monaten erneuert werden.`
+              }
+            </div>
+          </div>
+
+          {/* Job Title Selection for Job Qualifications */}
+          {qualification.Herkunft === "Job" && (
+            <div>
+              <label htmlFor="jobTitle" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Position
+              </label>
+              <select
+                id="jobTitle"
+                value={formData.JobTitleID}
+                onChange={(e) => setFormData(prev => ({ ...prev, JobTitleID: e.target.value }))}
+                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#1a1a1a] dark:text-white"
+                required
+              >
+                <option value="">Position auswählen</option>
+                {jobTitles.map((jobTitle) => (
+                  <option key={jobTitle.ID} value={jobTitle.ID}>
+                    {jobTitle.JobTitle}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Additional Function Selection for Additional Qualifications */}
+          {qualification.Herkunft === "Zusatz" && (
+            <div>
+              <label htmlFor="additionalFunction" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Zusatzfunktion
+              </label>
+              <div className="space-y-2">
+                {additionalFunctions.map((func) => (
+                  <label
+                    key={func.ID}
+                    className={`p-3 rounded-lg border ${
+                      formData.AdditionalSkillIDs.includes(func.ID?.toString() || "")
+                        ? "border-primary bg-primary/5 dark:bg-primary/10"
+                        : "border-gray-200 dark:border-gray-700"
+                    } flex items-start space-x-3 cursor-pointer`}
+                  >
+                    <input
+                      type="checkbox"
+                      value={func.ID?.toString() || ""}
+                      checked={formData.AdditionalSkillIDs.includes(func.ID?.toString() || "")}
+                      onChange={(e) => {
+                        const funcId = func.ID?.toString();
+                        if (funcId) {
+                          setFormData(prev => ({
+                            ...prev,
+                            AdditionalSkillIDs: e.target.checked
+                              ? [...prev.AdditionalSkillIDs, funcId]
+                              : prev.AdditionalSkillIDs.filter(id => id !== funcId),
+                          }));
+                        }
+                      }}
+                      className="rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {func.Name}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {func.Description}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Qualification Type Info */}
+          <div className="bg-gray-50 dark:bg-[#181818] rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center">
+              {qualification.Herkunft === "Job" && <Briefcase className="h-5 w-5 text-blue-500 mr-2" />}
+              {qualification.Herkunft === "Zusatz" && <Star className="h-5 w-5 text-purple-500 mr-2" />}
+              {qualification.Herkunft === "Pflicht" && <AlertCircle className="h-5 w-5 text-red-500 mr-2" />}
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                  {qualification.Herkunft === "Job" && "Positionsqualifikation"}
+                  {qualification.Herkunft === "Zusatz" && "Zusatzqualifikation"}
+                  {qualification.Herkunft === "Pflicht" && "Pflichtqualifikation"}
+                </h4>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {qualification.Herkunft === "Job" && "Diese Qualifikation ist an eine Position gebunden"}
+                  {qualification.Herkunft === "Zusatz" && "Diese Qualifikation ist eine zusätzliche Funktion"}
+                  {qualification.Herkunft === "Pflicht" && "Diese Qualifikation ist für alle Mitarbeiter verpflichtend"}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Submit Button */}
+          <div className="flex justify-end gap-4">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+            >
+              Abbrechen
+            </button>
+            <button
+              type="submit"
+              disabled={
+                !formData.Name.trim() || 
+                !formData.Description.trim() || 
+                (formData.ValidityInMonth !== 999 && (!inputValue.trim() || formData.ValidityInMonth <= 0)) ||
+                (qualification.Herkunft === "Job" && !formData.JobTitleID) ||
+                (qualification.Herkunft === "Zusatz" && formData.AdditionalSkillIDs.length === 0)
+              }
+                              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#2a2a2a] dark:border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Speichern
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

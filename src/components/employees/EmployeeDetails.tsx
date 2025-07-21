@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSelector } from "react-redux";
 import {
   Users,
@@ -27,10 +27,13 @@ import {
   Building2,
   AlertTriangle,
   Briefcase,
+  Trash2,
+  Search,
+  RefreshCw,
 } from "lucide-react";
 import { RootState } from "../../store";
 import { hasPermission } from "../../store/slices/authSlice";
-import type { Employee, Qualification, Training } from "../../types";
+import { Employee, Training } from "../../types";
 import { toast } from "sonner";
 import { formatDate, getLatestQualifications } from "../../lib/utils";
 import { useJobTitles } from "../../hooks/useJobTitles";
@@ -48,6 +51,16 @@ import { useGetEmployeeSkills } from "../../hooks/useEmployeeSkills";
 import { useTrainings } from "../../hooks/useTrainings";
 import { useQualificationTrainers } from '../../hooks/useQualificationTrainers';
 import type { Qualification as QualificationApi } from "../../services/qualificationsApi";
+import { useAssignEmployeeTraining, useDeleteEmployeeTraining } from "../../hooks/useEmployeeTrainings";
+import { useAdditionalFunctions } from "../../hooks/useAdditionalFunctions";
+import type { AdditionalSkill } from "../../services/additionalFunctionsApi";
+import EmployeeDocumentUploader from "../documents/EmployeeDocumentUploader";
+import { useEmployeeDocuments } from '../../hooks/useDocuments';
+import { useDocumentCategories } from '../../hooks/useDocumentCategories';
+import { useDocumentDownload } from '../../hooks/useDocuments';
+import { useDocumentInfo } from '../../hooks/useDocuments';
+import { useBodyScrollLock } from "../../hooks/useBodyScrollLock";
+import { API_BASE_URL } from '../../config/api';
 
 interface Props {
   employee: Employee;
@@ -71,7 +84,7 @@ export default function EmployeeDetails({
   handleRejectTraining,
 }: Props) {
   const [activeTab, setActiveTab] = useState<
-    "info" | "qualifications" | "trainings" | "documents" | "approvals" | "trainer"
+    "info" | "qualifications" | "additional-skills" | "trainings" | "documents" | "approvals" | "trainer"
   >("info");
   const [showPositionModal, setShowPositionModal] = useState(false);
   const [selectedTrainings, setSelectedTrainings] = useState<string[]>(
@@ -82,7 +95,15 @@ export default function EmployeeDetails({
   const { employee: currentEmployee } = useSelector(
     (state: RootState) => state.auth,
   );
-  const isHRAdmin = hasPermission(currentEmployee, 'hr');
+  const isHRAdmin = currentEmployee ? hasPermission(currentEmployee, 'hr') : false;
+  const isSupervisor = currentEmployee?.isSupervisor === 1;
+  const canManageEmployee = isHRAdmin || 
+    (isSupervisor && (
+      employee.SupervisorID?.toString() === currentEmployee?.StaffNumber?.toString() ||
+      employee.ID.toString() === currentEmployee?.ID.toString()
+    )) ||
+    hasPermission(currentEmployee, 'admin');
+  const canDeleteDocuments = isHRAdmin || hasPermission(currentEmployee, 'admin');
   const { data: jobTitlesData, isLoading: isLoadingJobTitles } = useJobTitles();
   const { data: departmentsData, isLoading: isLoadingDepartments } = useDepartments();
   const { data: trainingsData, isLoading: isLoadingTrainings } = useTrainings();
@@ -91,14 +112,41 @@ export default function EmployeeDetails({
   const {
     data: employeeQualificationsData,
     isLoading: isLoadingEmployeeQualifications,
+    refetch: refetchEmployeeQualifications,
   } = useEmployeeQualifications(employee.ID.toString());
   const addEmployeeQualification = useAddEmployeeQualification();
   const addEmployeeSkill = useAddEmployeeSkill();
   const deleteEmployeeSkill = useDeleteEmployeeSkill();
-  const { data: employeeSkills, isLoading: isLoadingSkills } = useGetEmployeeSkills(employee.ID.toString());
+  const { data: employeeSkills, isLoading: isLoadingSkills, refetch: refetchEmployeeSkills } = useGetEmployeeSkills(employee.ID.toString());
   const { data: trainerQualifications, addTrainer, removeTrainer } = useQualificationTrainers(employee.ID.toString());
   const [selectedQualificationTrainers, setSelectedQualificationTrainers] = useState<string[]>([]);
   const [canBeTrainer, setCanBeTrainer] = useState(false);
+  const [showAssignTrainingModal, setShowAssignTrainingModal] = useState(false);
+  const [showDocumentUploadModal, setShowDocumentUploadModal] = useState(false);
+  // Document filter and preview states
+  const [documentSearchTerm, setDocumentSearchTerm] = useState('');
+  const [selectedDocumentCategory, setSelectedDocumentCategory] = useState<string>('');
+  const [selectedDocumentTag, setSelectedDocumentTag] = useState<string>('');
+  const [documentSortBy, setDocumentSortBy] = useState<'name' | 'date' | 'category'>('date');
+  const [documentSortOrder, setDocumentSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [showDocumentPreview, setShowDocumentPreview] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState<any | null>(null);
+  const [documentViewMode, setDocumentViewMode] = useState<'grid' | 'list'>('grid');
+  // Qualification filter states
+  const [qualificationTypeFilter, setQualificationTypeFilter] = useState<'all' | 'pflicht' | 'position' | 'zusatz'>('all');
+  const [qualificationStatusFilter, setQualificationStatusFilter] = useState<'all' | 'active' | 'expiring' | 'expired' | 'inactive'>('all');
+  const assignTraining = useAssignEmployeeTraining();
+  const deleteTraining = useDeleteEmployeeTraining();
+  const { data: availableTrainings, isLoading: isLoadingAvailableTrainings } = useTrainings();
+  const { data: assignedTrainings, isLoading: isLoadingAssignedTrainings } = useTrainings(employee.ID.toString());
+  const { data: additionalSkills, isLoading: isLoadingAdditionalSkills } = useAdditionalFunctions();
+  const { data: employeeDocuments, isLoading: isLoadingEmployeeDocuments, refetch: refetchEmployeeDocuments } = useEmployeeDocuments(employee.ID);
+  const { data: documentCategories, isLoading: isLoadingDocumentCategories } = useDocumentCategories();
+  const documentDownloadMutation = useDocumentDownload();
+  const { data: selectedDocumentInfo } = useDocumentInfo(selectedDocument?.ID || 0);
+
+  // Prevent background scrolling when modal is open
+  useBodyScrollLock(true);
 
   // Update selectedQualificationTrainers and canBeTrainer when trainerQualifications changes
   useEffect(() => {
@@ -123,22 +171,15 @@ export default function EmployeeDetails({
       // canBeTrainer is now true when there are NO qualifications
       setCanBeTrainer(!hasTrainerQualifications);
       
-      // Only update employee data if trainer status has actually changed
-      // and it's different from the current state
-      if (hasTrainerQualifications !== localEmployee.isTrainer && 
-          hasTrainerQualifications !== isTrainer) {
-        const updatedEmployee = {
-          ...localEmployee,
-          isTrainer: hasTrainerQualifications,
-          trainerFor: hasTrainerQualifications ? selectedTrainings : [],
-        };
-        
-        setLocalEmployee(updatedEmployee);
-        // Only call onUpdate if we're actually changing the trainer status
-        if (hasTrainerQualifications !== localEmployee.isTrainer) {
-          onUpdate(updatedEmployee);
-        }
-      }
+      // Update local state only, don't trigger server update automatically
+      const updatedEmployee = {
+        ...localEmployee,
+        isTrainer: hasTrainerQualifications,
+        trainerFor: hasTrainerQualifications ? selectedTrainings : [],
+      };
+      
+      setLocalEmployee(updatedEmployee);
+      // Removed automatic onUpdate call - only manual changes should trigger server updates
     } else {
       setSelectedQualificationTrainers([]);
       setIsTrainer(false);
@@ -156,26 +197,44 @@ export default function EmployeeDetails({
 
   const getJobTitle = (jobTitleId: string) => {
     if (!jobTitlesData) return 'Laden...';
-    const jobTitle = jobTitlesData.find(jt => jt.id === jobTitleId);
-    return jobTitle ? jobTitle.jobTitle : jobTitleId;
+    const jobTitle = jobTitlesData.find(jt => jt.ID === jobTitleId);
+    return jobTitle ? jobTitle.JobTitle : jobTitleId;
   };
 
   // Get all qualifications from current and additional positions
   const getEmployeeQualifications = () => {
     if (!employeeQualificationsData) return [];
-    return employeeQualificationsData.map((eq : any) => eq.QualificationID);
+    // Filter out qualifications that don't exist in qualificationsData
+    return (employeeQualificationsData as any[])
+      .filter((eq: any) => qualificationsData?.some(q => q.ID === eq.QualificationID))
+      .map((eq: any) => eq.QualificationID);
   };
 
   const tabs = [
     { id: "info", label: "Information" },
     { id: "qualifications", label: "Qualifikationen" },
+    { id: "additional-skills", label: "Zusatzfunktionen" },
     { id: "trainings", label: "Schulungen" },
     { id: "documents", label: "Dokumente" },
     ...(isHRAdmin ? [{ id: "trainer", label: "Trainer-Status" }] : []),
   ].filter(Boolean) as Array<{
-    id: "info" | "qualifications" | "trainings" | "documents" | "approvals" | "trainer";
+    id: "info" | "qualifications" | "additional-skills" | "trainings" | "documents" | "approvals" | "trainer";
     label: string;
   }>;
+
+  const availableAdditionalSkills = useMemo(() => {
+    if (!additionalSkills || !employeeSkills || !qualificationsData) return [];
+    
+    return additionalSkills.filter(skill => 
+      // Nur Zusatzfunktionen anzeigen, die noch nicht dem Mitarbeiter zugewiesen sind
+      !employeeSkills.skills?.some((empSkill: any) => empSkill.AdditionalSkillID === skill.ID) &&
+      // Nur Zusatzfunktionen anzeigen, die eine verknüpfte Qualifikation haben
+      qualificationsData.some(qual => 
+        qual.Herkunft === 'Zusatz' && 
+        qual.AdditionalSkillID === skill.ID
+      )
+    );
+  }, [additionalSkills, employeeSkills, qualificationsData]);
 
   const handleAddSkill = async (skillId: number) => {
     try {
@@ -183,8 +242,12 @@ export default function EmployeeDetails({
         employeeId: employee.ID.toString(),
         skillId: skillId,
       });
+      // Sofortige Aktualisierung der UI durch direkten refetch
+      await refetchEmployeeSkills();
       setShowPositionModal(false);
+      // Toast wird bereits im Hook angezeigt
     } catch (error) {
+      // Error Toast wird bereits im Hook angezeigt
     }
   };
 
@@ -194,6 +257,8 @@ export default function EmployeeDetails({
         employeeId: employee.ID.toString(),
         skillId: skillId,
       });
+      // Sofortige Aktualisierung der UI durch direkten refetch
+      await refetchEmployeeSkills();
     } catch (error) {
     }
   };
@@ -211,20 +276,32 @@ export default function EmployeeDetails({
 
       // Only allow adding additional qualifications
       if (qualification.IsMandatory || qualification.JobTitleID?.length) {
-        toast.error("Es können nur Zusatzqualifikationen hinzugefügt werden");
+        toast.error("Es können nur Zusatzfunktionen hinzugefügt werden");
         return;
       }
 
-      const expirationDate = new Date();
-      expirationDate.setMonth(
-        expirationDate.getMonth() + qualification.ValidityInMonth,
-      );
+      // Für Qualifikationen mit ValidityInMonth = 999 (unendliche Gültigkeit)
+      // setzen wir ein sehr weit in der Zukunft liegendes Datum
+      let toQualifyUntil;
+      if (qualification.ValidityInMonth === 999) {
+        // Setze ein Datum weit in der Zukunft (z.B. 100 Jahre)
+        const farFutureDate = new Date();
+        farFutureDate.setFullYear(farFutureDate.getFullYear() + 100);
+        toQualifyUntil = farFutureDate.toISOString();
+      } else {
+        // Normale Berechnung für Qualifikationen mit begrenzter Gültigkeit
+        const expirationDate = new Date();
+        expirationDate.setMonth(
+          expirationDate.getMonth() + qualification.ValidityInMonth,
+        );
+        toQualifyUntil = expirationDate.toISOString();
+      }
 
       await addEmployeeQualification.mutateAsync({
         employeeId: employee.ID.toString(),
         qualificationId: qualificationId,
         qualifiedFrom: today.toISOString(),
-        toQualifyUntil: expirationDate.toISOString(),
+        toQualifyUntil: toQualifyUntil,
       });
 
       toast.success("Qualifikation erfolgreich hinzugefügt");
@@ -233,19 +310,31 @@ export default function EmployeeDetails({
     }
   };
 
-  const employeeQualifications = getLatestQualifications(employeeQualificationsData || []);
-
   const getQualificationStatus = (qualId: string) => {
     if (!employeeQualificationsData) return "inactive";
 
-    const employeeQual = employeeQualificationsData.find(
+    const employeeQual = (employeeQualificationsData as any[]).find(
       (eq : any) => eq.QualificationID === qualId,
     );
 
     if (!employeeQual) return "inactive";
-
-    if (!employeeQual.isQualifiedUntil) return "inactive";
-    const expiryDate = new Date(employeeQual.isQualifiedUntil);
+    
+    // Finde die Qualifikation, um zu prüfen, ob sie nie abläuft (999 Monate)
+    const qualification = qualificationsData?.find(q => q?.ID?.toString() === qualId.toString());
+    
+    // Wenn Qualifikation nie abläuft (999 Monate oder mehr), immer als "active" anzeigen
+    if (qualification?.ValidityInMonth && qualification.ValidityInMonth >= 999) {
+      return "active";
+    }
+    
+    const expiryDate = employeeQual.isQualifiedUntil 
+      ? new Date(employeeQual.isQualifiedUntil)
+      : employeeQual.toQualifyUntil 
+        ? new Date(employeeQual.toQualifyUntil)
+        : null;
+    
+    if (!expiryDate || isNaN(expiryDate.getTime())) return "inactive";
+    
     const today = new Date();
     const twoMonthsFromNow = new Date();
     twoMonthsFromNow.setMonth(today.getMonth() + 2);
@@ -254,6 +343,48 @@ export default function EmployeeDetails({
     if (expiryDate <= twoMonthsFromNow) return "expiring";
     return "active";
   };
+
+  const employeeQualifications = getLatestQualifications(
+    ((employeeQualificationsData as any[]) || []).filter((qual: any) => 
+      qualificationsData?.some(q => q.ID === qual.QualificationID)
+    )
+  );
+
+  // Filter qualifications based on type and status
+  const filteredQualifications = useMemo(() => {
+    return employeeQualifications.filter((qual: any) => {
+      if (!qual.QualificationID) return false;
+      
+      const qualification = qualificationsData?.find(q => q.ID?.toString() === qual.QualificationID?.toString());
+      if (!qualification) return false;
+
+      // Type filter
+      if (qualificationTypeFilter !== 'all') {
+        let qualificationType: 'pflicht' | 'position' | 'zusatz' = 'zusatz';
+        if (qualification.Herkunft === 'Pflicht') {
+          qualificationType = 'pflicht';
+        } else if (qualification.JobTitle) {
+          qualificationType = 'position';
+        } else if (qualification.Herkunft === 'Zusatz') {
+          qualificationType = 'zusatz';
+        }
+        
+        if (qualificationType !== qualificationTypeFilter) {
+          return false;
+        }
+      }
+
+      // Status filter
+      if (qualificationStatusFilter !== 'all') {
+        const status = getQualificationStatus(qual.QualificationID);
+        if (status !== qualificationStatusFilter) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [employeeQualifications, qualificationTypeFilter, qualificationStatusFilter, qualificationsData, employeeQualificationsData]);
 
   const getStatusStyles = (status: string) => {
     switch (status) {
@@ -283,12 +414,13 @@ export default function EmployeeDetails({
     }
   };
 
-  const handleTrainerStatusChange = (checked: boolean) => {
+  const handleTrainerStatusChange = async (checked: boolean) => {
     if (selectedQualificationTrainers.length > 0) {
       toast.error('Der Trainer-Status kann nicht geändert werden, solange Qualifikationen zugewiesen sind.');
       return;
     }
     
+    try {
     setIsTrainer(checked);
     const updatedEmployee = {
       ...localEmployee,
@@ -301,6 +433,12 @@ export default function EmployeeDetails({
       setLocalEmployee(updatedEmployee);
       onUpdate(updatedEmployee);
     }, 0);
+    } catch (error) {
+      console.error('Error updating trainer status:', error);
+      toast.error('Fehler beim Aktualisieren des Trainer-Status');
+      // Revert the local state change
+      setIsTrainer(!checked);
+    }
   };
 
   const handleTrainingSelection = (trainingId: string) => {
@@ -324,14 +462,6 @@ export default function EmployeeDetails({
     const qualification = qualificationsData.find(q => q.ID?.toString() === qualId.toString());
     return qualification ? qualification.Name : "Unbekannte Qualifikation";
   };
-
-  const availableQualifications =
-    qualificationsData?.filter(
-      (qual) =>
-        qual.ID &&
-        !employeeQualifications.some((eq:any) => eq.QualificationID === String(qual.ID)) &&
-        (qual.Herkunft === "Zusatz" || qual.AdditionalSkillID), // Show Zusatz qualifications and those with AdditionalSkillID
-    ) || [];
 
   const getInitials = (name: string | undefined) => {
     if (!name) return "??";
@@ -364,6 +494,312 @@ export default function EmployeeDetails({
     }
   };
 
+  const handleDocumentUpload = async (uploadedDocuments: any[]) => {
+    console.log('Uploaded documents:', uploadedDocuments);
+    toast.success(`${uploadedDocuments.length} Dokument(e) erfolgreich hochgeladen`);
+    setShowDocumentUploadModal(false);
+    
+    // Refetch documents to show the newly uploaded ones
+    await refetchEmployeeDocuments();
+  };
+
+  const getFileIcon = (fileName: string) => {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    if (extension === 'pdf') return '📄';
+    if (['doc', 'docx'].includes(extension || '')) return '📝';
+    if (['xls', 'xlsx'].includes(extension || '')) return '📊';
+    if (['ppt', 'pptx'].includes(extension || '')) return '📽️';
+    if (['jpg', 'jpeg', 'png', 'gif'].includes(extension || '')) return '🖼️';
+    return '📎';
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const formatUploadDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('de-DE', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+  };
+
+  const groupDocumentsByCategory = () => {
+    if (!employeeDocuments) return { certificates: [], trainings: [], other: [] };
+    
+    const certificates = employeeDocuments.filter(doc => 
+      doc.Category?.toLowerCase().includes('zertifikat') || 
+      doc.Category?.toLowerCase().includes('certificate') ||
+      doc.Tags?.toLowerCase().includes('zertifikat')
+    );
+    
+    const trainings = employeeDocuments.filter(doc => 
+      doc.Category?.toLowerCase().includes('schulung') || 
+      doc.Category?.toLowerCase().includes('training') ||
+      doc.Tags?.toLowerCase().includes('schulung')
+    );
+    
+    const other = employeeDocuments.filter(doc => 
+      !certificates.includes(doc) && !trainings.includes(doc)
+    );
+    
+    return { certificates, trainings, other };
+  };
+
+  // Helper function to get category name by ID
+  const getCategoryNameById = (categoryId?: number) => {
+    if (!categoryId || !documentCategories) return null;
+    const category = documentCategories.find(cat => cat.ID === categoryId);
+    return category ? category.Name : null;
+  };
+
+  // Combine employee documents and training documents (filtered by employee)
+  const getCombinedDocuments = () => {
+    const employeeDocs = employeeDocuments || [];
+    // Add document type to distinguish between employee and training documents
+    const docsWithType = employeeDocs.map(doc => ({
+      ...doc,
+      DocumentID: doc.ID, // Map ID to DocumentID for consistency
+      DocumentType: (doc as any).CategoryName === 'Schulungsdokumente' ? 'training' as const : 'employee' as const,
+      // Use CategoryName if available, otherwise fall back to Category
+      Category: (doc as any).CategoryName || doc.Category,
+      // Use EmployeeName if available, otherwise fall back to FullName
+      FullName: (doc as any).EmployeeName || doc.FullName
+    }));
+    
+    return docsWithType;
+  };
+
+  const getEmployeeAmountOfDocuments = () => {
+    const employeeDocs = employeeDocuments || [];
+    
+    let filteredByEmployee = employeeDocs.filter(doc => doc.EmployeeID === employee.ID);
+    return filteredByEmployee.length;
+  };
+
+  // Document filtering and sorting functions
+  const getFilteredAndSortedDocuments = () => {
+    const allDocuments = getCombinedDocuments();
+    if (allDocuments.length === 0) return [];
+
+
+    let filteredByEmployee = allDocuments.filter(doc => doc.EmployeeID === employee.ID);
+    let filtered = filteredByEmployee.filter(doc => {
+      // Search filter
+      const matchesSearch = documentSearchTerm === '' || 
+        doc.FileName.toLowerCase().includes(documentSearchTerm.toLowerCase()) ||
+        (doc.Description && doc.Description.toLowerCase().includes(documentSearchTerm.toLowerCase()));
+
+      // Category filter
+      const categoryName = getCategoryNameById(doc.CategoryID) || doc.Category;
+      const matchesCategory = selectedDocumentCategory === '' || categoryName === selectedDocumentCategory;
+
+      // Tag filter
+      const matchesTag = selectedDocumentTag === '' || 
+        (doc.Tags && doc.Tags.split(';').map(tag => tag.trim()).includes(selectedDocumentTag));
+
+      return matchesSearch && matchesCategory && matchesTag;
+    });
+
+    // Sort documents
+    filtered.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (documentSortBy) {
+        case 'name':
+          comparison = a.FileName.localeCompare(b.FileName);
+          break;
+        case 'date':
+          comparison = new Date(a.UploadedAt).getTime() - new Date(b.UploadedAt).getTime();
+          break;
+        case 'category':
+          const categoryA = getCategoryNameById(a.CategoryID) || a.Category || '';
+          const categoryB = getCategoryNameById(b.CategoryID) || b.Category || '';
+          comparison = categoryA.localeCompare(categoryB);
+          break;
+      }
+
+      return documentSortOrder === 'asc' ? comparison : -comparison;
+    });
+
+    return filtered;
+  };
+
+  // Get all unique categories and tags for filter options
+  const getDocumentFilterOptions = () => {
+    const allDocuments = getCombinedDocuments();
+    if (allDocuments.length === 0) return { categories: [], tags: [] };
+
+    const categories = new Set<string>();
+    const tags = new Set<string>();
+
+    allDocuments.forEach(doc => {
+      const categoryName = getCategoryNameById(doc.CategoryID) || doc.Category;
+      if (categoryName) categories.add(categoryName);
+
+      if (doc.Tags) {
+        doc.Tags.split(';').forEach(tag => {
+          const trimmedTag = tag.trim();
+          if (trimmedTag) tags.add(trimmedTag);
+        });
+      }
+    });
+
+    return {
+      categories: Array.from(categories).sort(),
+      tags: Array.from(tags).sort()
+    };
+  };
+
+  // Handle document preview
+  const handleDocumentPreview = (document: any) => {
+    setSelectedDocument(document);
+    setShowDocumentPreview(true);
+  };
+
+  // Check if document is PDF for preview capability
+  const isPDFDocument = (fileName: string) => {
+    return fileName.toLowerCase().endsWith('.pdf');
+  };
+
+  const getCategoryColor = (category: string) => {
+    const categoryLower = category?.toLowerCase() || '';
+    if (categoryLower.includes('zertifikat') || categoryLower.includes('certificate')) {
+      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300';
+    }
+    if (categoryLower.includes('schulung') || categoryLower.includes('training')) {
+      return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300';
+    }
+    if (categoryLower.includes('vertrag') || categoryLower.includes('contract')) {
+      return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300';
+    }
+    if (categoryLower.includes('ausweis') || categoryLower.includes('id')) {
+      return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300';
+    }
+    if (categoryLower.includes('medizin') || categoryLower.includes('medical')) {
+      return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300';
+    }
+    if (categoryLower.includes('gehalt') || categoryLower.includes('payroll')) {
+      return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300';
+    }
+    return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300';
+  };
+
+  // Helper function to format tags with colors
+  const formatTags = (tags: string) => {
+    if (!tags) return null;
+    
+    const tagList = tags.split(';').map(tag => tag.trim()).filter(tag => tag);
+    if (tagList.length === 0) return null;
+
+    return (
+      <div className="flex flex-wrap gap-1 mt-2">
+        {tagList.map((tag, index) => {
+          // Color tags based on content
+          let tagColor = 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+          const tagLower = tag.toLowerCase();
+          
+          if (tagLower.includes('wichtig') || tagLower.includes('urgent')) {
+            tagColor = 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+          } else if (tagLower.includes('zertifikat') || tagLower.includes('qualifikation')) {
+            tagColor = 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300';
+          } else if (tagLower.includes('schulung') || tagLower.includes('training')) {
+            tagColor = 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
+          } else if (tagLower.includes('vertraulich') || tagLower.includes('confidential')) {
+            tagColor = 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300';
+          } else if (tagLower.includes('hr') || tagLower.includes('personal')) {
+            tagColor = 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+          }
+
+          return (
+            <span
+              key={index}
+              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${tagColor}`}
+            >
+              <Tag className="h-3 w-3 mr-1" />
+              {tag}
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Helper function to render document metadata
+  const renderDocumentMetadata = (document: any) => (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-gray-900 dark:text-white">
+          {document.FileName}
+        </p>
+        <div className="flex items-center space-x-2">
+          <button 
+            onClick={() => window.open(document.FilePath, '_blank')}
+            className="p-2 text-gray-400 hover:text-primary dark:hover:text-primary transition-colors"
+            title="Herunterladen"
+          >
+            <Download className="h-4 w-4" />
+          </button>
+          {canDeleteDocuments && (
+            <button className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" title="Löschen">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-500 dark:text-gray-400">
+        <div className="flex items-center">
+          <Calendar className="h-3 w-3 mr-1" />
+          Hochgeladen: {formatUploadDate(document.UploadedAt)}
+        </div>
+        <div className="flex items-center">
+          <Users className="h-3 w-3 mr-1" />
+          Von: {document.UploadedBy}
+        </div>
+      </div>
+
+      {document.Description && (
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-md p-2">
+          <p className="text-xs text-gray-600 dark:text-gray-300">
+            <strong>Beschreibung:</strong> {document.Description}
+          </p>
+        </div>
+      )}
+
+      <div className="flex flex-col space-y-2">
+        {/* Category */}
+        {(document.Category || document.CategoryID) && (
+          <div className="flex items-center space-x-2">
+            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Kategorie:</span>
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(getCategoryNameById(document.CategoryID) || document.Category || '')}`}>
+              <Building2 className="h-3 w-3 mr-1" />
+              {getCategoryNameById(document.CategoryID) || document.Category || 'Unbekannte Kategorie'}
+            </span>
+            {document.CategoryID && getCategoryNameById(document.CategoryID) && (
+              <span className="text-xs text-gray-400">
+                (ID: {document.CategoryID})
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Tags */}
+        {document.Tags && (
+          <div>
+            <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Tags:</span>
+            {formatTags(document.Tags)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   const hasValidID = (qualification: QualificationApi): qualification is QualificationWithRequiredID => {
     return typeof qualification.ID === 'number';
   };
@@ -381,7 +817,7 @@ export default function EmployeeDetails({
         className={`p-4 rounded-lg border transition-all cursor-pointer
           ${isSelected
             ? "border-primary bg-primary/5 dark:bg-primary/10 hover:bg-primary/10 dark:hover:bg-primary/20"
-            : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
+            : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-[#2a2a2a]"
           }`}
       >
         <div className="flex items-center justify-between">
@@ -403,15 +839,12 @@ export default function EmployeeDetails({
                   {qualification.JobTitle}
                 </span>
               )}
-              {qualification.AdditionalSkillName && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300">
-                  {qualification.AdditionalSkillName}
+              {qualification.AdditionalSkillNames && qualification.AdditionalSkillNames.length > 0 && (
+                qualification.AdditionalSkillNames.map((skillName, index) => (
+                  <span key={index} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300">
+                    {skillName}
                 </span>
-              )}
-              {qualification.AssignmentType && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300">
-                  {qualification.AssignmentType}
-                </span>
+                ))
               )}
             </div>
           </div>
@@ -452,7 +885,7 @@ export default function EmployeeDetails({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-full items-center justify-center p-4 text-center">
-        <div className="relative transform overflow-hidden rounded-lg bg-white dark:bg-[#121212] px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl sm:p-6">
+        <div className="relative transform overflow-hidden rounded-lg bg-white dark:bg-[#121212] px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl sm:p-6">
           <div className="absolute right-0 top-0 pr-4 pt-4">
             <button
               type="button"
@@ -467,8 +900,8 @@ export default function EmployeeDetails({
           <div className="sm:flex sm:items-start">
             <div className="w-full">
               <div className="flex items-center">
-                <div className="h-16 w-16 rounded-full bg-primary text-white flex items-center justify-center">
-                  <span className="text-lg font-medium">
+                <div className="h-16 w-16 rounded-full bg-primary text-white dark:bg-gray dark:text-primary flex items-center justify-center">
+                  <span className="text-lg font-medium dark:text-gray-900">
                     {getInitials(localEmployee.FullName)}
                   </span>
                 </div>
@@ -496,7 +929,7 @@ export default function EmployeeDetails({
                         whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm
                         ${
                           activeTab === tab.id
-                            ? "border-primary text-primary"
+                            ? "border-primary text-primary dark:text-gray-200"
                             : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                         }
                       `}
@@ -551,20 +984,155 @@ export default function EmployeeDetails({
                       <h4 className="text-lg font-medium text-gray-900 dark:text-white">
                         Qualifikationen
                       </h4>
-                      {isHRAdmin && (
-                        <button
-                          key="add-qualification-button"
-                          onClick={() => setShowPositionModal(true)}
-                          className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a]"
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          Zusatzqualifikation hinzufügen
-                        </button>
-                      )}
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        {filteredQualifications.length} von {employeeQualifications.length} Qualifikationen
+                      </div>
+                    </div>
+
+                    {/* Filter Options */}
+                    <div className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-xl p-6 shadow-sm">
+                    <div className="space-y-6">
+                        <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
+                          Filter und Suche
+                        </h5>
+                        
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                          {/* Qualification Type Filter */}
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wider">
+                              Qualifikationstyp
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                onClick={() => setQualificationTypeFilter('all')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border ${
+                                  qualificationTypeFilter === 'all'
+                                    ? 'bg-primary text-white dark:bg-gray-800 dark:text-gray-200 border-primary shadow-md'
+                                    : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#2a2a2a]'
+                                }`}
+                              >
+                                Alle Typen
+                              </button>
+                              <button
+                                onClick={() => setQualificationTypeFilter('pflicht')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border flex items-center gap-2 ${
+                                  qualificationTypeFilter === 'pflicht'
+                                    ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-300 dark:border-red-700 shadow-md'
+                                    : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-300'
+                                }`}
+                              >
+                                <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                Pflicht
+                              </button>
+                              <button
+                                onClick={() => setQualificationTypeFilter('position')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border flex items-center gap-2 ${
+                                  qualificationTypeFilter === 'position'
+                                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700 shadow-md'
+                                    : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300'
+                                }`}
+                              >
+                                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                                Position
+                              </button>
+                              <button
+                                onClick={() => setQualificationTypeFilter('zusatz')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border flex items-center gap-2 ${
+                                  qualificationTypeFilter === 'zusatz'
+                                    ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-700 shadow-md'
+                                    : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-700 dark:hover:text-purple-300'
+                                }`}
+                              >
+                                <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                                Zusatz
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Status Filter */}
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-3 uppercase tracking-wider">
+                              Status
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                onClick={() => setQualificationStatusFilter('all')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border ${
+                                  qualificationStatusFilter === 'all'
+                                    ? 'bg-primary text-white dark:bg-gray-800 dark:text-gray-200 border-primary shadow-md'
+                                    : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-[#2a2a2a]'
+                                }`}
+                              >
+                                Alle Status
+                              </button>
+                              <button
+                                onClick={() => setQualificationStatusFilter('active')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border flex items-center gap-2 ${
+                                  qualificationStatusFilter === 'active'
+                                    ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700 shadow-md'
+                                    : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-700 dark:hover:text-green-300'
+                                }`}
+                              >
+                                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                Aktiv
+                              </button>
+                              <button
+                                onClick={() => setQualificationStatusFilter('expiring')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border flex items-center gap-2 ${
+                                  qualificationStatusFilter === 'expiring'
+                                    ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-300 dark:border-yellow-700 shadow-md'
+                                    : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 hover:text-yellow-700 dark:hover:text-yellow-300'
+                                }`}
+                              >
+                                <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                                Läuft bald ab
+                              </button>
+                              <button
+                                onClick={() => setQualificationStatusFilter('expired')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border flex items-center gap-2 ${
+                                  qualificationStatusFilter === 'expired'
+                                    ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-300 dark:border-red-700 shadow-md'
+                                    : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-300'
+                                }`}
+                              >
+                                <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                Abgelaufen
+                              </button>
+                              <button
+                                onClick={() => setQualificationStatusFilter('inactive')}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border flex items-center gap-2 ${
+                                  qualificationStatusFilter === 'inactive'
+                                    ? 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 shadow-md'
+                                    : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300'
+                                }`}
+                              >
+                                <div className="w-2 h-2 rounded-full bg-gray-500"></div>
+                                Inaktiv
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Clear Filters */}
+                        {(qualificationTypeFilter !== 'all' || qualificationStatusFilter !== 'all') && (
+                          <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                            <button
+                              onClick={() => {
+                                setQualificationTypeFilter('all');
+                                setQualificationStatusFilter('all');
+                              }}
+                              className="text-sm text-primary hover:text-primary/80 font-medium flex items-center gap-2"
+                            >
+                              <RefreshCw className="h-4 w-4" />
+                              Filter zurücksetzen
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className="space-y-6">
-                      {employeeQualifications.map((qual: any) => {
+                      {filteredQualifications.map((qual: any) => {
                         if (!qual.QualificationID) return null;
                         const status = getQualificationStatus(qual.QualificationID);
                         return (
@@ -573,36 +1141,299 @@ export default function EmployeeDetails({
                             className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#181818] rounded-lg"
                           >
                             <div className="flex-1">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <h5 className="text-sm font-medium text-gray-900 dark:text-white">
                                   {getQualificationName(qual.QualificationID)}
                                 </h5>
+                                {/* Qualifikationstyp Tags */}
+                                {qualificationsData?.find(q => q.ID?.toString() === qual.QualificationID?.toString())?.Herkunft === "Pflicht" && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300">
+                                    Pflichtqualifikation
+                                  </span>
+                                )}
+                                {qualificationsData?.find(q => q.ID?.toString() === qual.QualificationID?.toString())?.Herkunft === "Zusatz" && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300">
+                                    Zusatzfunktion
+                                  </span>
+                                )}
+                                {qualificationsData?.find(q => q.ID?.toString() === qual.QualificationID?.toString())?.JobTitle && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+                                    Positionsqualifikation
+                                  </span>
+                                )}
+                                {/* Karenztage Tag */}
+                                {qual.toQualifyUntil && new Date(qual.toQualifyUntil) > new Date() && !qual.isQualifiedUntil && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300">
+                                    Karenztage bis {formatDate(qual.toQualifyUntil)}
+                                  </span>
+                                )}
+                                {/* Absolviert Tag */}
+                                {qual.qualifiedFrom && getQualificationStatus(qual.QualificationID) !== "expired" && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300">
+                                    Absolviert am {formatDate(qual.qualifiedFrom)}
+                                  </span>
+                                )}
+                                {/* Abgelaufen Tag */}
+                                {getQualificationStatus(qual.QualificationID) === "expired" && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300">
+                                    {(() => {
+                                      const expiryDate = qual.isQualifiedUntil 
+                                        ? new Date(qual.isQualifiedUntil)
+                                        : qual.toQualifyUntil 
+                                          ? new Date(qual.toQualifyUntil)
+                                          : null;
+                                      if (!expiryDate) return "Abgelaufen";
+                                      
+                                      const gracePeriodEnd = new Date(expiryDate);
+                                      gracePeriodEnd.setDate(gracePeriodEnd.getDate() + 14);
+                                      const today = new Date();
+                                      const daysSinceExpiry = Math.abs(Math.floor((today.getTime() - gracePeriodEnd.getTime()) / (1000 * 60 * 60 * 24)));
+                                      const dayText = daysSinceExpiry === 1 ? 'Tag' : 'Tagen';
+                                      return `Abgelaufen seit ${daysSinceExpiry} ${dayText} (inkl. 14 Tage Karenz)`;
+                                    })()}
+                                  </span>
+                                )}
                               </div>
                               <div className="mt-2 space-y-1">
                                 <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
                                   <Clock className="h-4 w-4 mr-1" />
-                                  Qualifiziert seit: {qual.qualifiedFrom ? formatDate(qual.qualifiedFrom) : "noch nicht vergeben"}
+                                  Gültig seit: {qual.qualifiedFrom ? formatDate(qual.qualifiedFrom) : "noch nicht abgeschlossen"}
                                 </p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-                                  <AlertCircle className="h-4 w-4 mr-1" />
-                                  Gültig bis: {qual.toQualifyUntil ? formatDate(qual.toQualifyUntil) : "noch nicht vergeben"}
-                                </p>
+                                {qual.toQualifyUntil && (
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                    <AlertCircle className="h-4 w-4 mr-1" />
+                                    Gültig bis: {(() => {
+                                      const qualification = qualificationsData?.find(q => q.ID?.toString() === qual.QualificationID?.toString());
+                                      return qualification?.ValidityInMonth && qualification.ValidityInMonth === 999 ? 'Läuft nie ab' : formatDate(qual.toQualifyUntil);
+                                    })()}
+                                  </p>
+                                )}
+                                {(() => {
+                                  const qualification = qualificationsData?.find(q => q.ID?.toString() === qual.QualificationID?.toString());
+                                  return qualification?.ValidityInMonth && qualification.ValidityInMonth < 999 && (qual.isQualifiedUntil || qual.toQualifyUntil) ? (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                      <CheckCircle className="h-4 w-4 mr-1" />
+                                      Weiterqualifizierung bis: {formatDate(new Date(new Date(qual.isQualifiedUntil || qual.toQualifyUntil).getTime() + (14 * 24 * 60 * 60 * 1000)))} (inkl. + 14 Tage)
+                                    </p>
+                                  ) : null;
+                                })()}
                               </div>
                             </div>
-                            <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusStyles(status)}`}
-                            >
-                              {getStatusText(status)}
-                            </span>
+                            <div className="ml-4">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                (() => {
+                                  const status = getQualificationStatus(qual.QualificationID);
+                                  switch (status) {
+                                    case "active":
+                                      return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300';
+                                    case "expiring":
+                                      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300';
+                                    case "expired":
+                                      return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300';
+                                    case "inactive":
+                                    default:
+                                      return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-300';
+                                  }
+                                })()
+                              }`}>
+                                {(() => {
+                                  const status = getQualificationStatus(qual.QualificationID);
+                                  switch (status) {
+                                    case "active":
+                                      return 'Aktiv';
+                                    case "expiring":
+                                      return 'Auslaufend';
+                                    case "expired":
+                                      return 'Abgelaufen';
+                                    case "inactive":
+                                    default:
+                                      return 'Erforderlich';
+                                  }
+                                })()}
+                              </span>
+                            </div>
                           </div>
                         );
                       })}
 
-                      {employeeQualifications.length === 0 && (
+                      {filteredQualifications.length === 0 && (
                         <p key="no-qualifications" className="text-center text-gray-500 dark:text-gray-400">
-                          Keine Qualifikationen vorhanden
+                          {employeeQualifications.length === 0 
+                            ? 'Keine Qualifikationen vorhanden'
+                            : 'Keine Qualifikationen entsprechen den gewählten Filtern'
+                          }
                         </p>
                       )}
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === "additional-skills" && (
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                      <h4 className="text-lg font-medium text-gray-900 dark:text-white">
+                        Zusatzfunktionen
+                      </h4>
+                      {canManageEmployee && (
+                        <button
+                          onClick={() => setShowPositionModal(true)}
+                          className="inline-flex items-center px-6 py-3 bg-gray-900 dark:bg-[#181818] dark:hover:bg-[#2a2a2a] text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 transition-all duration-200 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20 shadow-sm"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Zusatzfunktion hinzufügen
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="space-y-6">
+                      {/* Aktuelle Zusatzfunktionen */}
+                      <div className="space-y-4">
+                        <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-2">
+                          Aktuelle Zusatzfunktionen
+                        </h5>
+                        {isLoadingSkills ? (
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Lade Zusatzfunktionen...</p>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {employeeSkills?.skills?.map((skill: any) => (
+                              <div
+                                key={`employee-skill-${skill.ID}`}
+                                className="p-4 rounded-lg border border-purple-200 dark:border-purple-800/50 bg-purple-50/50 dark:bg-purple-900/10 shadow-sm hover:shadow-md transition-all duration-200"
+                              >
+                                <div className="flex justify-between items-start">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <h6 className="text-sm font-medium text-gray-900 dark:text-white">
+                                        {skill.Name}
+                                      </h6>
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300">
+                                        <Star className="h-3 w-3 mr-1" />
+                                        Zusatzfunktion
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                      {skill.Description}
+                                    </p>
+                                    {/* Verknüpfte Qualifikation anzeigen */}
+                                    {(() => {
+                                      const linkedQualification = qualificationsData?.find(qual => 
+                                        qual.Herkunft === 'Zusatz' && qual.AdditionalSkillID === skill.ID
+                                      );
+                                      if (linkedQualification) {
+                                        const employeeQual = employeeQualifications.find(eq => 
+                                          eq.QualificationID.toString() === linkedQualification.ID?.toString()
+                                        );
+                                        return (
+                                          <div className="mt-2 space-y-1">
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                              <Award className="h-3 w-3 mr-1" />
+                                              Qualifikation: {linkedQualification.Name}
+                                            </p>
+                                          </div>
+                                        );
+                                      } else {
+                                        return (
+                                          <div className="mt-2">
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                              <AlertCircle className="h-3 w-3 mr-1" />
+                                              Keine verknüpfte Qualifikation
+                                            </p>
+                                          </div>
+                                        );
+                                      }
+                                    })()}
+                                  </div>
+                                  {canManageEmployee && (
+                                    <button
+                                      onClick={() => {
+                                        if (window.confirm('Möchten Sie diese Zusatzfunktion wirklich entfernen?')) {
+                                          handleDeleteSkill(skill.AdditionalSkillID || skill.ID);
+                                        }
+                                      }}
+                                      className="ml-2 p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                                      title="Zusatzfunktion entfernen"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                            {(!employeeSkills?.skills || employeeSkills.skills.length === 0) && (
+                              <div className="col-span-full">
+                                <p className="text-center text-gray-500 dark:text-gray-400 italic p-8 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                                  Keine Zusatzfunktionen zugewiesen
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Verfügbare Zusatzfunktionen */}
+                      {canManageEmployee && availableAdditionalSkills.length > 0 && (
+                        <div className="space-y-4">
+                          <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-2">
+                            Verfügbare Zusatzfunktionen
+                          </h5>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {availableAdditionalSkills.slice(0, 4).map((skill) => (
+                              <div
+                                key={`available-skill-${skill.ID}`}
+                                className="p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600 cursor-pointer transition-all duration-200 hover:shadow-md"
+                                onClick={() => handleAddSkill(skill.ID!)}
+                              >
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h6 className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {skill.Name}
+                                  </h6>
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300">
+                                    <Plus className="h-3 w-3 mr-1" />
+                                    Verfügbar
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  {skill.Description}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                          {availableAdditionalSkills.length > 4 && (
+                            <div className="text-center">
+                              <button
+                                onClick={() => setShowPositionModal(true)}
+                                className="text-sm text-primary hover:text-primary/80 font-medium"
+                              >
+                                Alle verfügbaren Zusatzfunktionen anzeigen ({availableAdditionalSkills.length - 4} weitere)
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Statistiken */}
+                      <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h6 className="text-sm font-medium text-purple-900 dark:text-purple-300">
+                              Zusatzfunktionen-Übersicht
+                            </h6>
+                            <p className="text-xs text-purple-700 dark:text-purple-400 mt-1">
+                              {employeeSkills?.skills?.length || 0} aktive Zusatzfunktionen • {availableAdditionalSkills.length} verfügbar
+                            </p>
+                          </div>
+                          <div className="flex items-center space-x-4 text-xs text-purple-700 dark:text-purple-400">
+                            <div className="text-center">
+                              <div className="font-medium">{employeeSkills?.skills?.length || 0}</div>
+                              <div>Aktiv</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="font-medium">{availableAdditionalSkills.length}</div>
+                              <div>Verfügbar</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -613,71 +1444,155 @@ export default function EmployeeDetails({
                       <h4 className="text-lg font-medium text-gray-900 dark:text-white">
                         Schulungen
                       </h4>
+                      {/* {canManageEmployee && (
+                        <button
+                          onClick={() => setShowAssignTrainingModal(true)}
+                          className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#2a2a2a]"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Schulung zuweisen
+                        </button>
+                      )} */}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Aktive Schulungen */}
-                      <div className="space-y-3">
-                        <h6 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          Aktive Schulungen
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Ausstehende Schulungen */}
+                      <div className="space-y-4">
+                        <h6 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 pb-2">
+                          Ausstehende Schulungen
                         </h6>
-                        <div className="space-y-2">
-                          {employeeTrainings?.filter(training => !training.completed).map(training => (
+                        <div className="space-y-3">
+                          {isLoadingAssignedTrainings ? (
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Lade Schulungen...</p>
+                          ) : (
+                            <>
+                              {assignedTrainings?.filter(training => !training.completed).map(training => (
                             <div
-                              key={`active-training-${training.ID}`}
-                              className="p-3 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20"
+                                  key={`pending-training-${training.ID}`}
+                                  className="p-4 rounded-lg border border-yellow-200 dark:border-yellow-800/50 bg-yellow-50/50 dark:bg-yellow-900/10 shadow-sm hover:shadow-md transition-all duration-200"
                             >
-                              <div>
+                                  <div className="flex justify-between items-start">
+                                    <div className="flex-1 space-y-2">
+                                      <div className="flex items-center gap-2">
                                 <h6 className="text-sm font-medium text-gray-900 dark:text-white">
                                   {training.Name}
                                 </h6>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        {training.isMandatory && (
+                                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                                            Pflichtschulung
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">
                                   {training.Description}
                                 </p>
-                                <div className="mt-2 flex items-center text-xs text-green-600 dark:text-green-400">
+                                      {training.trainingDate && (
+                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                          <Calendar className="h-3 w-3 inline mr-1" />
+                                          Termin: {new Date(training.trainingDate).toLocaleDateString()}
+                                          {(() => {
+                                            if (!training.trainingDate) return null;
+                                            const today = new Date();
+                                            const trainingDate = new Date(training.trainingDate);
+                                            const diffTime = trainingDate.getTime() - today.getTime();
+                                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                            
+                                            if (diffDays < 0) {
+                                              return <span className="ml-2 text-red-500 dark:text-red-400">(Überfällig)</span>;
+                                            } else if (diffDays === 0) {
+                                              return <span className="ml-2 text-yellow-500 dark:text-yellow-400">(Heute)</span>;
+                                            } else if (diffDays === 1) {
+                                              return <span className="ml-2 text-yellow-500 dark:text-yellow-400">(Morgen)</span>;
+                                            } else if (diffDays <= 7) {
+                                              return <span className="ml-2 text-yellow-500 dark:text-yellow-400">(in {diffDays} Tagen)</span>;
+                                            } else {
+                                              return <span className="ml-2 text-gray-500 dark:text-gray-400">(in {diffDays} Tagen)</span>;
+                                            }
+                                          })()}
+                                        </p>
+                                      )}
+                                      <div className="mt-2 flex items-center text-xs text-yellow-600 dark:text-yellow-400">
                                   <Clock className="h-3 w-3 mr-1" />
-                                  In Bearbeitung
+                                        Noch zu absolvieren
                                 </div>
+                                    </div>
+                                    {canManageEmployee && (
+                                      <button
+                                        onClick={() => {
+                                          if (window.confirm('Möchten Sie diese Schulung wirklich entfernen?')) {
+                                            deleteTraining.mutate({
+                                              employeeId: employee.ID.toString(),
+                                              trainingId: training.ID.toString()
+                                            });
+                                          }
+                                        }}
+                                        className="ml-2 p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                                        title="Schulung entfernen"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </button>
+                                    )}
                               </div>
                             </div>
                           ))}
-                          {!employeeTrainings?.some(training => !training.completed) && (
-                            <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-                              Keine aktiven Schulungen
+                              {!assignedTrainings?.some(training => !training.completed) && (
+                                <p className="text-sm text-gray-500 dark:text-gray-400 italic p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+                                  Keine ausstehenden Schulungen
                             </p>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
 
                       {/* Abgeschlossene Schulungen */}
-                      <div className="space-y-3">
-                        <h6 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <div className="space-y-4">
+                        <h6 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 pb-2">
                           Abgeschlossene Schulungen
                         </h6>
-                        <div className="space-y-2">
-                          {employeeTrainings?.filter(training => training.completed).map(training => (
+                        <div className="space-y-3">
+                          {isLoadingAssignedTrainings ? (
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Lade Schulungen...</p>
+                          ) : (
+                            <>
+                              {assignedTrainings?.filter(training => training.completed).map(training => (
                             <div
                               key={`completed-training-${training.ID}`}
-                              className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50"
+                                  className="p-4 rounded-lg border border-green-200 dark:border-green-800/50 bg-green-50/50 dark:bg-green-900/10 shadow-sm hover:shadow-md transition-all duration-200"
                             >
-                              <div>
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
                                 <h6 className="text-sm font-medium text-gray-900 dark:text-white">
                                   {training.Name}
                                 </h6>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                      {training.isMandatory && (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                                          Pflichtschulung
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
                                   {training.Description}
                                 </p>
-                                <div className="mt-2 flex items-center text-xs text-gray-500 dark:text-gray-400">
+                                    {training.trainingDate && (
+                                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                                        <Calendar className="h-3 w-3 inline mr-1" />
+                                        Absolviert am: {new Date(training.trainingDate).toLocaleDateString()}
+                                      </p>
+                                    )}
+                                    <div className="mt-2 flex items-center text-xs text-green-600 dark:text-green-400">
                                   <CheckCircle className="h-3 w-3 mr-1" />
-                                  Abgeschlossen
+                                      Erfolgreich abgeschlossen
                                 </div>
                               </div>
                             </div>
                           ))}
-                          {!employeeTrainings?.some(training => training.completed) && (
-                            <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                              {!assignedTrainings?.some(training => training.completed) && (
+                                <p className="text-sm text-gray-500 dark:text-gray-400 italic p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
                               Keine abgeschlossenen Schulungen
                             </p>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
@@ -686,9 +1601,399 @@ export default function EmployeeDetails({
                 )}
 
                 {activeTab === "documents" && (
-                  <div className="space-y-6">
-                    <h4 className="text-lg font-medium">Dokumente</h4>
-                    {/* Add document details here */}
+                  <div className="space-y-8">
+                    {/* Header mit Aktionen */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 pb-6 border-b border-gray-200 dark:border-gray-700">
+                      <div className="space-y-2">
+                        <h4 className="text-xl font-semibold text-gray-900 dark:text-white">
+                          Dokumente
+                        </h4>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Verwalten Sie alle Dokumente für {employee.FullName}
+                        </p>
+                      </div>
+                      {canManageEmployee && (
+                        <button
+                          onClick={() => setShowDocumentUploadModal(true)}
+                          className="inline-flex items-center px-6 py-3 bg-gray-900 dark:bg-[#181818] dark:hover:bg-[#2a2a2a]  text-white rounded-lg hover:bg-gray-800 transition-colors shadow-sm"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Neues Dokument
+                        </button>
+                      )}
+                    </div>
+
+                    {(isLoadingEmployeeDocuments) ? (
+                      <div className="flex flex-col items-center justify-center py-16">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-gray-300"></div>
+                        <p className="mt-6 text-sm text-gray-500 dark:text-gray-400">
+                          Dokumente werden geladen...
+                        </p>
+                      </div>
+                    ) : getCombinedDocuments().length > 0 ? (
+                      (() => {
+                        const filteredDocuments = getFilteredAndSortedDocuments();
+                        const filterOptions = getDocumentFilterOptions();
+
+                        return (
+                          <div className="space-y-8">
+                            {/* Search and Filter Bar */}
+                            <div className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-xl p-6 shadow-sm">
+                          <div className="space-y-6">
+                                <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
+                                  Filter und Suche
+                                </h5>
+                                
+                                <div className="flex flex-col lg:flex-row gap-6">
+                                  {/* Search */}
+                                  <div className="flex-1">
+                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                      Suche
+                                    </label>
+                                    <div className="relative">
+                                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                      <input
+                                        type="text"
+                                        placeholder="Dokumente durchsuchen..."
+                                        value={documentSearchTerm}
+                                        onChange={(e) => setDocumentSearchTerm(e.target.value)}
+                                        className="block w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg leading-5 bg-white dark:bg-[#181818] text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
+                                      />
+                                </div>
+                              </div>
+                              
+                                  {/* Category Filter */}
+                                  <div className="w-full lg:w-56">
+                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                      Kategorie
+                                    </label>
+                                    <select
+                                      value={selectedDocumentCategory}
+                                      onChange={(e) => setSelectedDocumentCategory(e.target.value)}
+                                      className="block w-full py-3 px-4 rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white transition-colors"
+                                    >
+                                      <option value="">Alle Kategorien</option>
+                                      {filterOptions.categories.map(category => (
+                                        <option key={category} value={category}>{category}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+
+                                  {/* Tag Filter */}
+                                  <div className="w-full lg:w-56">
+                                    <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                      Tag
+                                    </label>
+                                    <select
+                                      value={selectedDocumentTag}
+                                      onChange={(e) => setSelectedDocumentTag(e.target.value)}
+                                      className="block w-full py-3 px-4 rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white transition-colors"
+                                    >
+                                      <option value="">Alle Tags</option>
+                                      {filterOptions.tags.map(tag => (
+                                        <option key={tag} value={tag}>{tag}</option>
+                                      ))}
+                                    </select>
+                                </div>
+                              </div>
+                              
+                                {/* Sort and View Options */}
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                  <div className="flex flex-col sm:flex-row gap-4">
+                                    {/* Sort Options */}
+                                    <div className="flex items-center gap-3">
+                                      <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                        Sortieren:
+                                      </label>
+                                      <select
+                                        value={documentSortBy}
+                                        onChange={(e) => setDocumentSortBy(e.target.value as 'name' | 'date' | 'category')}
+                                        className="rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white py-2 px-3"
+                                      >
+                                        <option value="date">Nach Datum</option>
+                                        <option value="name">Nach Name</option>
+                                        <option value="category">Nach Kategorie</option>
+                                      </select>
+                                      <button
+                                        onClick={() => setDocumentSortOrder(documentSortOrder === 'asc' ? 'desc' : 'asc')}
+                                        className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#181818] transition-colors"
+                                        title={`Sortierung: ${documentSortOrder === 'asc' ? 'Aufsteigend' : 'Absteigend'}`}
+                                      >
+                                        {documentSortOrder === 'asc' ? '↑' : '↓'}
+                                      </button>
+                                    </div>
+
+                                    {/* Results Summary */}
+                                    <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                                                                          <span className="px-3 py-1 bg-gray-100 dark:bg-gray-800 rounded-full">
+                                      {filteredDocuments.length} von {getEmployeeAmountOfDocuments()} Dokumenten
+                                    </span>
+                                </div>
+                              </div>
+                              
+                                  <div className="flex items-center gap-4">
+                                    {/* Reset Filter Button */}
+                                    {(documentSearchTerm || selectedDocumentCategory || selectedDocumentTag) && (
+                                      <button
+                                        onClick={() => {
+                                          setDocumentSearchTerm('');
+                                          setSelectedDocumentCategory('');
+                                          setSelectedDocumentTag('');
+                                        }}
+                                        className="text-sm text-primary hover:text-primary/80 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                                      >
+                                        Filter zurücksetzen
+                                      </button>
+                                    )}
+
+                                    {/* View Mode Toggle */}
+                                    <div className="flex border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
+                                      <button
+                                        onClick={() => setDocumentViewMode('grid')}
+                                        className={`px-4 py-2 text-sm font-medium transition-colors ${
+                                          documentViewMode === 'grid'
+                                            ? 'bg-primary text-white dark:bg-gray-800 dark:text-gray-200'
+                                            : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                        }`}
+                                      >
+                                        Grid
+                                      </button>
+                                      <button
+                                        onClick={() => setDocumentViewMode('list')}
+                                        className={`px-4 py-2 text-sm font-medium border-l border-gray-300 dark:border-gray-600 transition-colors ${
+                                          documentViewMode === 'list'
+                                            ? 'bg-primary text-white dark:bg-gray-800 dark:text-gray-200'
+                                            : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                        }`}
+                                      >
+                                        Liste
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Document Display */}
+                            {filteredDocuments.length > 0 ? (
+                              documentViewMode === 'grid' ? (
+                                /* Grid View */
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                  {filteredDocuments.map(document => (
+                                    <div key={`${document.DocumentType}-${document.DocumentID}`} className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-xl p-6 hover:shadow-lg transition-all duration-200 hover:border-gray-300 dark:hover:border-gray-600">
+                                      <div className="flex items-start justify-between mb-4">
+                                        <div className="text-3xl">
+                                          {getFileIcon(document.FileName)}
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                          {isPDFDocument(document.FileName) && (
+                                            <button
+                                              onClick={() => handleDocumentPreview(document)}
+                                              className="p-2 text-gray-400 hover:text-primary dark:hover:text-primary transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                                              title="Vorschau"
+                                            >
+                                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                              </svg>
+                                            </button>
+                                          )}
+                                          <button
+                                            onClick={() => window.open(`${API_BASE_URL}/document-download/${document.DocumentID}`, '_blank')}
+                                            className="p-2 text-gray-400 hover:text-primary dark:hover:text-primary transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                                            title="Herunterladen"
+                                          >
+                                            <Download className="h-4 w-4" />
+                                          </button>
+                                          {canDeleteDocuments && (
+                                            <button className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" title="Löschen">
+                                              <Trash2 className="h-4 w-4" />
+                                            </button>
+                                          )}
+                                        </div>
+                                        </div>
+
+                                      <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 line-clamp-2 leading-relaxed">
+                                        {document.FileName}
+                                      </h4>
+
+                                      <div className="space-y-3 text-xs text-gray-500 dark:text-gray-400">
+                                        <div className="flex items-center">
+                                          <Calendar className="h-3 w-3 mr-2" />
+                                          <span>{formatUploadDate(document.UploadedAt)} </span>
+                                      </div>
+                                                                <div className="flex items-center">
+                          <Users className="h-3 w-3 mr-2" />
+                          <span>{document.FullName}</span>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <Building2 className="h-3 w-3 mr-1" />
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(getCategoryNameById(document.CategoryID) || document.Category || '')}`}>
+                            {getCategoryNameById(document.CategoryID) || document.Category}
+                          </span>
+                        </div>
+                                  </div>
+
+                                      {document.Description && (
+                                        <div className="mt-4 bg-gray-50 dark:bg-[#181818] rounded-lg p-3">
+                                          <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 leading-relaxed">
+                                            <span className="font-medium">Beschreibung:</span> {document.Description}
+                                          </p>
+                                        </div>
+                                      )}
+
+                                      {document.Tags && (
+                                        <div className="mt-3 flex flex-wrap gap-1.5">
+                                          {document.Tags.split(';').map((tag: string) => tag.trim()).filter((tag: string) => tag).slice(0, 3).map((tag: string, index: number) => (
+                                            <span
+                                              key={index}
+                                              className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium"
+                                            >
+                                              {tag}
+                                            </span>
+                                          ))}
+                                          {document.Tags.split(';').length > 3 && (
+                                            <span className="text-xs text-gray-400 px-2 py-1">
+                                              +{document.Tags.split(';').length - 3}
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                /* List View */
+                                <div className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm">
+                                  <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                                    {filteredDocuments.map(document => (
+                                      <div key={`${document.DocumentType}-${document.DocumentID}`} className="p-6 hover:bg-gray-50 dark:hover:bg-[#181818] transition-colors">
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center space-x-4 flex-1 min-w-0">
+                                            <div className="text-3xl">
+                                              {getFileIcon(document.FileName)}
+                                            </div>
+                                            <div className="flex-1 min-w-0 space-y-2">
+                                              <h4 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                                                {document.FileName}
+                                              </h4>
+                                              <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 space-x-6">
+                                                <span className="flex items-center">
+                                                  <Calendar className="h-3 w-3 mr-1" />
+                                                  {formatUploadDate(document.UploadedAt)}
+                                                </span>
+                                                                                                <span className="flex items-center">
+                                                  <Users className="h-3 w-3 mr-1" />
+                                                  {document.UploadedBy}
+                                                </span>
+
+                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(getCategoryNameById(document.CategoryID) || document.Category || '')}`}>
+                                                  {getCategoryNameById(document.CategoryID) || document.Category}
+                                                </span>
+
+                                              </div>
+                                              
+                                              {document.Description && (
+                                                <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-1 mt-2">
+                                                  <span className="font-medium">Beschreibung:</span> {document.Description}
+                                                </p>
+                                              )}
+
+                                              {document.Tags && (
+                                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                                  {document.Tags.split(';').map((tag: string) => tag.trim()).filter((tag: string) => tag).slice(0, 5).map((tag: string, index: number) => (
+                                                    <span
+                                                      key={index}
+                                                      className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium"
+                                                    >
+                                                      {tag}
+                                                    </span>
+                                                  ))}
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                          
+                                          <div className="flex items-center space-x-2 ml-6">
+                                            {isPDFDocument(document.FileName) && (
+                                              <button
+                                                onClick={() => handleDocumentPreview(document)}
+                                                className="p-2 text-gray-400 hover:text-primary dark:hover:text-primary transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                                                title="Vorschau"
+                                              >
+                                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                </svg>
+                                              </button>
+                                            )}
+                                            <button 
+                                              onClick={() => window.open(`${API_BASE_URL}/document-download/${document.DocumentID}`, '_blank')}
+                                              className="p-2 text-gray-400 hover:text-primary dark:hover:text-primary transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                                              title="Herunterladen"
+                                            >
+                                              <Download className="h-4 w-4" />
+                                            </button>
+                                            {canDeleteDocuments && (
+                                              <button className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" title="Löschen">
+                                                <Trash2 className="h-4 w-4" />
+                                              </button>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )
+                            ) : (
+                              /* No Results */
+                              <div className="text-center py-16">
+                                <FileText className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+                                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                                  Keine Dokumente gefunden
+                                </h3>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                                  Versuchen Sie, Ihre Suchkriterien anzupassen.
+                                </p>
+                                <button
+                                  onClick={() => {
+                                    setDocumentSearchTerm('');
+                                    setSelectedDocumentCategory('');
+                                    setSelectedDocumentTag('');
+                                  }}
+                                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-primary border border-primary rounded-lg hover:bg-primary/10 dark:hover:bg-primary/5 transition-colors"
+                                >
+                                  Filter zurücksetzen
+                                </button>
+                            </div>
+                            )}
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <div className="text-center py-20">
+                        <div className="mx-auto w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-6">
+                          <FileText className="h-10 w-10 text-gray-400" />
+                        </div>
+                        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
+                          Keine Dokumente vorhanden
+                        </h3>
+                        <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-md mx-auto leading-relaxed">
+                          Für {employee.FullName} wurden noch keine Dokumente hochgeladen. Laden Sie das erste Dokument hoch, um zu beginnen.
+                        </p>
+                        {canManageEmployee && (
+                          <button
+                            onClick={() => setShowDocumentUploadModal(true)}
+                            className="inline-flex items-center px-6 py-3 bg-gray-900 dark:bg-gray-700 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-600 transition-colors shadow-sm"
+                          >
+                            <Plus className="h-5 w-5 mr-2" />
+                            Erstes Dokument hinzufügen
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -697,7 +2002,7 @@ export default function EmployeeDetails({
                     <div className="space-y-4">
                       {approvals.map((approval) => {
                         const training = trainingsData?.find(
-                          (t: Training) => t.ID.toString() === approval.trainingId,
+                          (t: Training) => t.ID.toString() === approval.trainingId.toString(),
                         );
                         return (
                           <div
@@ -764,7 +2069,7 @@ export default function EmployeeDetails({
                         className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors cursor-pointer
                           ${selectedQualificationTrainers.length > 0 
                             ? 'opacity-50 cursor-not-allowed border-gray-200 dark:border-gray-700' 
-                            : 'hover:bg-gray-50 dark:hover:bg-gray-800 border-gray-200 dark:border-gray-700'
+                            : 'hover:bg-gray-50 dark:hover:bg-gray-800 border-gray-200 dark:border-gray-700 dark:hover:bg-[#2a2a2a] '
                           }`}
                       >
                         <input
@@ -776,7 +2081,7 @@ export default function EmployeeDetails({
                             ${selectedQualificationTrainers.length > 0 ? 'cursor-not-allowed' : ''}`}
                         />
                         <div className="flex flex-col">
-                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300 ">
                             Als Trainer aktivieren
                           </span>
                           <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -876,91 +2181,6 @@ export default function EmployeeDetails({
                             </div>
                           </div>
                         </div>
-
-                        {/* Schulungen Sektion */}
-                        <div className="space-y-4">
-                          <div className="flex justify-between items-center">
-                            <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                              Durchgeführte Schulungen
-                            </h5>
-                          </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Aktive Schulungen */}
-                            <div className="space-y-3">
-                              <h6 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                Aktive Schulungen
-                              </h6>
-                              <div className="space-y-2">
-                                {trainingsData?.filter(training => 
-                                  selectedTrainings.includes(training.ID.toString()) && !training.completed
-                                ).map(training => (
-                                  <div
-                                    key={`active-training-${training.ID}`}
-                                    className="p-3 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20"
-                                  >
-                                    <div>
-                                      <h6 className="text-sm font-medium text-gray-900 dark:text-white">
-                                        {training.Name}
-                                      </h6>
-                                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                        {training.Description}
-                                      </p>
-                                      <div className="mt-2 flex items-center text-xs text-green-600 dark:text-green-400">
-                                        <Clock className="h-3 w-3 mr-1" />
-                                        In Bearbeitung
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                                {!trainingsData?.some(training => 
-                                  selectedTrainings.includes(training.ID.toString()) && !training.completed
-                                ) && (
-                                  <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-                                    Keine aktiven Schulungen
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Abgeschlossene Schulungen */}
-                            <div className="space-y-3">
-                              <h6 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                                Abgeschlossene Schulungen
-                              </h6>
-                              <div className="space-y-2">
-                                {trainingsData?.filter(training => 
-                                  selectedTrainings.includes(training.ID.toString()) && training.completed
-                                ).map(training => (
-                                  <div
-                                    key={`completed-training-${training.ID}`}
-                                    className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50"
-                                  >
-                                    <div>
-                                      <h6 className="text-sm font-medium text-gray-900 dark:text-white">
-                                        {training.Name}
-                                      </h6>
-                                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                        {training.Description}
-                                      </p>
-                                      <div className="mt-2 flex items-center text-xs text-gray-500 dark:text-gray-400">
-                                        <CheckCircle className="h-3 w-3 mr-1" />
-                                        Abgeschlossen
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                                {!trainingsData?.some(training => 
-                                  selectedTrainings.includes(training.ID.toString()) && training.completed
-                                ) && (
-                                  <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-                                    Keine abgeschlossenen Schulungen
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
                       </div>
                     )}
                   </div>
@@ -975,18 +2195,11 @@ export default function EmployeeDetails({
       {showPositionModal && (
         <div className="fixed inset-0 z-[60] bg-black bg-opacity-50 flex items-end justify-center md:items-center">
           <div className="w-full md:max-w-md mx-4 transform transition-transform duration-300 ease-in-out">
-            <div
-              className="bg-white dark:bg-[#121212] rounded-t-xl md:rounded-xl p-4 max-h-[85vh] overflow-y-auto 
-              [&::-webkit-scrollbar]:w-2
-              [&::-webkit-scrollbar-track]:bg-gray-100
-              [&::-webkit-scrollbar-thumb]:bg-gray-300
-              dark:[&::-webkit-scrollbar-track]:bg-neutral-700
-              dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500"
-            >
+            <div className="bg-white dark:bg-[#121212] rounded-t-xl md:rounded-xl p-4 max-h-[85vh] overflow-y-auto">
               <div className="pb-4 mb-4 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                    Zusatzqualifikation hinzufügen
+                    Zusatzfunktion hinzufügen
                   </h2>
                   <button
                     onClick={() => setShowPositionModal(false)}
@@ -997,45 +2210,263 @@ export default function EmployeeDetails({
                 </div>
               </div>
 
+              {isLoadingAdditionalSkills ? (
+                <div className="flex justify-center items-center py-8">
+                  <p className="text-gray-500 dark:text-gray-400">Lade Zusatzfunktionen...</p>
+                </div>
+              ) : (
               <div className="space-y-4">
-                {availableQualifications.map((qual) => (
+                  {availableAdditionalSkills.map((skill) => (
                   <div
-                    key={qual.ID}
+                      key={skill.ID}
                     className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
                   >
                     <div className="flex items-center gap-2 mb-2">
                       <h3 className="text-sm font-medium text-gray-900 dark:text-white">
-                        {qual.Name}
+                          {skill.Name}
                       </h3>
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300">
                         <Star className="h-3 w-3 mr-1" />
-                        Zusatzqualifikation
+                          Zusatzfunktion
                       </span>
                     </div>
                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      {qual.Description}
+                        {skill.Description}
                     </p>
-                    <div className="mt-4 space-y-2">
-                      <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                        <Clock className="h-4 w-4 mr-2" />
-                        Gültigkeitsdauer: {qual.ValidityInMonth} Monate
-                      </div>
                       <button
-                        onClick={() => handleAddSkill(qual.ID!)}
-                        className="w-full px-4 py-2 text-sm font-medium text-primary border border-primary rounded-md hover:bg-primary/10 dark:hover:bg-primary/5"
+                        onClick={() => handleAddSkill(skill.ID!)}
+                        className="mt-4 w-full px-4 py-2 text-sm font-medium text-primary border border-primary rounded-md hover:bg-primary/10 dark:hover:bg-primary/5"
                       >
-                        Zusatzqualifikation hinzufügen
+                        Zusatzfunktion hinzufügen
                       </button>
-                    </div>
                   </div>
                 ))}
 
-                {availableQualifications.length === 0 && (
+                  {availableAdditionalSkills.length === 0 && (
                   <p className="text-center text-gray-500 dark:text-gray-400 py-4">
-                    Keine weiteren Zusatzqualifikationen verfügbar
+                      Keine weiteren Zusatzfunktionen verfügbar
                   </p>
                 )}
               </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAssignTrainingModal && (
+        <div className="fixed inset-0 z-[60] bg-black bg-opacity-50 flex items-end justify-center md:items-center">
+          <div className="w-full md:max-w-md mx-4 transform transition-transform duration-300 ease-in-out">
+            <div className="bg-white dark:bg-[#121212] rounded-t-xl md:rounded-xl p-4 max-h-[85vh] overflow-y-auto">
+              <div className="pb-4 mb-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    Schulung zuweisen
+                  </h2>
+                  <button
+                    onClick={() => setShowAssignTrainingModal(false)}
+                    className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+              </div>
+
+              {isLoadingAvailableTrainings ? (
+                <div className="flex justify-center items-center py-8">
+                  <p className="text-gray-500 dark:text-gray-400">Lade verfügbare Schulungen...</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {availableTrainings?.filter(training => 
+                    !assignedTrainings?.some(at => at.ID === training.ID)
+                  ).map(training => (
+                    <div
+                      key={training.ID}
+                      className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                          {training.Name}
+                        </h3>
+                        {training.isMandatory && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300">
+                            Pflichtschulung
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        {training.Description}
+                      </p>
+                      {training.trainingDate && (
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                          <Calendar className="h-3 w-3 inline mr-1" />
+                          Termin: {new Date(training.trainingDate).toLocaleDateString()}
+                          {(() => {
+                            if (!training.trainingDate) return null;
+                            const today = new Date();
+                            const trainingDate = new Date(training.trainingDate);
+                            const diffTime = trainingDate.getTime() - today.getTime();
+                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                            
+                            if (diffDays < 0) {
+                              return <span className="ml-2 text-red-500 dark:text-red-400">(Überfällig)</span>;
+                            } else if (diffDays === 0) {
+                              return <span className="ml-2 text-yellow-500 dark:text-yellow-400">(Heute)</span>;
+                            } else if (diffDays === 1) {
+                              return <span className="ml-2 text-yellow-500 dark:text-yellow-400">(Morgen)</span>;
+                            } else if (diffDays <= 7) {
+                              return <span className="ml-2 text-yellow-500 dark:text-yellow-400">(in {diffDays} Tagen)</span>;
+                            } else {
+                              return <span className="ml-2 text-gray-500 dark:text-gray-400">(in {diffDays} Tagen)</span>;
+                            }
+                          })()}
+                        </p>
+                      )}
+                      <button
+                        onClick={() => {
+                          assignTraining.mutate({
+                            employeeId: employee.ID.toString(),
+                            trainingId: training.ID.toString()
+                          });
+                          setShowAssignTrainingModal(false);
+                        }}
+                        className="mt-4 w-full px-4 py-2 text-sm font-medium text-primary border border-primary rounded-md hover:bg-primary/10 dark:hover:bg-primary/5"
+                      >
+                        Schulung zuweisen
+                      </button>
+                    </div>
+                  ))}
+
+                  {!availableTrainings?.some(training => 
+                    !assignedTrainings?.some(at => at.ID === training.ID)
+                  ) && (
+                    <p className="text-center text-gray-500 dark:text-gray-400 py-4">
+                      Keine weiteren Schulungen verfügbar
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Document Upload Modal */}
+      {showDocumentUploadModal && (
+        <EmployeeDocumentUploader
+          employee={employee}
+          onClose={() => setShowDocumentUploadModal(false)}
+          onUpload={handleDocumentUpload}
+        />
+      )}
+
+      {/* PDF Preview Modal */}
+      {showDocumentPreview && selectedDocument && (
+        <div className="fixed inset-0 z-[70] bg-black bg-opacity-75 flex items-center justify-center">
+          <div className="bg-white dark:bg-[#121212] rounded-lg w-full h-full max-w-6xl max-h-[95vh] m-4 flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white truncate">
+                  {selectedDocumentInfo?.FileName || selectedDocument.FileName}
+                </h2>
+                <div className="mt-1 flex items-center text-sm text-gray-500 dark:text-gray-400 space-x-4">
+                  <span className="flex items-center">
+                    <Calendar className="h-4 w-4 mr-1" />
+                    {formatUploadDate(selectedDocumentInfo?.UploadedAt || selectedDocument.UploadedAt)}
+                  </span>
+                  <span className="flex items-center">
+                    <Users className="h-4 w-4 mr-1" />
+                    {selectedDocumentInfo?.UploadedBy || selectedDocument.UploadedBy}
+                  </span>
+                  {(selectedDocumentInfo?.CategoryID || selectedDocument.CategoryID) && (
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(getCategoryNameById(selectedDocumentInfo?.CategoryID || selectedDocument.CategoryID) || selectedDocument.Category || '')}`}>
+                      {getCategoryNameById(selectedDocumentInfo?.CategoryID || selectedDocument.CategoryID) || selectedDocument.Category}
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2 ml-4">
+                <a
+                  href={`${API_BASE_URL}/document-download/${selectedDocument.ID}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-gray-700"
+                  title="Dokument herunterladen"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Herunterladen
+                </a>
+                <button
+                  onClick={() => setShowDocumentPreview(false)}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
+
+            {/* Description */}
+            {(selectedDocumentInfo?.Description || selectedDocument.Description) && (
+              <div className="px-4 py-2 bg-gray-50 dark:bg-[#181818] border-b border-gray-200 dark:border-gray-700">
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  <strong>Beschreibung:</strong> {selectedDocumentInfo?.Description || selectedDocument.Description}
+                </p>
+              </div>
+            )}
+
+            {/* Tags */}
+            {(selectedDocumentInfo?.Tags || selectedDocument.Tags) && (
+              <div className="px-4 py-2 bg-gray-50 dark:bg-[#181818] border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center flex-wrap gap-2">
+                  <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Tags:</span>
+                  {(selectedDocumentInfo?.Tags || selectedDocument.Tags).split(';').map((tag: string) => tag.trim()).filter((tag: string) => tag).map((tag: string, index: number) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-2 py-1 rounded text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* PDF Content */}
+            <div className="flex-1 bg-gray-100 dark:bg-gray-900">
+              {isPDFDocument(selectedDocument.FileName) ? (
+                <iframe
+                  src={`${API_BASE_URL}/document-view/${selectedDocument.ID}?`}
+                  className="w-full h-full border-0"
+                  title={selectedDocument.FileName}
+                  loading="lazy"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="text-6xl mb-4">
+                      {getFileIcon(selectedDocument.FileName)}
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                      Vorschau nicht verfügbar
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400 mb-4">
+                      Für diesen Dateityp ist keine Vorschau verfügbar.
+                    </p>
+                    <a
+                      href={`${API_BASE_URL}/document-download/${selectedDocument.ID}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Dokument herunterladen
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -3,14 +3,18 @@ import { useSelector, useDispatch } from 'react-redux';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { RootState } from '../../store';
 import { logout, refreshSession } from '../../store/slices/authSlice';
+import { usePermissionCheck } from '../../hooks/usePermissionCheck';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import { toast } from 'sonner';
 
 export default function AppLayout() {
   const { isAuthenticated, sessionExpiry, employee } = useSelector((state: RootState) => state.auth);
   const { sidebarOpen } = useSelector((state: RootState) => state.ui);
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
+  // Initialize permission checking with reduced frequency
 
   useEffect(() => {
     if (!isAuthenticated || !employee) {
@@ -22,6 +26,25 @@ export default function AppLayout() {
   const resetTimer = useCallback(() => {
     dispatch(refreshSession());
   }, [dispatch]);
+
+  // Set up event listeners for permission changes
+  useEffect(() => {
+    const handlePermissionChanged = (event: CustomEvent) => {
+      toast.info(event.detail.message);
+    };
+
+    const handlePermissionDenied = (event: CustomEvent) => {
+      toast.error(event.detail.message);
+    };
+
+    window.addEventListener('permissionChanged', handlePermissionChanged as EventListener);
+    window.addEventListener('permissionDenied', handlePermissionDenied as EventListener);
+
+    return () => {
+      window.removeEventListener('permissionChanged', handlePermissionChanged as EventListener);
+      window.removeEventListener('permissionDenied', handlePermissionDenied as EventListener);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated) {

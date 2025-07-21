@@ -18,6 +18,11 @@ const initialState: NotificationState = {
   notifications: [],
 };
 
+// Helper function to generate unique IDs
+const generateUniqueId = () => {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+};
+
 const notificationSlice = createSlice({
   name: 'notifications',
   initialState,
@@ -25,7 +30,7 @@ const notificationSlice = createSlice({
     addNotification: (state, action: PayloadAction<Omit<Notification, 'id' | 'date' | 'read'>>) => {
       state.notifications.push({
         ...action.payload,
-        id: Date.now().toString(),
+        id: generateUniqueId(),
         date: new Date().toISOString(),
         read: false,
       });

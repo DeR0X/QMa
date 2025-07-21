@@ -113,8 +113,8 @@ export default function EmployeeList({
               }
             </button>
           )}
-          <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
-            <span className="text-sm font-medium">
+          <div className="h-10 w-10 rounded-full bg-primary text-white dark:bg-gray dark:text-primary flex items-center justify-center">
+            <span className="text-sm font-medium dark:text-gray-900">
               {typeof employee.FullName === 'string'
                 ? employee.FullName.split(' ').map((n) => n[0]).join('')
                 : ''}

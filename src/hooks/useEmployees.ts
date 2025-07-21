@@ -76,12 +76,17 @@ const filterAndPaginateEmployees = (employees: Employee[], filters: EmployeeFilt
 
   // Apply department filter
   if (filters.department) {
-    filteredData = filteredData.filter(emp => emp.Department === filters.department);
+    filteredData = filteredData.filter(emp => emp.DepartmentID?.toString() === filters.department);
   }
 
   // Apply role filter
   if (filters.role) {
-    filteredData = filteredData.filter(emp => emp.AccessRight === filters.role);
+    filteredData = filteredData.filter(emp => emp.AccessRight?.toString() === filters.role);
+  }
+
+  // Apply active filter
+  if (filters.isActive !== undefined) {
+    filteredData = filteredData.filter(emp => emp.isActive === filters.isActive);
   }
 
   // Apply sorting
@@ -189,8 +194,15 @@ export function useUpdateEmployee() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Employee> }) =>
-      employeeApi.updateEmployee(id, data),
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Employee> }) => {
+      try {
+        const result = await employeeApi.updateEmployee(id, data);
+        return result;
+      } catch (error) {
+        console.error('Error updating employee:', error);
+        throw error;
+      }
+    },
     onSuccess: (updatedEmployee, variables) => {
       employeeStore.allEmployees = employeeStore.allEmployees.map(emp => 
         emp.ID.toString() === variables.id ? { ...emp, ...updatedEmployee } : emp
@@ -199,6 +211,9 @@ export function useUpdateEmployee() {
       queryClient.invalidateQueries({ queryKey: ['employees'] });
       queryClient.invalidateQueries({ queryKey: ['employee', variables.id] });
     },
+    onError: (error, variables) => {
+      console.error('Employee update mutation error:', { error, variables });
+    }
   });
 }
 

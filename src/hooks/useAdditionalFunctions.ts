@@ -1,8 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { additionalFunctionsApi, AdditionalSkill } from '../services/additionalFunctionsApi';
 import { toast } from 'sonner';
+import { API_BASE_URL_V2 } from '../config/api';
 
-const API_URL = 'http://localhost:5000/api/v2';
+const API_URL = API_BASE_URL_V2;
 
 
 export function useAdditionalFunctions() {

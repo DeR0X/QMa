@@ -1,5 +1,5 @@
-import React from 'react';
-import { useState } from "react";
+import React, { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import {
   X,
   Award,
@@ -16,6 +16,8 @@ import {
   CheckCircle,
   Clock,
   Filter,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { formatDate, getLatestQualifications } from "../../lib/utils";
 import EmployeeDetails from "../employees/EmployeeDetails";
@@ -23,6 +25,8 @@ import { useEmployeeQualifications } from "../../hooks/useEmployeeQualifications
 import { useDepartments } from "../../hooks/useDepartments";
 import { useJobTitles } from "../../hooks/useJobTitles";
 import { useQualifications } from "../../hooks/useQualifications";
+import { hasHRPermissions } from "../../store/slices/authSlice";
+import { RootState } from "../../store";
 
 interface Props {
   isOpen: boolean;
@@ -46,7 +50,7 @@ function ExpiredQualificationModal({ qualification, employee, onClose }: { quali
         <div className="space-y-4">
           <div>
             <span className="font-medium text-gray-900 dark:text-white">{qualification?.Name || 'Unbekannte Qualifikation'}</span>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Gültig bis: {formatDate(qualification.toQualifyUntil)}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Gültig bis: {qualification?.ValidityInMonth === 999 ? 'Läuft nie ab' : formatDate(qualification.toQualifyUntil)}</p>
           </div>
           <div>
             <p className="text-sm text-gray-900 dark:text-white">Mitarbeiter: {employee?.FullName || employee?.fullName || employee?.Name || employee?.name || employee?.EmployeeID}</p>
@@ -65,9 +69,13 @@ export default function StatisticsModal({
   employees = [],
   type,
 }: Props) {
+  const { employee: currentEmployee } = useSelector((state: RootState) => state.auth);
+  const isHRAdmin = hasHRPermissions(currentEmployee);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedEmployee, setSelectedEmployee] = useState<any | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
+  const [expandedQualifications, setExpandedQualifications] = useState<Set<number | undefined>>(new Set());
+  const [selectedQualificationType, setSelectedQualificationType] = useState<'all' | 'Pflicht' | 'Job' | 'Zusatz'>('all');
   const { data: departmentsData } = useDepartments();
   const { data: jobTitlesData } = useJobTitles();
   const { data: qualificationsData } = useQualifications();
@@ -89,29 +97,104 @@ export default function StatisticsModal({
 
     // For pending (expired) qualifications, only show employees with expired qualifications
     switch (type) {
-      case "pending":
-        // Show only employees with expired qualifications
+      case "completed":
         return employeeQuals.some((qual: any) => {
-          const expiryDate = new Date(qual.ToQualifyUntil);
-          return expiryDate <= new Date();
+          // Get qualification details to check if it never expires
+          const qualification = qualificationsData?.find(q => q.ID === parseInt(qual.QualificationID));
+          
+          // If qualification never expires (999 months), always count as completed
+          if (qualification?.ValidityInMonth === 999) {
+            return true;
+          }
+          
+          // Check if qualification has a valid isQualifiedUntil date
+          if (qual.isQualifiedUntil) {
+            const qualifiedUntilDate = new Date(qual.isQualifiedUntil);
+            const now = new Date();
+            const sixtyDaysFromNow = new Date(now);
+            sixtyDaysFromNow.setDate(now.getDate() + 60);
+            return qualifiedUntilDate > sixtyDaysFromNow;
+          }
+          return false;
+        });
+      case "pending":
+        // Show only employees with expired qualifications (including 2 weeks grace period)
+        return employeeQuals.some((qual: any) => {
+          // Get qualification details to check if it never expires
+          const qualification = qualificationsData?.find(q => q.ID === parseInt(qual.QualificationID));
+          
+          // If qualification never expires (999 months), never count as pending
+          if (qualification?.ValidityInMonth === 999) {
+            return false;
+          }
+          
+          // Check if qualification has isQualifiedUntil and it's expired + 2 weeks
+          if (qual.isQualifiedUntil) {
+            console.log(qual);
+            const qualifiedUntilDate = new Date(qual.isQualifiedUntil);
+            const twoWeeksAfterExpiry = new Date(qualifiedUntilDate);
+            twoWeeksAfterExpiry.setDate(qualifiedUntilDate.getDate() + 14);
+            return twoWeeksAfterExpiry <= new Date();
+          }
+          // If no isQualifiedUntil, check toQualifyUntil for grace period + 2 weeks
+          if (qual.ToQualifyUntil || qual.toQualifyUntil) {
+            console.log('Checking toQualifyUntil:', qual);
+            const expiryDate = new Date(qual.ToQualifyUntil || qual.toQualifyUntil);
+            const twoWeeksAfterExpiry = new Date(expiryDate);
+            twoWeeksAfterExpiry.setDate(expiryDate.getDate() + 14);
+            const now = new Date();
+            const isExpired = twoWeeksAfterExpiry <= now;
+            return isExpired;
+          }
+          return false;
         });
       case "expiring":
         return employeeQuals.some((qual: any) => {
-          const expiryDate = new Date(qual.ToQualifyUntil);
-          const now = new Date();
-          const twoMonthsFromNow = new Date();
-          twoMonthsFromNow.setMonth(now.getMonth() + 2);
-          return expiryDate <= twoMonthsFromNow && expiryDate > now;
-        });
-      case "completed":
-        return employeeQuals.some((qual: any) => {
-          const expiryDate = new Date(qual.ToQualifyUntil);
-          return expiryDate > new Date();
+          // Get qualification details to check if it never expires
+          const qualification = qualificationsData?.find(q => q.ID === parseInt(qual.QualificationID));
+          
+          // If qualification never expires (999 months), never count as expiring
+          if (qualification?.ValidityInMonth === 999) {
+            return false;
+          }
+          
+          // Check if qualification has isQualifiedUntil and is expiring within 60 days or within 14-day grace period
+          if (qual.isQualifiedUntil) {
+            const qualifiedUntilDate = new Date(qual.isQualifiedUntil);
+            const now = new Date();
+            const sixtyDaysFromNow = new Date(now);
+            sixtyDaysFromNow.setDate(now.getDate() + 60);
+            const twoWeeksAfterExpiry = new Date(qualifiedUntilDate);
+            twoWeeksAfterExpiry.setDate(qualifiedUntilDate.getDate() + 14);
+            return qualifiedUntilDate <= sixtyDaysFromNow && twoWeeksAfterExpiry > now;
+          }
+          // If no isQualifiedUntil, check toQualifyUntil for grace period
+          if (qual.ToQualifyUntil || qual.toQualifyUntil) {
+            const expiryDate = new Date(qual.ToQualifyUntil || qual.toQualifyUntil);
+            const now = new Date();
+            const sixtyDaysFromNow = new Date(now);
+            sixtyDaysFromNow.setDate(now.getDate() + 60);
+            const twoWeeksAfterExpiry = new Date(expiryDate);
+            twoWeeksAfterExpiry.setDate(expiryDate.getDate() + 14);
+            return expiryDate <= sixtyDaysFromNow && twoWeeksAfterExpiry > now;
+          }
+          return false;
         });
       default:
         return true;
     }
   });
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -120,6 +203,14 @@ export default function StatisticsModal({
   let expiredQualifications: any[] = [];
   if (type === 'pending' && Array.isArray(allEmployeeQualifications)) {
     expiredQualifications = getLatestQualifications(allEmployeeQualifications.filter((qual: any) => {
+      // Get qualification details to check if it never expires
+      const qualification = qualificationsData?.find(q => q.ID === parseInt(qual.QualificationID));
+      
+      // If qualification never expires (999 months), never count as expired
+      if (qualification?.ValidityInMonth === 999) {
+        return false;
+      }
+      
       const expiryDate = new Date(qual.toQualifyUntil);
       return expiryDate <= now;
     }));
@@ -127,11 +218,19 @@ export default function StatisticsModal({
 
   let expiringQualifications: any[] = [];
   if (type === 'expiring' && Array.isArray(allEmployeeQualifications)) {
-    const twoMonthsFromNow = new Date();
-    twoMonthsFromNow.setMonth(now.getMonth() + 2);
+    const sixtyDaysFromNow = new Date(now);
+    sixtyDaysFromNow.setDate(now.getDate() + 60);
     expiringQualifications = getLatestQualifications(allEmployeeQualifications.filter((qual: any) => {
+      // Get qualification details to check if it never expires
+      const qualification = qualificationsData?.find(q => q.ID === parseInt(qual.QualificationID));
+      
+      // If qualification never expires (999 months), never count as expiring
+      if (qualification?.ValidityInMonth === 999) {
+        return false;
+      }
+      
       const expiryDate = new Date(qual.toQualifyUntil);
-      return expiryDate <= twoMonthsFromNow && expiryDate > now;
+      return expiryDate <= sixtyDaysFromNow && expiryDate > now;
     }));
   }
 
@@ -141,6 +240,19 @@ export default function StatisticsModal({
     return employees.find((emp: any) => emp.ID == qual.EmployeeID);
   };
 
+  const toggleQualification = (qualId: number | undefined) => {
+    if (qualId === undefined) return;
+    setExpandedQualifications(prev => {
+      const next = new Set(prev);
+      if (next.has(qualId)) {
+        next.delete(qualId);
+      } else {
+        next.add(qualId);
+      }
+      return next;
+    });
+  };
+
   const renderContent = () => {
     if (type === 'all') {
       return (
@@ -148,12 +260,12 @@ export default function StatisticsModal({
           {filteredEmployees.map((employee) => (
             <div
               key={employee.ID}
-              className="bg-white dark:bg-[#181818] p-4 rounded-lg shadow cursor-pointer hover:shadow-md transition-all"
+              className="bg-white dark:bg-[#181818] p-4 rounded-lg shadow cursor-pointer hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20 hover:bg-gray-50 dark:hover:bg-[#2a2a2a] transition-all duration-200"
               onClick={() => setSelectedEmployee(employee)}
             >
               <div className="flex items-center space-x-4">
-                <div className="h-12 w-12 rounded-full bg-primary text-white flex items-center justify-center">
-                  <span className="text-sm font-medium">
+                <div className="h-12 w-12 rounded-full bg-primary text-white dark:bg-gray dark:text-primary flex items-center justify-center">
+                  <span className="text-sm font-medium dark:text-gray-900">
                     {employee.FullName.split(' ').map((n: string) => n[0]).join('')}
                   </span>
                 </div>
@@ -171,145 +283,307 @@ export default function StatisticsModal({
 
     // For qualification-related views (completed, pending, expiring)
     return (
-      <div className="space-y-4">
-        {/* Zeige alle abgelaufenen Qualifikationen, wenn type === 'pending' */}
-        {type === 'pending' && expiredQualifications.length > 0 && (
-          <div>
-            <h3 className="text-lg font-semibold mb-2">Alle abgelaufenen Qualifikationen</h3>
-            <ul className="space-y-2">
-              {expiredQualifications.map((qual: any) => {
+      <div className="space-y-6">
+        {/* Filter für Qualifikationstypen */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          <button
+            onClick={() => setSelectedQualificationType('all')}
+            className={`px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium transition-colors ${
+              selectedQualificationType === 'all'
+                ? 'bg-primary text-white dark:bg-gray-700 dark:text-white'
+                : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+            }`}
+          >
+            Alle Qualifikationstypen
+          </button>
+          <button
+            onClick={() => setSelectedQualificationType('Pflicht')}
+            className={`px-4 py-2 border border-red-300 dark:border-red-600 rounded-md text-sm font-medium transition-colors ${
+              selectedQualificationType === 'Pflicht'
+                ? 'bg-red-100 text-red-800 dark:bg-red-700 dark:text-white border-red-300 dark:border-red-600'
+                : 'bg-white dark:bg-[#181818] text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/10 border-red-300 dark:border-red-600'
+            }`}
+          >
+            Pflichtqualifikationen
+          </button>
+          <button
+            onClick={() => setSelectedQualificationType('Job')}
+            className={`px-4 py-2 border border-blue-300 dark:border-blue-600 rounded-md text-sm font-medium transition-colors ${
+              selectedQualificationType === 'Job'
+                ? 'bg-blue-100 text-blue-800 dark:bg-blue-700 dark:text-white border-blue-300 dark:border-blue-600'
+                : 'bg-white dark:bg-[#181818] text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/10 border-blue-300 dark:border-blue-600'
+            }`}
+          >
+            Positionsqualifikationen
+          </button>
+          <button
+            onClick={() => setSelectedQualificationType('Zusatz')}
+            className={`px-4 py-2 border border-purple-300 dark:border-purple-600 rounded-md text-sm font-medium transition-colors ${
+              selectedQualificationType === 'Zusatz'
+                ? 'bg-purple-100 text-purple-800 dark:bg-purple-700 dark:text-white border-purple-300 dark:border-purple-600'
+                : 'bg-white dark:bg-[#181818] text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/10 border-purple-300 dark:border-purple-600'
+            }`}
+          >
+            Zusatzfunktionen
+          </button>
+        </div>
+
+        {/* Qualifikationsliste */}
+        <div>
+          <h3 className="text-lg font-semibold mb-4">
+            {type === 'completed' ? 'Aktive Qualifikationen' :
+             type === 'pending' ? 'Abgelaufene Qualifikationen' :
+             'Ablaufende Qualifikationen'}
+          </h3>
+          <div className="space-y-4">
+            {Array.from(new Set(filteredEmployees.flatMap(employee => {
+              const employeeQuals = Array.isArray(allEmployeeQualifications)
+                ? getLatestQualifications(allEmployeeQualifications.filter((qual: any) => qual.EmployeeID == employee.ID))
+                : [];
+              return employeeQuals.filter((qual: any) => {
+                // Prioritize isQualifiedUntil if it exists, otherwise fall back to toQualifyUntil
+                const expiryDate = qual.isQualifiedUntil 
+                  ? new Date(qual.isQualifiedUntil)
+                  : (qual.ToQualifyUntil || qual.toQualifyUntil) 
+                    ? new Date(qual.ToQualifyUntil || qual.toQualifyUntil)
+                    : null;
+                
+                if (!expiryDate) return false;
+                
+                const now = new Date();
+                const sixtyDaysFromNow = new Date(now);
+                sixtyDaysFromNow.setDate(now.getDate() + 60);
+                
+                // Get qualification details to check if it never expires
                 const qualification = qualificationsData?.find(q => q.ID === parseInt(qual.QualificationID));
-                const employee = findEmployeeByQual(qual);
-                return (
-                  <li key={qual.ID} className="p-2 rounded-lg bg-red-50 dark:bg-red-900/10 flex flex-col md:flex-row md:items-center md:justify-between cursor-pointer"
-                    onClick={() => {
-                      setSelectedExpiredQual(qualification || qual);
-                      setSelectedExpiredEmployee(employee);
-                    }}
-                  >
-                    <div>
-                      <span className="font-medium text-gray-900 dark:text-white">{qualification?.Name || 'Unbekannte Qualifikation'}</span>
-                      <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">(Mitarbeiter: {employee?.FullName || employee?.EmployeeID})</span>
-                      <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">Personalnummer: {employee?.StaffNumber || '-'}</span>
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      Gültig bis: {formatDate(qual.ToQualifyUntil || qual.toQualifyUntil)}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        )}
-        {type === 'expiring' && expiringQualifications.length > 0 && (
-          <div>
-            <h3 className="text-lg font-semibold mb-2">Alle ablaufende Qualifikationen</h3>
-            <ul className="space-y-2">
-              {expiringQualifications.map((qual: any) => {
+                
+                // If qualification never expires (999 months), handle specially
+                if (qualification?.ValidityInMonth === 999) {
+                  if (type === 'completed') return true; // Always active
+                  if (type === 'pending' || type === 'expiring') return false; // Never expiring or expired
+                  return false;
+                }
+                
+                if (type === 'completed') {
+                  // Für aktive Qualifikationen: Nur die, die noch länger als 60 Tage gültig sind
+                  return expiryDate > sixtyDaysFromNow;
+                }
+                if (type === 'pending') {
+                  // Für abgelaufene Qualifikationen: Nur die, die nach 2 Wochen Grace Period abgelaufen sind
+                  const twoWeeksAfterExpiry = new Date(expiryDate);
+                  twoWeeksAfterExpiry.setDate(expiryDate.getDate() + 14);
+                  return twoWeeksAfterExpiry <= now;
+                }
+                if (type === 'expiring') {
+                  // Für ablaufende Qualifikationen: Zeige die, die in den nächsten 60 Tagen ablaufen ODER bereits abgelaufen sind, aber noch innerhalb der 14-Tage-Grace-Period liegen
+                  const twoWeeksAfterExpiry = new Date(expiryDate);
+                  twoWeeksAfterExpiry.setDate(expiryDate.getDate() + 14);
+                  return (expiryDate <= sixtyDaysFromNow && expiryDate > now) || (expiryDate <= now && twoWeeksAfterExpiry > now);
+                }
+                return false;
+              }).map(qual => {
                 const qualification = qualificationsData?.find(q => q.ID === parseInt(qual.QualificationID));
-                const employee = findEmployeeByQual(qual);
-                return (
-                  <li key={qual.ID} className="p-2 rounded-lg bg-yellow-50 dark:bg-yellow-600/10 flex flex-col md:flex-row md:items-center md:justify-between cursor-pointer"
-                    onClick={() => {
-                      setSelectedExpiredQual(qualification || qual);
-                      setSelectedExpiredEmployee(employee);
-                    }}
-                  >
-                    <div>
-                      <span className="font-medium text-gray-900 dark:text-white">{qualification?.Name || 'Unbekannte Qualifikation'}</span>
-                      <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">(Mitarbeiter: {employee?.FullName || employee?.EmployeeID})</span>
-                      <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">Personalnummer: {employee?.StaffNumber || '-'}</span>
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      Gültig bis: {formatDate(qual.ToQualifyUntil || qual.toQualifyUntil)}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        )}
-        {filteredEmployees.map((employee) => {
-          const employeeQuals = Array.isArray(allEmployeeQualifications)
-            ? getLatestQualifications(allEmployeeQualifications.filter((qual: any) => qual.EmployeeID == employee.ID))
-            : [];
+                return qualification?.ID;
+              });
+            }))).map(qualId => {
+              const qualification = qualificationsData?.find(q => q.ID === qualId);
+              if (!qualification || !qualification.ID) return null;
 
-          const relevantQuals = employeeQuals.filter((qual: any) => {
-            if (!qual.toQualifyUntil) return false;
-            const expiryDate = new Date(qual.toQualifyUntil);
-            const now = new Date();
-            const twoMonthsFromNow = new Date();
-            twoMonthsFromNow.setMonth(now.getMonth() + 2);
+              // Filter nach Qualifikationstyp
+              if (selectedQualificationType !== 'all' && qualification.Herkunft !== selectedQualificationType) {
+                return null;
+              }
 
-            switch (type) {
-              case "pending":
-                return expiryDate <= now;
-              case "expiring":
-                return expiryDate <= twoMonthsFromNow && expiryDate > now;
-              case "completed":
-                return expiryDate > now;
-              default:
-                return true;
-            }
-          });
-
-          if (relevantQuals.length === 0) return null;
-
-          return (
-            <div key={employee.ID} className="bg-white dark:bg-[#181818] p-4 rounded-lg shadow">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-4">
-                  <div className="h-12 w-12 rounded-full bg-primary text-white flex items-center justify-center">
-                    <span className="text-sm font-medium">
-                      {employee.FullName.split(' ').map((n: string) => n[0]).join('')}
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900 dark:text-white">{employee.FullName}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{employee.Department}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setSelectedEmployee(employee)}
-                  className="text-sm text-primary hover:text-primary/80"
-                >
-                  Details
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                {relevantQuals.map((qual: any) => {
-                  const qualification = qualificationsData?.find(q => q.ID === parseInt(qual.QualificationID));
-                  const expiryDate = new Date(qual.ToQualifyUntil || qual.toQualifyUntil);
+              const employeesWithQual = filteredEmployees.filter(employee => {
+                const employeeQuals = Array.isArray(allEmployeeQualifications)
+                  ? getLatestQualifications(allEmployeeQualifications.filter((qual: any) => qual.EmployeeID == employee.ID))
+                  : [];
+                return employeeQuals.some((qual: any) => {
+                  // Prioritize isQualifiedUntil if it exists, otherwise fall back to toQualifyUntil
+                  const expiryDate = qual.isQualifiedUntil 
+                    ? new Date(qual.isQualifiedUntil)
+                    : (qual.ToQualifyUntil || qual.toQualifyUntil) 
+                      ? new Date(qual.ToQualifyUntil || qual.toQualifyUntil)
+                      : null;
+                  
+                  if (!expiryDate) return false;
+                  
                   const now = new Date();
-                  const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                  const sixtyDaysFromNow = new Date(now);
+                  sixtyDaysFromNow.setDate(now.getDate() + 60);
+                  
+                  // Get qualification details to check if it never expires
+                  const qualificationDetails = qualificationsData?.find(q => q.ID === parseInt(qual.QualificationID));
+                  
+                  // If qualification never expires (999 months), handle specially
+                  if (qualificationDetails?.ValidityInMonth === 999) {
+                    if (type === 'completed') return parseInt(qual.QualificationID) === qualification.ID; // Always active
+                    if (type === 'pending' || type === 'expiring') return false; // Never expiring or expired
+                    return false;
+                  }
+                  
+                  if (type === 'completed') {
+                    // Für aktive Qualifikationen: Nur die, die noch länger als 60 Tage gültig sind
+                    return expiryDate > sixtyDaysFromNow && parseInt(qual.QualificationID) === qualification.ID;
+                  }
+                  if (type === 'pending') {
+                    // Für abgelaufene Qualifikationen: Nur die, die nach 2 Wochen Grace Period abgelaufen sind
+                    const twoWeeksAfterExpiry = new Date(expiryDate);
+                    twoWeeksAfterExpiry.setDate(expiryDate.getDate() + 14);
+                    return twoWeeksAfterExpiry <= now && parseInt(qual.QualificationID) === qualification.ID;
+                  }
+                  if (type === 'expiring') {
+                    // Für ablaufende Qualifikationen: Zeige die, die in den nächsten 60 Tagen ablaufen ODER bereits abgelaufen sind, aber noch innerhalb der 14-Tage-Grace-Period liegen
+                    const twoWeeksAfterExpiry = new Date(expiryDate);
+                    twoWeeksAfterExpiry.setDate(expiryDate.getDate() + 14);
+                    return ((expiryDate <= sixtyDaysFromNow && expiryDate > now) || (expiryDate <= now && twoWeeksAfterExpiry > now)) && parseInt(qual.QualificationID) === qualification.ID;
+                  }
+                  return false;
+                });
+              });
 
-                  let statusClass = '';
-                  let statusText = '';
+              const isExpanded = expandedQualifications.has(qualification.ID);
 
-                  statusClass = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-                  statusText = `Läuft in ${daysUntilExpiry} Tagen ab`;
+              let typeBadge = {
+                label: '',
+                style: ''
+              };
 
-                  return (
-                    <div key={qual.ID} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-[#1a1a1a]">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white">
-                          {qualification?.Name || 'Unbekannte Qualifikation'}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          Gültig bis: {formatDate(qual.ToQualifyUntil)}
-                        </p>
+              switch (qualification.Herkunft) {
+                case 'Pflicht':
+                  typeBadge = {
+                    label: 'Pflichtqualifikation',
+                    style: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                  };
+                  break;
+                case 'Job':
+                  typeBadge = {
+                    label: 'Positionsqualifikation',
+                    style: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                  };
+                  break;
+                case 'Zusatz':
+                  typeBadge = {
+                    label: 'Zusatzfunktion',
+                    style: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+                  };
+                  break;
+              }
+
+              return (
+                <div key={qualification.ID} className="bg-white dark:bg-[#121212] rounded-lg shadow border border-gray-200 dark:border-gray-700">
+                  <div 
+                    className="p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-[#2a2a2a] transition-colors"
+                    onClick={() => toggleQualification(qualification.ID)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        {isExpanded ? (
+                          <ChevronDown className="h-5 w-5 text-gray-500" />
+                        ) : (
+                          <ChevronRight className="h-5 w-5 text-gray-500" />
+                        )}
+                        <div>
+                          <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                            {qualification.Name}
+                          </h4>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {qualification.Description || 'Keine Beschreibung verfügbar'}
+                          </p>
+                        </div>
                       </div>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}`}>
-                        {statusText}
-                      </span>
+                      <div className="flex items-center space-x-2">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                          {employeesWithQual.length} Mitarbeiter
+                        </span>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${typeBadge.style}`}>
+                          {typeBadge.label}
+                        </span>
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+                  </div>
+
+                  {isExpanded && (
+                    <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-[#181818]">
+                      <div className="space-y-2">
+                        {employeesWithQual.map(employee => {
+                          const employeeQual = Array.isArray(allEmployeeQualifications)
+                            ? getLatestQualifications(allEmployeeQualifications.filter((qual: any) => 
+                                qual.EmployeeID == employee.ID && parseInt(qual.QualificationID) === qualification.ID
+                              ))[0]
+                            : null;
+
+                          if (!employeeQual) return null;
+                          // Prioritize isQualifiedUntil if it exists, otherwise fall back to toQualifyUntil
+                          const expiryDate = employeeQual.isQualifiedUntil 
+                            ? new Date(employeeQual.isQualifiedUntil)
+                            : new Date(employeeQual.toQualifyUntil || employeeQual.ToQualifyUntil);
+                          const now = new Date();
+                          const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                          let statusClass = '';
+                          let statusText = '';
+
+                          if (type === 'completed') {
+                            statusClass = 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+                            statusText = qualification?.ValidityInMonth === 999 ? 'Läuft nie ab' : `Noch ${daysUntilExpiry} Tage gültig`;
+                          } else if (type === 'pending') {
+                            statusClass = 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+                            // Add 14 days grace period to the expiry date for calculation
+                            const gracePeriodExpiry = new Date(expiryDate);
+                            gracePeriodExpiry.setDate(expiryDate.getDate() + 14);
+                            const daysSinceGraceExpiry = Math.ceil((now.getTime() - gracePeriodExpiry.getTime()) / (1000 * 60 * 60 * 24));
+                            statusText = `Seit ${daysSinceGraceExpiry} Tagen abgelaufen (inkl. 14 Tage Karenz)`;
+                          } else if (type === 'expiring') {
+                            statusClass = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+                            if (qualification?.ValidityInMonth === 999) {
+                              statusText = 'Läuft nie ab';
+                            } else if (daysUntilExpiry < 0) {
+                              // Qualifikation ist bereits abgelaufen, aber noch in der Weiterqualifizierungsphase
+                              const twoWeeksAfterExpiry = new Date(expiryDate);
+                              twoWeeksAfterExpiry.setDate(expiryDate.getDate() + 14);
+                              const daysInGracePeriod = Math.ceil((twoWeeksAfterExpiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                              statusText = `Weiterqualifizierung läuft in ${daysInGracePeriod} Tagen ab`;
+                            } else {
+                              statusText = `Läuft in ${daysUntilExpiry} Tagen ab`;
+                            }
+                          }
+
+                          return (
+                            <div key={employee.ID} className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-[#2a2a2a] transition-colors" onClick={() => setSelectedEmployee(employee)}>
+                              <div className="flex items-center space-x-3">
+                                <div className="h-8 w-8 rounded-full bg-primary text-white dark:bg-gray dark:text-primary flex items-center justify-center">
+                                  <span className="text-xs font-medium dark:text-gray-900">
+                                    {employee.FullName.split(' ').map((n: string) => n[0]).join('')}
+                                  </span>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {employee.FullName}
+                                  </p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    {employee.Department}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                  Gültig bis: {qualification?.ValidityInMonth === 999 ? 'Läuft nie ab' : formatDate(employeeQual.isQualifiedUntil || employeeQual.toQualifyUntil || employeeQual.ToQualifyUntil)}
+                                </span>
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}`}>
+                                  {statusText}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
     );
   };
@@ -329,125 +603,41 @@ export default function StatisticsModal({
           </button>
         </div>
 
-        {/* Filters */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex flex-wrap gap-4">
-            <select
-              value={selectedDepartment}
-              onChange={(e) => setSelectedDepartment(e.target.value)}
-              className="rounded-md border-gray-300 dark:border-gray-600 text-sm"
-            >
-              <option value="all">Alle Abteilungen</option>
-              {departmentsData?.map((dept) => (
-                <option key={dept.ID} value={dept.Department}>
-                  {dept.Department}
-                </option>
-              ))}
-            </select>
+        {/* Filters - Only show for HR admins */}
+        {type === 'all' && isHRAdmin && (
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex flex-wrap gap-4">
+              <select
+                value={selectedDepartment}
+                onChange={(e) => setSelectedDepartment(e.target.value)}
+                className="block w-full sm:w-48 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-primary focus:ring-primary dark:bg-[#181818] dark:text-white text-sm"
+              >
+                <option value="all">Alle Abteilungen</option>
+                {departmentsData?.map((dept) => (
+                  <option key={dept.ID} value={dept.Department}>
+                    {dept.Department}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="flex-1 overflow-auto p-4 sm:p-6">
-          {(type === "pending" && expiredQualifications.length > 0) ||
-           (type === "expiring" && expiringQualifications.length > 0) ? (
-            renderContent()
-          ) : filteredEmployees.length === 0 ? (
+          {filteredEmployees.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 {type === "pending" 
                   ? "Keine abgelaufenen Qualifikationen gefunden"
                   : type === "expiring"
-                  ? "Keine ablaufenden Qualifikationen in den nächsten 2 Monaten gefunden"
+                  ? "Keine ablaufenden Qualifikationen in den nächsten 60 Tagen gefunden"
                   : type === "completed"
-                  ? "Keine aktiven Qualifikationen gefunden"
+                  ? "Keine aktiven Qualifikationen (mehr als 60 Tage gültig) gefunden"
                   : "Keine Mitarbeiter gefunden"}
               </p>
             </div>
           ) : (
-            <>
-              {type === "expiring" && (
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Ablaufende Qualifikationen (nächste 2 Monate)</h3>
-                  {filteredEmployees.map((employee) => {
-                    const employeeQuals = Array.isArray(allEmployeeQualifications)
-                      ? getLatestQualifications(allEmployeeQualifications.filter((qual: any) => qual.EmployeeID == employee.ID))
-                      : [];
-
-                    const relevantQuals = employeeQuals.filter((qual: any) => {
-                      const expiryDate = new Date(qual.ToQualifyUntil || qual.toQualifyUntil);
-                      const now = new Date();
-                      const twoMonthsFromNow = new Date();
-                      twoMonthsFromNow.setMonth(now.getMonth() + 2);
-                      return expiryDate > now && expiryDate <= twoMonthsFromNow;
-                    });
-
-                    if (relevantQuals.length === 0) return null;
-
-                    return (
-                      <div key={employee.ID} className="bg-white dark:bg-[#181818] p-4 rounded-lg shadow">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center space-x-4">
-                            <div className="h-12 w-12 rounded-full bg-primary text-white flex items-center justify-center">
-                              <span className="text-sm font-medium">
-                                {employee.FullName.split(' ').map((n: string) => n[0]).join('')}
-                              </span>
-                            </div>
-                            <div>
-                              <h3 className="text-sm font-medium text-gray-900 dark:text-white">{employee.FullName}</h3>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">{employee.Department}</p>
-                            </div>
-                          </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedEmployee(employee);
-                            }}
-                            className="text-sm text-primary hover:text-primary/80"
-                          >
-                            Details
-                          </button>
-                        </div>
-
-                        <div className="space-y-2">
-                          {relevantQuals.map((qual: any) => {
-                            const qualification = qualificationsData?.find(q => q.ID === parseInt(qual.QualificationID));
-                            const expiryDate = new Date(qual.ToQualifyUntil || qual.toQualifyUntil);
-                            const now = new Date();
-                            const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                            let statusClass = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-                            let statusText = `Läuft in ${daysUntilExpiry} Tagen ab`;
-
-                            return (
-                              <div
-                                key={qual.ID}
-                                className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-[#1a1a1a] cursor-pointer"
-                                onClick={() => {
-                                  setSelectedExpiredQual(qualification || qual);
-                                  setSelectedExpiredEmployee(employee);
-                                }}
-                              >
-                                <div>
-                                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                    {qualification?.Name || 'Unbekannte Qualifikation'}
-                                  </p>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Gültig bis: {formatDate(qual.ToQualifyUntil || qual.toQualifyUntil)}
-                                  </p>
-                                </div>
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}`}>
-                                  {statusText}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              {renderContent()}
-            </>
+            renderContent()
           )}
         </div>
       </div>

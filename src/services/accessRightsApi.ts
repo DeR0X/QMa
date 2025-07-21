@@ -1,4 +1,5 @@
 import type { Employee } from '../types';
+import apiClient from './apiClient';
 
 export interface AccessRight {
   ID: number;
@@ -7,14 +8,10 @@ export interface AccessRight {
   Name: string;
 }
 
-const API_URL = 'http://localhost:5000/api';
-
 export const accessRightsApi = {
   async getAll(): Promise<AccessRight[]> {
     try {
-      const response = await fetch(`${API_URL}/access-rights`);
-      if (!response.ok) throw new Error('Failed to fetch access rights');
-      return response.json();
+      return apiClient.get('/access-rights');
     } catch (error) {
       console.error('Error fetching access rights:', error);
       throw error;
@@ -23,9 +20,7 @@ export const accessRightsApi = {
 
   async getEmployeeAccessRights(employeeId: string): Promise<string[]> {
     try {
-      const response = await fetch(`${API_URL}/employee-access-rights/${employeeId}`);
-      if (!response.ok) return ['employee'];
-      const data: AccessRight[] = await response.json();
+      const data: AccessRight[] = await apiClient.get(`/employee-access-rights/${employeeId}`);
       return data.map(right => right.Name.toLowerCase());
     } catch (error) {
       console.error('Error fetching employee access rights:', error);

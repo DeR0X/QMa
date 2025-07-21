@@ -20,6 +20,7 @@ import {
   UserCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { RootState } from '../../store';
 import type { DocumentUploadFormData, EmployeeFilters } from '../../types';
 import { DOCUMENT_CATEGORIES, DOCUMENT_TYPES, DOCUMENT_CLASSIFICATIONS, VISIBILITY_LEVELS, LANGUAGES, ROLES, PERMISSIONS } from './constants';
@@ -40,6 +41,9 @@ export default function EnhancedDocumentUploader({ onClose, onSubmit }: Props) {
   const { employee } = useSelector((state: RootState) => state.auth);
   const [activeTab, setActiveTab] = useState<'file' | 'url'>('file');
   const [activeFilter, setActiveFilter] = useState('all');
+
+  // Prevent background scrolling when modal is open
+  useBodyScrollLock(true);
   const [formData, setFormData] = useState<DocumentUploadFormData>({
     file: null,
     url: '',
@@ -572,7 +576,6 @@ export default function EnhancedDocumentUploader({ onClose, onSubmit }: Props) {
                           <EmployeeFilter
                               searchTerm={searchTerm}
                               onSearchChange={handleSearchChange}
-                              activeFilter={activeFilter}
                             />
                           </div>
                         </div>

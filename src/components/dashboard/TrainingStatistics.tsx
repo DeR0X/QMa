@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { 
   PieChart, 
@@ -53,7 +53,10 @@ const QualificationDetailsModal = ({ employeeId, qualificationId, onClose, onRen
 
   if (!qualification || !employeeQualification || !employee) return null;
 
-  const expiryDate = new Date(employeeQualification.ToQualifyUntil);
+  // Prioritize isQualifiedUntil if it exists, otherwise fall back to ToQualifyUntil
+  const expiryDate = employeeQualification.isQualifiedUntil 
+    ? new Date(employeeQualification.isQualifiedUntil)
+    : new Date(employeeQualification.ToQualifyUntil);
   const isExpired = expiryDate <= new Date();
 
   const handleRenew = async () => {
@@ -126,7 +129,7 @@ const QualificationDetailsModal = ({ employeeId, qualificationId, onClose, onRen
                 Gültig bis
               </p>
               <p className="text-sm text-gray-900 dark:text-white">
-                {expiryDate.toLocaleDateString()}
+                {qualification.ValidityInMonth === 999 ? 'Läuft nie ab' : expiryDate.toLocaleDateString()}
               </p>
             </div>
             <div className="flex justify-between items-center">
@@ -146,7 +149,7 @@ const QualificationDetailsModal = ({ employeeId, qualificationId, onClose, onRen
           {isExpired && (
             <button
               onClick={handleRenew}
-              className="w-full px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
+              className="w-full px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#2a2a2a] dark:border-gray-700"
             >
               Qualifikation erneuern
             </button>
@@ -173,6 +176,9 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
   const { data: jobTitlesData } = useJobTitles();
   const { data: qualificationsData } = useQualifications();
 
+  const { employee: currentEmployee } = useSelector((state: RootState) => state.auth);
+  const isHRAdmin = hasHRPermissions(currentEmployee);
+  const isSupervisor = currentEmployee?.role === 'supervisor';
 
   const [filters, setFilters] = useState({
     hideEmptyDepartments: false,
@@ -188,14 +194,96 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
     limit: 1000
   });
 
-  const { employee: currentEmployee } = useSelector((state: RootState) => state.auth);
-  const isHRAdmin = hasHRPermissions(currentEmployee);
-
   const { 
     data: employeesData, 
     isLoading: isEmployeesLoading, 
     error: employeesError 
   } = useEmployees(apiFilters);
+
+  // Filter employees based on supervisor role
+  const filteredEmployees = useMemo(() => {
+    if (!employeesData?.data || !currentEmployee) return [];
+    
+    // Use a Set to track unique employee IDs
+    const uniqueEmployeeIds = new Set<number>();
+    let filtered: typeof employeesData.data = [];
+
+    if (isHRAdmin) {
+      filtered = employeesData.data;
+    } else if (currentEmployee.isSupervisor === 1) {
+      // Show employees where the current user is their supervisor (using StaffNumber), plus the supervisor themselves
+      filtered = employeesData.data.filter(emp => 
+        emp.SupervisorID?.toString() === currentEmployee.StaffNumber?.toString() ||
+        emp.ID.toString() === currentEmployee.ID.toString()
+      );
+    } else {
+      // Regular employees only see themselves
+      filtered = employeesData.data.filter(emp => 
+        emp.ID.toString() === currentEmployee.ID.toString()
+      );
+    }
+
+    // Ensure each employee appears only once
+    return filtered.filter(emp => {
+      if (uniqueEmployeeIds.has(emp.ID)) {
+        return false;
+      }
+      uniqueEmployeeIds.add(emp.ID);
+      return true;
+    });
+  }, [employeesData?.data, isHRAdmin, currentEmployee]);
+
+  // Calculate qualification statistics based on filtered employees
+  const qualificationStats = (() => {
+    let activeCount = 0;
+    let expiringCount = 0;
+    let expiredCount = 0;
+
+    // Process all qualifications and count them by their status
+    (Array.isArray(allEmployeeQualifications) ? allEmployeeQualifications : [])
+      .filter(qual => filteredEmployees.some(emp => emp.ID === qual.EmployeeID))
+      .forEach((qual: any) => {
+        // Get qualification details to check if it never expires
+        const qualification = qualificationsData?.find(q => q.ID === parseInt(qual.QualificationID));
+        
+        // If qualification never expires (999 months), always count as active
+        if (qualification?.ValidityInMonth === 999) {
+          activeCount++;
+          return;
+        }
+        
+        // Prioritize isQualifiedUntil if it exists, otherwise fall back to toQualifyUntil
+        const expiryDate = qual.isQualifiedUntil 
+          ? new Date(qual.isQualifiedUntil)
+          : qual.toQualifyUntil 
+            ? new Date(qual.toQualifyUntil)
+            : null;
+            
+        if (!expiryDate) return;
+        
+        const now = new Date();
+        const sixtyDaysFromNow = new Date(now);
+        sixtyDaysFromNow.setDate(now.getDate() + 60);
+
+        // Für abgelaufene Qualifikationen: Nur die, die nach 2 Wochen Grace Period abgelaufen sind
+        const twoWeeksAfterExpiry = new Date(expiryDate);
+        twoWeeksAfterExpiry.setDate(expiryDate.getDate() + 14);
+        
+        if (twoWeeksAfterExpiry <= now) {
+          expiredCount++;
+        } else if (expiryDate <= sixtyDaysFromNow) {
+          expiringCount++;
+        } else {
+          activeCount++;
+        }
+      });
+
+    return {
+      active: activeCount,
+      expiring: expiringCount,
+      expired: expiredCount
+    };
+  })();
 
   const handleToggleDetails = () => {
     setShowDetails(!showDetails);
@@ -241,32 +329,14 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
     );
   }
 
-  const totalEmployees = employeesData?.pagination.total || 0;
-  const totalPages = employeesData?.pagination.totalPages || 1;
+  const totalEmployees = filteredEmployees.length;
+  const totalPages = Math.ceil(totalEmployees / ITEMS_PER_PAGE);
   const processedQualIds = new Set<string>();
-
-  // Calculate qualification statistics
-  const qualificationStats = (Array.isArray(allEmployeeQualifications) ? getLatestQualifications(allEmployeeQualifications) : [])
-    .reduce((stats: any, qual: any) => {
-      if (!qual?.toQualifyUntil) return stats;
-      const expiryDate = new Date(qual.toQualifyUntil);
-      const now = new Date();
-      const twoMonthsFromNow = new Date();
-      twoMonthsFromNow.setMonth(now.getMonth() + 2);
-      if (expiryDate <= now) {
-        stats.expired++;
-      } else if (expiryDate <= twoMonthsFromNow) {
-        stats.expiring++;
-      } else {
-        stats.active++;
-      }
-      return stats;
-    }, { expired: 0, expiring: 0, active: 0 });
 
   const statCards = [
     { 
       type: 'all',
-      name: 'Gesamtmitarbeiter', 
+      name: currentEmployee?.isSupervisor === 1 ? 'Mein Team' : 'Gesamtmitarbeiter', 
       value: totalEmployees, 
       icon: Users,
       color: 'text-blue-500'
@@ -274,21 +344,21 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
     { 
       type: 'completed',
       name: 'Aktive Qualifikationen', 
-      value: qualificationStats?.active || 0,
+      value: qualificationStats.active,
       icon: CheckCircle,
       color: 'text-green-500'
     },
     {
       type: 'expiring',
-      name: 'Ablaufende Qualifikationen',
-      value: qualificationStats?.expiring || 0,
+      name: 'In 2 Monaten ablaufende Qualifikationen',
+      value: qualificationStats.expiring,
       icon: Clock,
       color: 'text-yellow-500'
     },
     {
       type: 'pending',
       name: 'Abgelaufene Qualifikationen',
-      value: qualificationStats?.expired || 0,
+      value: qualificationStats.expired,
       icon: AlertCircle,
       color: 'text-red-500'
     }
@@ -296,68 +366,161 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
 
   // Enhanced search function
   const filterEmployees = (employees: any[]) => {
-    if (!searchTerm) return employees;
+    if (!searchTerm) {
+      // Auch ohne Suchbegriff doppelte Einträge entfernen
+      const uniqueEmployees = new Map();
+      return employees.filter(emp => {
+        const key = `${emp.ID}-${emp.StaffNumber}`;
+        if (uniqueEmployees.has(key)) {
+          return false;
+        }
+        uniqueEmployees.set(key, emp);
+        return true;
+      });
+    }
     
     const searchLower = searchTerm.toLowerCase();
+    const uniqueEmployees = new Map();
+    
     return employees.filter(emp => {
+      const key = `${emp.ID}-${emp.StaffNumber}`;
+      if (uniqueEmployees.has(key)) {
+        return false;
+      }
+      
       const matchesName = emp.FullName?.toLowerCase().includes(searchLower);
       const matchesStaffNumber = emp.StaffNumber?.toString().toLowerCase().includes(searchLower);
       const matchesDepartment = emp.Department?.toLowerCase().includes(searchLower);
-      return matchesName || matchesStaffNumber || matchesDepartment;
+      
+      if (matchesName || matchesStaffNumber || matchesDepartment) {
+        uniqueEmployees.set(key, emp);
+        return true;
+      }
+      return false;
     });
   };
 
   // Find department by search criteria
   const findRelevantDepartments = () => {
-    if (!searchTerm) return departmentsData;
+    let relevantDepartments = departmentsData;
+
+    // For supervisors, only show their own department
+    if (!isHRAdmin && currentEmployee?.isSupervisor === 1) {
+      // Get the supervisor's department from their employee data
+      const supervisorDepartment = currentEmployee.Department;
+      if (supervisorDepartment) {
+        relevantDepartments = departmentsData?.filter(dept => 
+          dept.Department.toString() === supervisorDepartment.toString()
+        );
+      }
+    }
+
+    if (!searchTerm) return relevantDepartments;
 
     const searchLower = searchTerm.toLowerCase();
-    const matchingEmployees = filterEmployees(employeesData?.data || []);
+    const matchingEmployees = filterEmployees(filteredEmployees);
     const relevantDepartmentIds = new Set(matchingEmployees.map(emp => emp.DepartmentID?.toString()));
 
-    const departmentMatches = departmentsData?.filter(dept => 
+    const departmentMatches = relevantDepartments?.filter(dept => 
       dept.Department.toLowerCase().includes(searchLower)
     );
     departmentMatches?.forEach(dept => relevantDepartmentIds.add(dept.ID.toString()));
 
-    return departmentsData?.filter(dept => relevantDepartmentIds.has(dept.ID.toString()));
+    return relevantDepartments?.filter(dept => relevantDepartmentIds.has(dept.ID.toString()));
   };
 
   // Prepare department statistics with filtered employees
   const departmentStats = findRelevantDepartments()?.map(dept => {
+    const uniqueEmployeeIds = new Set<number>();
     const deptEmployees = filterEmployees(
-      employeesData?.data.filter(emp => emp.DepartmentID?.toString() === dept.ID.toString()) || []
+      filteredEmployees.filter(emp => {
+        if (emp.DepartmentID?.toString() !== dept.ID.toString()) return false;
+        if (uniqueEmployeeIds.has(emp.ID)) return false;
+        uniqueEmployeeIds.add(emp.ID);
+        return true;
+      })
     );
     
-    const qualStats = (Array.isArray(allEmployeeQualifications) ? getLatestQualifications(allEmployeeQualifications) : [])
-      .reduce((stats: any, qual: any) => {
-        if (!qual?.toQualifyUntil) return stats;
-        const expiryDate = new Date(qual.toQualifyUntil);
-        const now = new Date();
-        const twoMonthsFromNow = new Date();
-        twoMonthsFromNow.setMonth(now.getMonth() + 2);
-      
-        if (expiryDate <= now) {
-          stats.expired++;
-        } else if (expiryDate <= twoMonthsFromNow) {
-          stats.expiring++;
-        } else {
-          stats.active++;
+    // Count employees with different qualification statuses
+    const activeEmployees = new Set<number>();
+    const expiringEmployees = new Set<number>();
+    const expiredEmployees = new Set<number>();
+    let totalActiveQuals = 0;
+    let totalExpiringQuals = 0;
+    let totalExpiredQuals = 0;
+
+    deptEmployees.forEach(employee => {
+      const employeeQuals = (Array.isArray(allEmployeeQualifications) ? allEmployeeQualifications : [])
+        .filter(q => q.EmployeeID === employee.ID);
+      let hasActive = false;
+      let activeAmount = 0;
+      let hasExpiring = false;
+      let expiringAmount = 0;
+      let hasExpired = false;
+      let expiredAmount = 0;
+
+      employeeQuals.forEach(qual => {
+        // Get qualification details to check if it never expires
+        const qualification = qualificationsData?.find(q => q.ID === parseInt(qual.QualificationID));
+        
+        // If qualification never expires (999 months), always count as active
+        if (qualification?.ValidityInMonth === 999) {
+          hasActive = true;
+          activeAmount++;
+          return;
         }
-        return stats;
-      }, { active: 0, expiring: 0, expired: 0 });
+        
+        // Prioritize isQualifiedUntil if it exists, otherwise fall back to toQualifyUntil
+        const expiryDate = qual.isQualifiedUntil 
+          ? new Date(qual.isQualifiedUntil)
+          : qual.toQualifyUntil 
+            ? new Date(qual.toQualifyUntil)
+            : null;
+            
+        if (!expiryDate) return;
+        
+        const now = new Date();
+        const sixtyDaysFromNow = new Date(now);
+        sixtyDaysFromNow.setDate(now.getDate() + 60);
+        
+        // Für abgelaufene Qualifikationen: Nur die, die nach 2 Wochen Grace Period abgelaufen sind
+        const twoWeeksAfterExpiry = new Date(expiryDate);
+        twoWeeksAfterExpiry.setDate(expiryDate.getDate() + 14);
+        
+        if (twoWeeksAfterExpiry <= now) {
+          hasExpired = true;
+          expiredAmount++;
+        } else if (expiryDate <= sixtyDaysFromNow) {
+          hasExpiring = true;
+          expiringAmount++;
+        } else {
+          hasActive = true;
+          activeAmount++;
+        }
+      });
+
+      if (hasActive) activeEmployees.add(employee.ID);
+      if (hasExpiring) expiringEmployees.add(employee.ID);
+      if (hasExpired) expiredEmployees.add(employee.ID);
     
+      totalActiveQuals += activeAmount;
+      totalExpiringQuals += expiringAmount;
+      totalExpiredQuals += expiredAmount;
+    });
     return {
       ...dept,
       employeeCount: deptEmployees.length,
-      completedTrainings: qualStats.active,
-      pendingTrainings: qualStats.expiring,
-      expiredQualifications: qualStats.expired,
+      completedTrainings: activeEmployees.size,
+      pendingTrainings: expiringEmployees.size,
+      expiredQualifications: expiredEmployees.size,
+      activeQualificationCount: totalActiveQuals,
+      expiringQualificationCount: totalExpiringQuals,
+      expiredQualificationCount: totalExpiredQuals,
       completionRate: deptEmployees.length ? 
-        Math.round((qualStats.active / (qualStats.active + qualStats.expiring + qualStats.expired)) * 100) : 0,
-      trainersCount: deptEmployees.filter(emp => emp.isTrainer).length,
-      positions: dept.positions || []
+        Math.round((totalActiveQuals / (totalExpiredQuals + totalExpiringQuals + totalActiveQuals)) * 100) : 0,
+      positions: [...new Set(deptEmployees.map(emp => emp.JobTitle).filter(Boolean))]
     };
+
   }).filter(Boolean) || [];
 
   // Filter and sort departments
@@ -366,7 +529,6 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
     .filter(dept => {
       const meetsFilters = (
         (!filters.hideEmptyDepartments || dept.employeeCount > 0) &&
-        (!filters.hasTrainers || dept.trainersCount > 0) &&
         dept.employeeCount >= filters.minEmployees &&
         dept.completionRate >= filters.minCompletionRate
       );
@@ -378,8 +540,6 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
           return b.employeeCount - a.employeeCount;
         case 'completionRate':
           return b.completionRate - a.completionRate;
-        case 'trainersCount':
-          return b.trainersCount - a.trainersCount;
         default:
           return a.Department.localeCompare(b.Department);
       }
@@ -396,9 +556,9 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
         <button
           type="button"
           onClick={handleToggleDetails}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#1a1a1a] dark:border-gray-700"
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 dark:bg-[#181818] dark:hover:bg-[#2a2a2a] dark:border-gray-700 transition-all duration-200 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20"
         >
-          {showDetails ? 'Übersicht anzeigen' : 'Details anzeigen'}
+          {showDetails ? 'Qualifikationsansicht anzeigen' : 'Abteilungsansicht anzeigen'}
         </button>
       </div>
 
@@ -413,7 +573,7 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
                 <div
                   key={stat.name}
                   onClick={() => setSelectedStat(stat.type)}
-                  className="bg-gray-50 dark:bg-[#121212] p-4 rounded-lg cursor-pointer hover:shadow-md transition-shadow"
+                  className="bg-gray-50 dark:bg-[#121212] p-4 rounded-lg cursor-pointer hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20 hover:bg-gray-100 dark:hover:bg-[#2a2a2a] transition-all duration-200"
                 >
                   <div className="flex items-center">
                     <Icon className={`h-5 w-5 mr-2 ${stat.color}`} />
@@ -450,7 +610,7 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
                 </div>
                 <button
                   onClick={() => setShowFilters(!showFilters)}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121212] hover:bg-gray-50 dark:hover:bg-gray-800"
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#121212] hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20"
                 >
                   <SlidersHorizontal className="h-5 w-5 mr-2" />
                   Filter
@@ -579,21 +739,21 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
                         <div className="text-center">
                           <span className="text-sm text-green-500 flex items-center">
                             <CheckCircle className="h-4 w-4 mr-1" />
-                            {dept.completedTrainings}
+                            {dept.activeQualificationCount}
                           </span>
                           <span className="text-xs text-gray-500">Aktiv</span>
                         </div>
                         <div className="text-center">
                           <span className="text-sm text-yellow-500 flex items-center">
                             <Clock className="h-4 w-4 mr-1" />
-                            {dept.pendingTrainings}
+                            {dept.expiringQualificationCount}
                           </span>
                           <span className="text-xs text-gray-500">Ablaufend</span>
                         </div>
                         <div className="text-center">
                           <span className="text-sm text-red-500 flex items-center">
                             <AlertTriangle className="h-4 w-4 mr-1" />
-                            {dept.expiredQualifications}
+                            {dept.expiredQualificationCount}
                           </span>
                           <span className="text-xs text-gray-500">Abgelaufen</span>
                         </div>
@@ -637,33 +797,6 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
                             ))}
                           </div>
                         </div>
-                        <div className="bg-gray-50 dark:bg-[#181818] p-4 rounded-lg">
-                          <h5 className="text-sm font-medium text-gray-900 dark:text-white mb-2 flex items-center">
-                            <Info className="h-4 w-4 mr-2" />
-                            Statistiken
-                          </h5>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">
-                                Trainer: {dept.trainersCount}
-                              </p>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">
-                                Abschlussrate: {dept.completionRate}%
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">
-                                Aktive Qualifikationen: {dept.completedTrainings}
-                              </p>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">
-                                Ablaufende: {dept.pendingTrainings}
-                              </p>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">
-                                Abgelaufene: {dept.expiredQualifications}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
                       </div>
 
                       {/* Employee Table */}
@@ -690,16 +823,35 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
                                   .filter(q => q.EmployeeID === employee.ID)
                               );
                               const qualStats = quals.reduce((stats: any, qual: any) => {
-                                if (!qual?.toQualifyUntil) return stats;
+                                // Get qualification details to check if it never expires
+                                const qualification = qualificationsData?.find(q => q.ID === parseInt(qual.QualificationID));
                                 
-                                const expiryDate = new Date(qual.toQualifyUntil);
+                                // If qualification never expires (999 months), always count as active
+                                if (qualification?.ValidityInMonth === 999) {
+                                  stats.active++;
+                                  return stats;
+                                }
+                                
+                                // Prioritize isQualifiedUntil if it exists, otherwise fall back to toQualifyUntil
+                                const expiryDate = qual.isQualifiedUntil 
+                                  ? new Date(qual.isQualifiedUntil)
+                                  : qual.toQualifyUntil 
+                                    ? new Date(qual.toQualifyUntil)
+                                    : null;
+                                    
+                                if (!expiryDate) return stats;
+                                
                                 const now = new Date();
-                                const twoMonthsFromNow = new Date();
-                                twoMonthsFromNow.setMonth(now.getMonth() + 2);
+                                const sixtyDaysFromNow = new Date(now);
+                                sixtyDaysFromNow.setDate(now.getDate() + 60); // Exactly 60 days from now
                             
-                                if (expiryDate <= now) {
+                                // Für abgelaufene Qualifikationen: Nur die, die nach 2 Wochen Grace Period abgelaufen sind
+                                const twoWeeksAfterExpiry = new Date(expiryDate);
+                                twoWeeksAfterExpiry.setDate(expiryDate.getDate() + 14);
+                                
+                                if (twoWeeksAfterExpiry <= now) {
                                   stats.expired++;
-                                } else if (expiryDate <= twoMonthsFromNow) {
+                                } else if (expiryDate <= sixtyDaysFromNow) {
                                   stats.expiring++;
                                 } else {
                                   stats.active++;
@@ -715,8 +867,8 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
                                 >
                                   <td className="px-4 py-2 whitespace-nowrap">
                                     <div className="flex items-center">
-                                      <div className="h-10 w-10 rounded-full bg-primary text-white flex items-center justify-center">
-                                        <span className="text-sm font-medium">
+                                      <div className="h-10 w-10 rounded-full bg-primary text-white dark:bg-gray dark:text-primary flex items-center justify-center">
+                                        <span className="text-sm font-medium dark:text-gray-900">
                                           {typeof employee.FullName === 'string'
                                             ? employee.FullName.split(' ').map((n : any) => n[0]).join('')
                                             : ''}
@@ -779,7 +931,7 @@ export default function TrainingStatistics({ departmentFilter }: Props) {
               ? 'Abgelaufene Qualifikationen'
               : 'Ablaufende Qualifikationen'
           }
-          employees={employeesData?.data || []}
+          employees={filteredEmployees}
           type={selectedStat as "all" | "completed" | "pending" | "expiring"}
         />
       )}
