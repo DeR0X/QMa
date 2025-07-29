@@ -15,7 +15,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 // Removed useAssignEmployeeTraining import as employee assignment is now handled in the POST request
 import TrainingDocumentUploader from './TrainingDocumentUploader';
-import { API_BASE_URL } from '../../config/api';
+import apiClient from '../../services/apiClient';
 
 interface Props {
   onClose: () => void;
@@ -307,7 +307,7 @@ export default function QuickTrainingModal({ onClose, onAdd, userDepartment, edi
       if (!allEmployeeSkills) return false;
       
       filtered = filtered.filter(emp => {
-        const hasRequiredSkill = allEmployeeSkills.some((skill: any) => {
+        const hasRequiredSkill = Array.isArray(allEmployeeSkills) && allEmployeeSkills.some((skill: any) => {
           const employeeMatch = skill.EmployeeID?.toString() === emp.ID.toString();
           const skillMatch = 
             skill.AdditionalSkillID?.toString() === qualification.AdditionalSkillID?.toString() ||
@@ -339,7 +339,7 @@ export default function QuickTrainingModal({ onClose, onAdd, userDepartment, edi
       if (!allEmployeeSkills) return [];
       
       filtered = filtered.filter(emp => {
-        const hasRequiredSkill = allEmployeeSkills.some((skill: any) => {
+        const hasRequiredSkill = Array.isArray(allEmployeeSkills) && allEmployeeSkills.some((skill: any) => {
           const employeeMatch = skill.EmployeeID?.toString() === emp.ID.toString();
           const skillMatch = 
             skill.AdditionalSkillID?.toString() === selectedQualification.AdditionalSkillID?.toString() ||
@@ -389,7 +389,7 @@ export default function QuickTrainingModal({ onClose, onAdd, userDepartment, edi
           break;
       }
 
-          setFormData(prev => ({
+      setFormData(prev => ({
       ...prev,
       qualificationIds: [qualification.ID?.toString() || ''],
       title: `${titlePrefix}${qualification.Name}`,
@@ -510,26 +510,9 @@ export default function QuickTrainingModal({ onClose, onAdd, userDepartment, edi
         assignedEmployees: uniqueEmployeesToAssign,
       };
 
-      const url = editingTraining 
-        ? `${API_BASE_URL}/trainings/${editingTraining.ID}`
-        : `${API_BASE_URL}/trainings`;
-      
-      const method = editingTraining ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(trainingData),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(editingTraining ? 'Fehler beim Aktualisieren der Schulung' : 'Fehler beim Erstellen der Schulung');
-      }
-
-      const result = await response.json();
+      const result = editingTraining 
+        ? await apiClient.put(`/trainings/${editingTraining.ID}`, trainingData) as any
+        : await apiClient.post('/trainings', trainingData) as any;
 
       let createdTrainingData;
 
@@ -538,11 +521,7 @@ export default function QuickTrainingModal({ onClose, onAdd, userDepartment, edi
         createdTrainingData = result;
       } else {
         // Current case: backend returns only success message, fetch latest training
-        const trainingsResponse = await fetch(`${API_BASE_URL}/trainings`);
-        if (!trainingsResponse.ok) {
-          throw new Error('Fehler beim Abrufen der Schulungen');
-        }
-        const allTrainings = await trainingsResponse.json();
+        const allTrainings = await apiClient.get('/trainings') as any[];
         
         // When editing, we should use the existing training ID
         if (editingTraining) {
@@ -601,8 +580,8 @@ export default function QuickTrainingModal({ onClose, onAdd, userDepartment, edi
       }
 
       // Store the created training
-      setCreatedTraining(createdTrainingData);
-      return createdTrainingData;
+      setCreatedTraining(createdTrainingData as Training);
+      return createdTrainingData as Training;
       
     } catch (error) {
       console.error('Error creating training:', error);
@@ -706,16 +685,13 @@ export default function QuickTrainingModal({ onClose, onAdd, userDepartment, edi
   // Add function to get the latest training ID
   const getLatestTrainingId = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/trainings`);
-      if (response.ok) {
-        const trainings = await response.json();
-        if (trainings.length > 0) {
-          // Sort by ID in descending order to get the latest
-          const sortedTrainings = trainings.sort((a: any, b: any) => b.ID - a.ID);
-          const latestTrainingId = sortedTrainings[0].ID;
-          console.log('Latest training ID:', latestTrainingId);
-          return latestTrainingId;
-        }
+      const trainings = await apiClient.get('/trainings') as any[];
+      if (trainings.length > 0) {
+        // Sort by ID in descending order to get the latest
+        const sortedTrainings = trainings.sort((a: any, b: any) => b.ID - a.ID);
+        const latestTrainingId = sortedTrainings[0].ID;
+        console.log('Latest training ID:', latestTrainingId);
+        return latestTrainingId;
       }
     } catch (error) {
       console.error('Error fetching latest training ID:', error);
@@ -746,25 +722,13 @@ export default function QuickTrainingModal({ onClose, onAdd, userDepartment, edi
       
       // Update training status to completed with the specified completion date
       const currentDate = completionDate || new Date().toISOString().split('T')[0];
-      const response = await fetch(`${API_BASE_URL}/trainings/${actualTrainingId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          completed: true,
-          completedDate: currentDate,
-          trainingDate: currentDate // Update the training date to the completion date
-        }),
+      await apiClient.put(`/trainings/${actualTrainingId}`, {
+        completed: true,
+        completedDate: currentDate,
+        trainingDate: currentDate // Update the training date to the completion date
       });
 
-      console.log('Training update response status:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Training update failed:', errorText);
-        throw new Error('Fehler beim Aktualisieren des Schulungsstatus');
-      }
+      console.log('Training marked as completed successfully');
 
       console.log('Training marked as completed successfully');
 
@@ -776,8 +740,7 @@ export default function QuickTrainingModal({ onClose, onAdd, userDepartment, edi
       if (training && training.qualificationID) {
         try {
           // Get training participants
-          const participantsResponse = await fetch(`${API_BASE_URL}/trainings-employee`);
-          const allAssignments = await participantsResponse.json();
+          const allAssignments = await apiClient.get('/trainings-employee') as any[];
           console.log('All assignments:', allAssignments);
           console.log('TrainingID:', actualTrainingId);
           const trainingParticipants = allAssignments.filter(
@@ -807,22 +770,15 @@ export default function QuickTrainingModal({ onClose, onAdd, userDepartment, edi
             // Update qualifications for each participant
             for (const participant of trainingParticipants) {
               try {
-                const updateResponse = await fetch(`${API_BASE_URL}/employee-qualifications/${participant.EmployeeID}/${training.qualificationID}`, {
-                  method: 'PUT',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
+                try {
+                  await apiClient.put(`/employee-qualifications/${participant.EmployeeID}/${training.qualificationID}`, {
                     qualifiedFrom: qualifiedFromDate,
                     isQualifiedUntil: isQualifiedUntilString
-                  }),
-                });
-
-                if (updateResponse.ok) {
+                  });
                   updatedCount++;
                   console.log(`Updated qualification for employee ${participant.EmployeeID}`);
-                } else {
-                  console.log(`Failed to update qualification for employee ${participant.EmployeeID}:`, await updateResponse.text());
+                } catch (updateError) {
+                  console.log(`Failed to update qualification for employee ${participant.EmployeeID}:`, updateError);
                 }
               } catch (error) {
                 console.error(`Error updating qualification for employee ${participant.EmployeeID}:`, error);

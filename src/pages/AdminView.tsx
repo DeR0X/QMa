@@ -15,7 +15,7 @@ import { RootState } from '../store';
 import { useEmployees } from '../hooks/useEmployees';
 import { toast } from 'sonner';
 import { hasPermission } from '../store/slices/authSlice';
-import { API_BASE_URL } from '../config/api';
+import apiClient from '../services/apiClient';
 
 interface AccessRight {
   id: number;
@@ -52,11 +52,10 @@ export default function AdminView() {
 
     try {
       setIsCheckingAccess(true);
-      const response = await fetch(`${API_BASE_URL}/employee-access-rights/${currentEmployee.ID}`);
+      const accessRights = await apiClient.get(`/employee-access-rights/${currentEmployee.ID}`) as any[];
       
-      if (response.ok) {
-        const accessRights = await response.json();
-        const hasAdmin = Array.isArray(accessRights) && accessRights.some((right: any) => right.AccessRightID === 3);
+      if (Array.isArray(accessRights)) {
+        const hasAdmin = accessRights.some((right: any) => right.AccessRightID === 3);
         setHasAdminAccess(hasAdmin);
       } else {
         setHasAdminAccess(false);
@@ -96,25 +95,13 @@ export default function AdminView() {
 
       if (selectedRole === null) {
         // If setting to no special role, delete the existing access right
-        const response = await fetch(`${API_BASE_URL}/employee-access-rights/${selectedEmployee.ID}/${selectedEmployee.AccessRightsID}`, {
-          method: 'DELETE',
-        });
-
-        if (!response.ok) throw new Error('Failed to delete access right');
+        await apiClient.delete(`/employee-access-rights/${selectedEmployee.ID}/${selectedEmployee.AccessRightsID}`);
       } else {
         // Update or create access right
-        const response = await fetch(`${API_BASE_URL}/employee-access-rights/${selectedEmployee.ID}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            accessRight: selectedRole,
-            accessRightId: selectedRole === 'admin' ? 3 : selectedRole === 'hr' ? 2 : null
-          }),
+        await apiClient.put(`/employee-access-rights/${selectedEmployee.ID}`, {
+          accessRight: selectedRole,
+          accessRightId: selectedRole === 'admin' ? 3 : selectedRole === 'hr' ? 2 : null
         });
-
-        if (!response.ok) throw new Error('Failed to update access rights');
       }
 
       // Update local employee data
@@ -413,4 +400,4 @@ export default function AdminView() {
       </div>
     </div>
   );
-} 
+}

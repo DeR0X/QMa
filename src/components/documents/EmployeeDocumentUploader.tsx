@@ -3,11 +3,12 @@ import { X, Upload, FileText, Trash2, Download, Plus, AlertCircle, Calendar, Arr
 import { toast } from 'sonner';
 import { useSelector } from 'react-redux';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
-import { useSaveDocument, useLinkEmployeeDocument, usePopularTags, useDocumentPreview } from '../../hooks/useDocuments';
+import { useSaveDocument, useLinkEmployeeDocument, useDocumentPreview } from '../../hooks/useDocuments';
 import type { Employee } from '../../types';
 import type { RootState } from '../../store';
 import CategorySelector from '../trainings/CategorySelector';
-import API_URL, { API_BASE_URL } from '../../config/api';
+import { API_BASE_URL } from '../../config/api';
+import apiClient from '../../services/apiClient';
 
 interface Props {
   employee: Employee;
@@ -25,7 +26,6 @@ interface EmployeeDocument {
   fileUrl: string;
   description: string;
   categoryId?: number;
-  tags: string;
 }
 
 interface UploadFile {
@@ -34,7 +34,6 @@ interface UploadFile {
     description: string;
   uploading: boolean;
   categoryId?: number;
-  tags: string;
 }
 
 interface UploadStep {
@@ -46,7 +45,6 @@ export default function EmployeeDocumentUploader({ employee, onClose, onUpload }
   const { employee: currentUser } = useSelector((state: RootState) => state.auth);
   const saveDocumentMutation = useSaveDocument();
   const linkEmployeeDocumentMutation = useLinkEmployeeDocument();
-  const { popularTags, isLoading: isLoadingTags } = usePopularTags();
   const documentPreviewMutation = useDocumentPreview();
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -125,7 +123,6 @@ export default function EmployeeDocumentUploader({ employee, onClose, onUpload }
         file: renamedFile,
         description: '',
         uploading: false,
-        tags: ''
       };
 
       setUploadFiles(prev => [...prev, uploadFile]);
@@ -144,28 +141,8 @@ export default function EmployeeDocumentUploader({ employee, onClose, onUpload }
       )
     );
   };
-
-  const updateFileTags = (fileId: string, tags: string) => {
-    setUploadFiles(prev => 
-      prev.map(file => 
-        file.id === fileId ? { ...file, tags } : file
-      )
-    );
-  };
-
   const removeFile = (fileId: string) => {
     setUploadFiles(prev => prev.filter(file => file.id !== fileId));
-  };
-
-  const addPopularTag = (tag: string, fileId: string) => {
-    const existingTags = uploadFiles.find(f => f.id === fileId)?.tags.trim() || '';
-    const tagsArray = existingTags ? existingTags.split(';').map(t => t.trim()) : [];
-    
-    // Don't add if tag already exists
-    if (!tagsArray.includes(tag)) {
-      const newTagsValue = existingTags ? `${existingTags};${tag}` : tag;
-      updateFileTags(fileId, newTagsValue);
-    }
   };
 
   const handleUpload = async () => {
@@ -200,14 +177,13 @@ export default function EmployeeDocumentUploader({ employee, onClose, onUpload }
           formData.append('Description', uploadFile.description || '');
           formData.append('UploadedBy', currentUser.ID.toString());
           formData.append('CategoryID', '2'); // Fixed category ID for employee documents
-          formData.append('Tags', uploadFile.tags || '');
           formData.append('employeeId', employee.ID.toString());
 
           // Upload file to server
-          const uploadResponse = await fetch(`${API_BASE_URL}/documents`, {
-            method: 'POST',
-            body: formData,
-          });
+          const uploadResponse = await fetch(`${apiClient.getBaseUrl()}/documents`, {
+        method: 'POST',
+        body: formData,
+      });
 
           if (!uploadResponse.ok) {
             throw new Error(`Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`);
@@ -225,7 +201,6 @@ export default function EmployeeDocumentUploader({ employee, onClose, onUpload }
             fileUrl: uploadResult.filePath || `/uploads${uploadFile.file.name}`,
             description: uploadFile.description,
             categoryId: 2,
-            tags: uploadFile.tags
           };
 
           uploadedDocuments.push(document);
@@ -304,7 +279,7 @@ export default function EmployeeDocumentUploader({ employee, onClose, onUpload }
   const downloadDocument = async (doc: EmployeeDocument) => {
     try {
       // Öffne den Download in einem neuen Tab
-      window.open(`${API_BASE_URL}/document-download/${doc.id}`, '_blank');
+      window.open(`${apiClient.getBaseUrl()}/document-download/${doc.id}`, '_blank');
       toast.success(`Download von "${doc.fileName}" gestartet`);
     } catch (error) {
       console.error('Error downloading document:', error);
@@ -418,126 +393,6 @@ export default function EmployeeDocumentUploader({ employee, onClose, onUpload }
                         <p className="text-xs text-gray-500 dark:text-gray-400">
                               {formatFileSize(uploadFile.file.size)}
                             </p>
-                            <div className="mt-2 space-y-2">
-                              <input
-                                type="text"
-                                placeholder="Beschreibung (optional)"
-                                value={uploadFile.description}
-                                onChange={(e) => updateFileDescription(uploadFile.id, e.target.value)}
-                                className="block w-full text-sm border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-                              />
-                              <input
-                                type="text"
-                                placeholder="Tags (Enter drücken)"
-                                value={currentTagInputs[uploadFile.id] || ''}
-                                onChange={(e) => setCurrentTagInputs(prev => ({
-                                  ...prev,
-                                  [uploadFile.id]: e.target.value
-                                }))}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    const currentValue = (currentTagInputs[uploadFile.id] || '').trim();
-                                    if (currentValue) {
-                                      // Add semicolon separator if there's already content
-                                      const existingTags = uploadFile.tags.trim();
-                                      const newTagsValue = existingTags 
-                                        ? `${existingTags};${currentValue}` 
-                                        : currentValue;
-                                      updateFileTags(uploadFile.id, newTagsValue);
-                                      // Clear the current input
-                                      setCurrentTagInputs(prev => ({
-                                        ...prev,
-                                        [uploadFile.id]: ''
-                                      }));
-                                    }
-                                  }
-                                }}
-                                className="block w-full text-sm border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1 bg-white dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-                              />
-                              {/* Display entered tags */}
-                              {uploadFile.tags && (
-                                <div className="mt-2">
-                                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Eingegebene Tags:</p>
-                                  <div className="flex flex-wrap gap-1">
-                                    {uploadFile.tags.split(';').map((tag, tagIndex) => {
-                                      const trimmedTag = tag.trim();
-                                      if (!trimmedTag) return null;
-                                      return (
-                                        <span
-                                          key={tagIndex}
-                                          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300"
-                                        >
-                                          {trimmedTag}
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              const tags = uploadFile.tags.split(';');
-                                              tags.splice(tagIndex, 1);
-                                              updateFileTags(uploadFile.id, tags.join(';'));
-                                            }}
-                                            className="ml-1 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
-                                          >
-                                            ×
-                                          </button>
-                                        </span>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {/* Popular Tags Section */}
-                              {!isLoadingTags && popularTags.length > 0 && (
-                                <div className="mt-3 p-3 bg-gray-50 dark:bg-[#181818] rounded-lg border">
-                                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 font-medium">
-                                    Häufig verwendete Tags (klicken zum Hinzufügen):
-                                  </p>
-                                  <div className="flex flex-wrap gap-1">
-                                    {popularTags.slice(0, 10).map(({ tag, count }) => {
-                                      const existingTags = uploadFile.tags.split(';').map(t => t.trim());
-                                      const isAlreadyAdded = existingTags.includes(tag);
-                                      
-                                      return (
-                                        <button
-                                          key={tag}
-                                          type="button"
-                                          disabled={isAlreadyAdded}
-                                          onClick={() => addPopularTag(tag, uploadFile.id)}
-                                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-colors ${
-                                            isAlreadyAdded
-                                              ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 cursor-not-allowed'
-                                              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 cursor-pointer'
-                                          }`}
-                                          title={isAlreadyAdded ? 'Tag bereits hinzugefügt' : `${count}x verwendet - klicken zum Hinzufügen`}
-                                        >
-                                          {tag}
-                                          <span className="ml-1 text-xs opacity-60">
-                                            ({count})
-                                          </span>
-                                          {isAlreadyAdded && (
-                                            <span className="ml-1">✓</span>
-                                          )}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                  {popularTags.length > 10 && (
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                      und {popularTags.length - 10} weitere...
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-                              
-                              {isLoadingTags && (
-                                <div className="mt-3 p-3 bg-gray-50 dark:bg-[#181818] rounded-lg border">
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    Häufig verwendete Tags werden geladen...
-                                  </p>
-                                </div>
-                              )}
-                            </div>
                       </div>
                       <button
                             onClick={() => removeFile(uploadFile.id)}
@@ -578,9 +433,8 @@ export default function EmployeeDocumentUploader({ employee, onClose, onUpload }
                           Hinweise zu Mitarbeiterdokumenten
                         </h5>
                         <ul className="mt-2 text-sm text-yellow-700 dark:text-yellow-400 list-disc list-inside space-y-1">
-                          <li>Dokumente werden dem Mitarbeiter zugeordnet und in der Personalakte gespeichert</li>
+                          <li>Dokumente werden dem Mitarbeiter zugeordnet und in der Online Personalakte gespeichert</li>
                           <li>Verwenden Sie aussagekräftige Dateinamen und Beschreibungen</li>
-                          <li>Tags helfen bei der Suche und Organisation</li>
                         </ul>
                       </div>
                     </div>
@@ -594,10 +448,7 @@ export default function EmployeeDocumentUploader({ employee, onClose, onUpload }
                   <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                     <h4 className="text-md font-medium text-blue-900 dark:text-blue-300 mb-2">
                       Dokumente werden hochgeladen
-                    </h4>
-                    <p className="text-sm text-blue-800 dark:text-blue-400">
-                      Ihre Dokumente werden mit der Kategorie "Mitarbeiterdokumente" hochgeladen.
-                    </p>
+                    </h4>                    
                   </div>
 
                   <div className="space-y-6">
@@ -615,13 +466,6 @@ export default function EmployeeDocumentUploader({ employee, onClose, onUpload }
                               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                 {document.description}
                               </p>
-                            )}
-                            {document.tags && (
-                              <div className="mt-1">
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                  Tags: {document.tags.split(';').map(tag => tag.trim()).filter(tag => tag).join(', ')}
-                                </p>
-                              </div>
                             )}
                           </div>
                         </div>
@@ -744,4 +588,4 @@ export default function EmployeeDocumentUploader({ employee, onClose, onUpload }
       </button>
     </div>
   );
-} 
+}

@@ -6,7 +6,7 @@ import { RootState } from '../store';
 import { useAllDocuments, useAllUnifiedDocuments, useDocumentInfo } from '../hooks/useDocuments';
 import { useDocumentCategories } from '../hooks/useDocumentCategories';
 import { useEmployees } from '../hooks/useEmployees';
-import { API_BASE_URL } from '../config/api';
+import apiClient from '../services/apiClient';
 
 export default function Documents() {
   const { employee } = useSelector((state: RootState) => state.auth);
@@ -14,7 +14,6 @@ export default function Documents() {
   const { data: documentCategories, isLoading: isLoadingCategories } = useDocumentCategories();
   const { data: employees, isLoading: isLoadingEmployees } = useEmployees( {limit: 1000});
   
-  const [activeCategory, setActiveCategory] = useState<number | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDocumentTag, setSelectedDocumentTag] = useState<string>('');
   const [documentSortBy, setDocumentSortBy] = useState<'name' | 'date'>('date');
@@ -23,18 +22,6 @@ export default function Documents() {
   const [selectedDocument, setSelectedDocument] = useState<any | null>(null);
   const [showDocumentPreview, setShowDocumentPreview] = useState(false);
   const { data: selectedDocumentInfo } = useDocumentInfo(selectedDocument?.DocumentID || 0);
-
-  // Helper function to get category name by ID
-  const getCategoryNameById = (categoryId?: number) => {
-    if (!categoryId || !documentCategories) return null;
-    const category = documentCategories.find(cat => cat.ID === categoryId);
-    return category ? category.Name : null;
-  };
-
-  // Helper function to get category name from document
-  const getCategoryName = (document: any) => {
-    return document.Category || getCategoryNameById(document.CategoryID) || 'Unbekannte Kategorie';
-  };
 
   // Helper function to get employee name by ID
   const getEmployeeNameById = (uploadedById: string | number) => {
@@ -54,20 +41,16 @@ export default function Documents() {
     if (!allDocuments) return [];
 
     let filtered = allDocuments.filter(doc => {
-      // Category filter
-      const matchesCategory = activeCategory === 'all' || doc.CategoryID === activeCategory;
-      
       // Search filter
       const matchesSearch = searchTerm === '' || 
         doc.FileName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (doc.Description && doc.Description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (getCategoryName(doc).toLowerCase().includes(searchTerm.toLowerCase()));
+        (doc.Description && doc.Description.toLowerCase().includes(searchTerm.toLowerCase()))
 
       // Tag filter
       const matchesTag = selectedDocumentTag === '' || 
         (doc.Tags && doc.Tags.split(';').map(tag => tag.trim()).includes(selectedDocumentTag));
 
-      return matchesCategory && matchesSearch && matchesTag;
+      return matchesSearch && matchesTag;
     });
 
     // Sort documents
@@ -128,29 +111,6 @@ export default function Documents() {
     });
   };
 
-  const getCategoryColor = (category: string) => {
-    const categoryLower = category?.toLowerCase() || '';
-    if (categoryLower.includes('zertifikat') || categoryLower.includes('certificate')) {
-      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300';
-    }
-    if (categoryLower.includes('schulung') || categoryLower.includes('training')) {
-      return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300';
-    }
-    if (categoryLower.includes('vertrag') || categoryLower.includes('contract')) {
-      return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300';
-    }
-    if (categoryLower.includes('ausweis') || categoryLower.includes('id')) {
-      return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300';
-    }
-    if (categoryLower.includes('medizin') || categoryLower.includes('medical')) {
-      return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300';
-    }
-    if (categoryLower.includes('gehalt') || categoryLower.includes('payroll')) {
-      return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300';
-    }
-    return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300';
-  };
-
   const isPDFDocument = (fileName: string) => {
     return fileName.toLowerCase().endsWith('.pdf');
   };
@@ -158,45 +118,6 @@ export default function Documents() {
   const handleDocumentPreview = (document: any) => {
     setSelectedDocument(document);
     setShowDocumentPreview(true);
-  };
-
-  // Format tags with colors
-  const formatTags = (tags: string) => {
-    if (!tags) return null;
-    
-    const tagList = tags.split(';').map(tag => tag.trim()).filter(tag => tag);
-    if (tagList.length === 0) return null;
-
-    return (
-      <div className="flex flex-wrap gap-1 mt-2">
-        {tagList.map((tag, index) => {
-          let tagColor = 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
-          const tagLower = tag.toLowerCase();
-          
-          if (tagLower.includes('wichtig') || tagLower.includes('urgent')) {
-            tagColor = 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
-          } else if (tagLower.includes('zertifikat') || tagLower.includes('qualifikation')) {
-            tagColor = 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300';
-          } else if (tagLower.includes('schulung') || tagLower.includes('training')) {
-            tagColor = 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
-          } else if (tagLower.includes('vertraulich') || tagLower.includes('confidential')) {
-            tagColor = 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300';
-          } else if (tagLower.includes('hr') || tagLower.includes('personal')) {
-            tagColor = 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
-          }
-
-          return (
-            <span
-              key={index}
-              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${tagColor}`}
-            >
-              <Tag className="h-3 w-3 mr-1" />
-              {tag}
-            </span>
-          );
-        })}
-      </div>
-    );
   };
 
   if (isLoadingDocuments || isLoadingCategories || isLoadingEmployees) {
@@ -228,38 +149,6 @@ export default function Documents() {
         <div className="flex items-center space-x-4">
           <FileText className="h-8 w-8 text-primary" />
         </div>
-      </div>
-
-      {/* Category Tabs */}
-      <div className="flex space-x-4 mb-6 overflow-x-auto">
-        <button
-          onClick={() => setActiveCategory('all')}
-          className={`flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium whitespace-nowrap transition-all duration-200 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20 ${
-            activeCategory === 'all'
-              ? 'bg-primary text-white dark:bg-gray-800 dark:text-gray-200'
-              : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#2a2a2a]'
-          }`}
-        >
-          <FileText className="h-5 w-5 mr-2" />
-          Alle Dokumente ({allDocuments?.length || 0})
-        </button>
-        {documentCategories?.map(category => {
-          const categoryDocuments = allDocuments?.filter(doc => doc.CategoryID === category.ID) || [];
-          return (
-            <button
-              key={category.ID}
-              onClick={() => setActiveCategory(category.ID)}
-              className={`flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium whitespace-nowrap transition-all duration-200 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20 ${
-                activeCategory === category.ID
-                  ? 'bg-primary text-white dark:bg-gray-800 dark:text-gray-200'
-                  : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#2a2a2a]'
-              }`}
-            >
-              <Building2 className="h-5 w-5 mr-2" />
-              {category.Category} ({categoryDocuments.length})
-            </button>
-          );
-        })}
       </div>
 
       <div className="bg-white dark:bg-[#121212] shadow rounded-lg border border-gray-200 dark:border-gray-700">
@@ -407,7 +296,7 @@ export default function Documents() {
                           </button>
                         )}
                         <button
-                          onClick={() => window.open(`${API_BASE_URL}/document-download/${document.DocumentID}`, '_blank')}
+                          onClick={() => window.open(`${apiClient.getBaseUrl()}/document-download/${document.DocumentID}`, '_blank')}
                           className="p-2 text-gray-400 hover:text-primary dark:hover:text-primary transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
                           title="Herunterladen"
                         >
@@ -441,12 +330,6 @@ export default function Documents() {
                             <span>Schulung: {document.TrainingName}</span>
                           </div>
                         )}
-                        <div className="flex items-center space-x-2">
-                          <Building2 className="h-3 w-3 mr-1" />
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(getCategoryName(document))}`}>
-                            {getCategoryName(document)}
-                          </span>
-                        </div>
                     </div>
 
                     {document.Description && (
@@ -513,9 +396,6 @@ export default function Documents() {
                                                     Schulung: {document.TrainingName}
                                                   </span>
                                                 )}
-                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(getCategoryName(document))}`}>
-                                                  {getCategoryName(document)}
-                                                </span>
                             </div>
                             
                             {document.Description && (
@@ -553,7 +433,7 @@ export default function Documents() {
                             </button>
                           )}
                           <button 
-                            onClick={() => window.open(`${API_BASE_URL}/document-download/${document.DocumentID}`, '_blank')}
+                            onClick={() => window.open(`${apiClient.getBaseUrl()}/document-download/${document.DocumentID}`, '_blank')}
                             className="p-2 text-gray-400 hover:text-primary dark:hover:text-primary transition-all duration-200 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
                             title="Herunterladen"
                           >
@@ -573,22 +453,6 @@ export default function Documents() {
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
                 Keine Dokumente gefunden
               </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                {activeCategory === 'all' 
-                  ? 'Versuchen Sie, Ihre Suchkriterien anzupassen.'
-                  : `Keine Dokumente in der Kategorie "${documentCategories?.find(cat => cat.ID === activeCategory)?.Name}" gefunden.`
-                }
-              </p>
-              <button
-                onClick={() => {
-                  setSearchTerm('');
-                  setSelectedDocumentTag('');
-                  setActiveCategory('all');
-                }}
-                className="inline-flex items-center px-4 py-2 text-sm font-medium text-primary border border-primary rounded-lg hover:bg-primary/10 dark:hover:bg-primary/5 transition-all duration-200 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20"
-              >
-                Filter zurücksetzen
-              </button>
             </div>
           )}
         </div>
@@ -613,15 +477,12 @@ export default function Documents() {
                     <Users className="h-4 w-4 mr-1" />
                     {getEmployeeNameById(selectedDocumentInfo?.UploadedBy || selectedDocument.UploadedBy)}
                   </span>
-                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(getCategoryName(selectedDocumentInfo || selectedDocument))}`}>
-                     {getCategoryName(selectedDocumentInfo || selectedDocument)}
-                   </span>
                 </div>
               </div>
               
               <div className="flex items-center space-x-2 ml-4">
                 <a
-                  href={`${API_BASE_URL}/document-download/${selectedDocument.DocumentID}`}
+                  href={`${apiClient.getBaseUrl()}/document-download/${selectedDocument.DocumentID}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -669,7 +530,7 @@ export default function Documents() {
             <div className="flex-1 bg-gray-100 dark:bg-gray-900">
               {isPDFDocument(selectedDocument.FileName) ? (
                 <iframe
-                  src={`${API_BASE_URL}/document-view/${selectedDocument.DocumentID}?`}
+                  src={`${apiClient.getBaseUrl()}/document-view/${selectedDocument.DocumentID}?`}
                   className="w-full h-full border-0"
                   title={selectedDocument.FileName}
                   loading="lazy"
@@ -687,7 +548,7 @@ export default function Documents() {
                       Für diesen Dateityp ist keine Vorschau verfügbar.
                     </p>
                     <a
-                      href={`${API_BASE_URL}/document-download/${selectedDocument.DocumentID}`}
+                      href={`${apiClient.getBaseUrl()}/document-download/${selectedDocument.DocumentID}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center px-4 py-2 bg-primary text-white dark:bg-blue-600 dark:text-white rounded-lg hover:bg-primary/90 dark:hover:bg-blue-500 transition-all duration-200 hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20"

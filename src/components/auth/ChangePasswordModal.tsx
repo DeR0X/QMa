@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Eye, EyeOff, Check, AlertTriangle, Key, Lock, Shield, Zap, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import { API_BASE_URL_V2 } from '../../config/api';
+import apiClient from '../../services/apiClient';
 
 interface ChangePasswordModalProps {
   isOpen: boolean;
@@ -89,21 +89,11 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess, staffN
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL_V2}/auth/change-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          staffNumber,
-          currentPassword,
-          newPassword,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to change password');
-      }
+      await apiClient.post('/auth/change-password', {
+        staffNumber,
+        currentPassword,
+        newPassword,
+      }, 'v2');
 
       toast.success('Passwort erfolgreich geändert');
       handleClose();
@@ -134,7 +124,7 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess, staffN
   return (
     <div className="fixed inset-0 z-[9999] overflow-y-auto">
       <div className="flex min-h-full items-center justify-center p-4 text-center">
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity" onClick={handleClose} />
+        <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={handleClose} />
         
         <div className="relative transform overflow-hidden rounded-xl bg-white dark:bg-[#1a1a1a] px-6 pb-6 pt-5 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6 border border-gray-200 dark:border-gray-700">
           {/* Header */}
@@ -372,4 +362,4 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess, staffN
       </div>
     </div>
   );
-} 
+}

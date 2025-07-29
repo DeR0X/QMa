@@ -25,7 +25,7 @@ import { RootState } from '../store';
 import { formatDate } from '../lib/utils';
 import { hasHRPermissions } from '../store/slices/authSlice';
 import { toast } from 'sonner';
-import { API_BASE_URL } from '../config/api';
+import apiClient from '../services/apiClient';
 
 import DocumentUploader from '../components/documents/DocumentUploader';
 import { useEmployees } from '../hooks/useEmployees';
@@ -73,6 +73,12 @@ const TrainingDetailsModal = ({
   const participantCount = trainingParticipantsData?.length || 0;
   const documentCount = documentsData?.length || 0;
   const [selectedDocument, setSelectedDocument] = useState<any | null>(null);
+
+  // Function to get employee name by ID
+  const getEmployeeNameById = (employeeId: string | number) => {
+    const employee = employees.find(emp => emp.ID?.toString() === employeeId?.toString());
+    return employee ? employee.FullName : `Mitarbeiter ID: ${employeeId}`;
+  };
 
   // Get qualification information
   const qualificationView = training.qualificationID ? qualificationViews[parseInt(training.qualificationID)] : undefined;
@@ -262,7 +268,7 @@ const TrainingDetailsModal = ({
                               {document.CategoryName && (
                                 <p>Kategorie: {document.CategoryName}</p>
                               )}
-                              <p>Hochgeladen von: {document.UploadedBy}</p>
+                              <p>Hochgeladen von: {getEmployeeNameById(document.UploadedBy)}</p>
                             </div>
                           </button>
                         </div>
@@ -296,14 +302,14 @@ const TrainingDetailsModal = ({
                   </span>
                   <span className="flex items-center">
                     <Users className="h-4 w-4 mr-1" />
-                    {selectedDocument.uploadedBy}
+                    {getEmployeeNameById(selectedDocument.uploadedBy)}
                   </span>
                 </div>
               </div>
               
               <div className="flex items-center space-x-2 ml-4">
                 <a
-                  href={`${API_BASE_URL}/document-download/${selectedDocument.id}`}
+                  href={`${apiClient.getBaseUrl()}/document-download/${selectedDocument.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-[#181818] hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -351,7 +357,7 @@ const TrainingDetailsModal = ({
             <div className="flex-1 bg-gray-100 dark:bg-gray-900">
               {selectedDocument.fileName?.toLowerCase().endsWith('.pdf') ? (
                 <iframe
-                  src={`${API_BASE_URL}/document-view/${selectedDocument.id}?`}
+                  src={`${apiClient.getBaseUrl()}/document-view/${selectedDocument.id}?`}
                   className="w-full h-full border-0"
                   title={selectedDocument.fileName}
                   loading="lazy"
@@ -367,7 +373,7 @@ const TrainingDetailsModal = ({
                       Für diesen Dateityp ist keine Vorschau verfügbar.
                     </p>
                     <a
-                      href={`${API_BASE_URL}/document-download/${selectedDocument.id}`}
+                      href={`${apiClient.getBaseUrl()}/document-download/${selectedDocument.id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center px-4 py-2 bg-primary text-white dark:bg-blue-600 dark:text-white rounded-lg hover:bg-primary/90 dark:hover:bg-blue-500"

@@ -2,6 +2,8 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import type { Employee } from "../../types";
 import { accessRightsApi } from "../../services/accessRightsApi";
 import { buildApiUrl, API_BASE_URL_V2 } from '../../config/api';
+import { apiPost, apiGet } from '../../services/apiHandler';
+import { clearToken } from '../../utils/authUtils';
 
 interface AuthState {
   employee: Employee | null;
@@ -63,6 +65,7 @@ const authSlice = createSlice({
       state.accessRights = [];
       state.availableAccessRights = [];
       localStorage.removeItem("auth");
+      clearToken(); // Clear the authentication token
     },
     refreshSession: (state) => {
       if (state.isAuthenticated) {
@@ -176,36 +179,26 @@ export const login = (Username: string, password: string) => async (dispatch: an
   dispatch(loginStart());
 
   try {
-    // Login request - send plain password, server will handle bcrypt comparison
-    const response = await fetch(`${API_BASE_URL_V2}/auth/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ Username, password }),
+    // Login request using the new apiHandler
+    const loginResponse = await apiPost('v2', 'auth/login', {
+      Username,
+      password
     });
 
-    // Always try to parse JSON response, even for error status codes
-    let data;
-    try {
-      data = await response.json();
-    } catch (parseError) {
-      // If JSON parsing fails, throw a generic error
-      throw new Error("Ungültige Anmeldedaten");
-    }
+    console.log('Login API response:', loginResponse);
 
-    console.log('Login API response:', data);
-
-    // Check if the response indicates success
-    if (!response.ok || !data.success) {
+    // Check if the login was successful
+    if (!loginResponse.success || !loginResponse.data) {
       // For authentication failures, show a user-friendly message
-      if (response.status === 401 || response.status === 403) {
+      if (loginResponse.status === 401 || loginResponse.status === 403) {
         throw new Error("Personal Nummer oder Passwort falsch");
       }
       // For other errors, use the server message or fallback
-      throw new Error(data.message || data.error || "Ungültige Anmeldedaten");
+      throw new Error(loginResponse.error || "Ungültige Anmeldedaten");
     }
 
+    const data = loginResponse.data;
+    
     if (!data.user) {
       throw new Error("Ungültige Anmeldedaten");
     }
@@ -215,21 +208,24 @@ export const login = (Username: string, password: string) => async (dispatch: an
       throw new Error("Ihr Konto ist deaktiviert. Bitte wenden Sie sich an die Personalabteilung.");
     }
 
-    // Store the token and user data
-    localStorage.setItem('token', data.token);
+    // Store token if provided
+    if (data.token) {
+      localStorage.setItem('token', data.token);
+    }
     
-    // Fetch all employees from ViewEmployees and find the specific employee
-    const employeeResponse = await fetch(`${API_BASE_URL_V2}/employees-view`);
-    if (!employeeResponse.ok) {
+    // Fetch all employees from ViewEmployees using the new apiHandler with token
+    const employeeResponse = await apiGet('v2', 'employees-view', undefined, data.token);
+    
+    if (!employeeResponse.success || !employeeResponse.data) {
       throw new Error("Fehler beim Laden der Mitarbeiterdaten");
     }
-    const responseData = await employeeResponse.json();
-    console.log('API Response:', responseData);
+    
+    console.log('Employee API Response:', employeeResponse.data);
     
     // Check if we have a data property (common API response structure)
-    const employeesData = responseData.data || responseData;
+    const employeesData = employeeResponse.data.data || employeeResponse.data;
     if (!Array.isArray(employeesData)) {
-      console.error('Unexpected API response structure:', responseData);
+      console.error('Unexpected API response structure:', employeeResponse.data);
       throw new Error("Unerwartetes Format der Mitarbeiterdaten");
     }
     
@@ -259,6 +255,7 @@ export const login = (Username: string, password: string) => async (dispatch: an
       PasswordHash: data.user.passwordHash,
       isActive: data.user.isActive,
       isSupervisor: employeeData.isSupervisor || 0, // Get supervisor status from ViewEmployees
+      // token: data.token, // Token storage removed
     };
     
     console.log('Processed user data:', userData);

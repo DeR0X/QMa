@@ -16,45 +16,34 @@ import {
   Eye,
   EyeOff,
   Lock,
-  Unlock,
   X,
   Briefcase,
   Plus,
-  Edit,
   Trash2,
   UserPlus
 } from 'lucide-react';
 import { RootState } from '../store';
 import { useEmployees } from '../hooks/useEmployees';
 import { toast } from 'sonner';
-import { hasPermission } from '../store/slices/authSlice';
-import { API_BASE_URL, API_BASE_URL_V2 } from '../config/api';
+
+import apiClient from '../services/apiClient';
 import EmployeeFilter from '../components/employees/EmployeeFilters';
 import Pagination from '../components/employees/Pagination';
 import type { Employee, JobTitle } from '../types';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-interface AccessRight {
-  id: number;
-  name: 'admin' | 'hr';
-  description: string;
-}
 
-interface EmployeeAccessRight {
-  ID: number;
-  EmployeeID: number;
-  AccessRightID: number;
-  Name: string;
-}
 
 // Component to display current access rights for an employee
 function AccessRightsDisplay({ employeeId }: { employeeId: number }) {
   const { data: accessRights, isLoading } = useQuery({
     queryKey: ['employeeAccessRights', employeeId],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/employee-access-rights/${employeeId}`);
-      if (!response.ok) return [];
-      return response.json();
+      try {
+        return await apiClient.get(`/employee-access-rights/${employeeId}`);
+      } catch (error) {
+        return [];
+      }
     },
     staleTime: 5000, // Cache for only 5 seconds
     refetchInterval: 10000, // Refetch every 10 seconds
@@ -142,15 +131,9 @@ export default function UserManagement() {
 
     try {
       setIsCheckingAccess(true);
-      const response = await fetch(`${API_BASE_URL}/employee-access-rights/${currentUser.ID}`);
-      
-      if (response.ok) {
-        const accessRights = await response.json();
-        const hasAdmin = Array.isArray(accessRights) && accessRights.some((right: any) => right.AccessRightID === 3);
-        setHasAdminAccess(hasAdmin);
-      } else {
-        setHasAdminAccess(false);
-      }
+      const accessRights = await apiClient.get(`/employee-access-rights/${currentUser.ID}`);
+      const hasAdmin = Array.isArray(accessRights) && accessRights.some((right: any) => right.AccessRightID === 3);
+      setHasAdminAccess(hasAdmin);
     } catch (error) {
       console.error('Error checking admin access:', error);
       setHasAdminAccess(false);
@@ -189,28 +172,22 @@ export default function UserManagement() {
       // Fetch current access rights from the database to ensure we have the latest data
       const fetchCurrentAccessRights = async () => {
         try {
-          const response = await fetch(`${API_BASE_URL}/employee-access-rights/${selectedEmployee.ID}`);
-          if (response.ok) {
-            const accessRights = await response.json();
-            console.log('Current access rights from API:', accessRights);
-            
-            // Determine role from the actual database data
-            let role: 'admin' | 'hr' | null = null;
-            
-            if (Array.isArray(accessRights) && accessRights.length > 0) {
-              const accessRight = accessRights[0];
-              if (accessRight.AccessRightID === 3) {
-                role = 'admin';
-              } else if (accessRight.AccessRightID === 2) {
-                role = 'hr';
-              }
+          const accessRights = await apiClient.get(`/employee-access-rights/${selectedEmployee.ID}`);
+          console.log('Current access rights from API:', accessRights);
+          
+          // Determine role from the actual database data
+          let role: 'admin' | 'hr' | null = null;
+          
+          if (Array.isArray(accessRights) && accessRights.length > 0) {
+            const accessRight = accessRights[0];
+            if (accessRight.AccessRightID === 3) {
+              role = 'admin';
+            } else if (accessRight.AccessRightID === 2) {
+              role = 'hr';
             }
-            
-            setSelectedRole(role);
-          } else {
-            // If no access rights found, set to null
-            setSelectedRole(null);
           }
+          
+          setSelectedRole(role);
         } catch (error) {
           console.error('Error fetching current access rights:', error);
           // Fallback to local data
@@ -237,11 +214,8 @@ export default function UserManagement() {
   // Load job titles
   const loadJobTitles = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/job-titles`);
-      if (!response.ok) throw new Error('Failed to load job titles');
-      
-      const data = await response.json();
-      setJobTitles(data);
+      const data = await apiClient.get('/job-titles');
+      setJobTitles(data as JobTitle[]);
     } catch (error) {
       console.error('Error loading job titles:', error);
       toast.error('Fehler beim Laden der Job-Titel');
@@ -442,20 +416,10 @@ export default function UserManagement() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL_V2}/auth/set-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          staffNumber: selectedEmployee.StaffNumber,
-          password: generatedPassword,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to set password');
-      }
+      await apiClient.post('/auth/set-password', {
+        staffNumber: selectedEmployee.StaffNumber,
+        password: generatedPassword,
+      }, 'v2');
 
       toast.success('Passwort erfolgreich gesetzt');
     } catch (error) {
@@ -506,25 +470,13 @@ export default function UserManagement() {
            selectedEmployee.AccessRight === 'hr' ? 2 : null);
         
         if (currentAccessRightId) {
-          const response = await fetch(`${API_BASE_URL}/employee-access-rights/${selectedEmployee.ID}/${currentAccessRightId}`, {
-            method: 'DELETE',
-          });
-
-          if (!response.ok) throw new Error('Failed to delete access right');
+          await apiClient.delete(`/employee-access-rights/${selectedEmployee.ID}/${currentAccessRightId}`);
         }
       } else {
-        const response = await fetch(`${API_BASE_URL}/employee-access-rights/${selectedEmployee.ID}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            accessRight: selectedRole,
-            accessRightId: selectedRole === 'admin' ? 3 : selectedRole === 'hr' ? 2 : null
-          }),
+        await apiClient.put(`/employee-access-rights/${selectedEmployee.ID}`, {
+          accessRight: selectedRole,
+          accessRightId: selectedRole === 'admin' ? 3 : selectedRole === 'hr' ? 2 : null
         });
-
-        if (!response.ok) throw new Error('Failed to update access rights');
       }
 
       toast.success(selectedRole === null 
@@ -584,18 +536,10 @@ export default function UserManagement() {
 
     try {
       setIsLoading(true);
-      const response = await fetch(`${API_BASE_URL}/job-titles`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          JobTitle: newJobTitle.JobTitle.trim(),
-          Description: newJobTitle.Description.trim()
-        }),
+      await apiClient.post('/job-titles', {
+        JobTitle: newJobTitle.JobTitle.trim(),
+        Description: newJobTitle.Description.trim()
       });
-
-      if (!response.ok) throw new Error('Failed to create job title');
 
       toast.success('Job-Titel erfolgreich erstellt');
       setNewJobTitle({ JobTitle: '', Description: '' });
@@ -623,18 +567,10 @@ export default function UserManagement() {
 
     try {
       setIsLoading(true);
-      const response = await fetch(`${API_BASE_URL}/employees/${selectedEmployeeForJobTitle.ID}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          JobTitleID: selectedJobTitle.ID,
-          JobTitle: selectedJobTitle.JobTitle
-        }),
+      await apiClient.put(`/employees/${selectedEmployeeForJobTitle.ID}`, {
+        JobTitleID: selectedJobTitle.ID,
+        JobTitle: selectedJobTitle.JobTitle
       });
-
-      if (!response.ok) throw new Error('Failed to assign job title');
 
       const action = currentJobTitleID ? 'aktualisiert' : 'zugewiesen';
       toast.success(`Job-Titel erfolgreich ${action}`);
@@ -663,18 +599,10 @@ export default function UserManagement() {
   const handleUnassignJobTitle = async (employeeId: number) => {
     try {
       setIsLoading(true);
-      const response = await fetch(`${API_BASE_URL}/employees/${employeeId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          JobTitleID: null,
-          JobTitle: null
-        }),
+      await apiClient.put(`/employees/${employeeId}`, {
+        JobTitleID: null,
+        JobTitle: null
       });
-
-      if (!response.ok) throw new Error('Failed to unassign job title');
 
       toast.success('Job-Titel erfolgreich entfernt');
       
@@ -724,10 +652,7 @@ export default function UserManagement() {
       await refetchEmployees();
       
       // Then load fresh data for the modal
-      const response = await fetch(`${API_BASE_URL_V2}/employees-view?limit=1000`);
-      if (!response.ok) throw new Error('Failed to load all employees');
-      
-      const data = await response.json();
+      const data = await apiClient.get('/employees-view?limit=1000', 'v2') as any;
       setAllEmployeesForModal(data.data || data);
     } catch (error) {
       console.error('Error loading all employees for modal:', error);
@@ -768,11 +693,7 @@ export default function UserManagement() {
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/job-titles/${jobTitle.ID}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) throw new Error('Failed to delete job title');
+      await apiClient.delete(`/job-titles/${jobTitle.ID}`);
 
       toast.success('Job-Titel erfolgreich gelöscht');
       loadJobTitles();
@@ -784,22 +705,7 @@ export default function UserManagement() {
     }
   };
 
-  // Function to check if a job title can be deleted (has no assigned employees)
-  const canDeleteJobTitle = async (jobTitle: JobTitle): Promise<boolean> => {
-    try {
-      // Use the existing employees data to check if any employee has this job title
-      const allEmployees = employeesData?.data || [];
-      const employeesWithThisJobTitle = allEmployees.filter(emp => 
-        emp.JobTitleID?.toString() === jobTitle.ID.toString() ||
-        emp.JobTitle === jobTitle.JobTitle
-      );
-      
-      return employeesWithThisJobTitle.length === 0;
-    } catch (error) {
-      console.error('Error checking if job title can be deleted:', error);
-      return false;
-    }
-  };
+
 
   const handleTabChange = (tab: 'passwords' | 'rights' | 'jobtitles') => {
     setActiveTab(tab);

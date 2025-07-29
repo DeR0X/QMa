@@ -34,6 +34,7 @@ export interface Employee {
   isTrainer?: boolean;
   trainerFor?: string[];
   isSupervisor: number; // 1 for supervisor, 0 for non-supervisor
+  // token?: string; // Token field removed
 }
 
 export interface Qualification {

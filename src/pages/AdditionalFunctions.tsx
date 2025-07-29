@@ -27,7 +27,7 @@ import {
 } from '../hooks/useAdditionalFunctions';
 import { useQualifications } from '../hooks/useQualifications';
 import type { AdditionalSkill } from '../services/additionalFunctionsApi';
-import { API_BASE_URL } from '../config/api';
+import apiClient from '../services/apiClient';
 
 export default function AdditionalFunctions() {
   const dispatch = useDispatch();
@@ -57,9 +57,8 @@ export default function AdditionalFunctions() {
 
     try {
       setIsCheckingAccess(true);
-      const response = await fetch(`${API_BASE_URL}/employee-access-rights/${employee.ID}`);
-      if (response.ok) {
-        const accessRights = await response.json();
+      const accessRights = await apiClient.get(`/employee-access-rights/${employee.ID}`);
+      if (accessRights) {
         // Update Redux and LocalStorage with latest rights
         const rightNames = Array.isArray(accessRights) ? accessRights.map((right: any) => right.Name.toLowerCase()) : [];
         dispatch(setAccessRights(rightNames));

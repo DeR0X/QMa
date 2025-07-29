@@ -2,7 +2,7 @@ import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useEmployees } from './useEmployees';
 import { useAdditionalFunctions } from './useAdditionalFunctions';
-import {API_BASE_URL} from '../config/api';
+import apiClient from '../services/apiClient';
 
 export const useGetEmployeeSkills = (employeeId: string) => {
   const { data: additionalSkills } = useAdditionalFunctions();
@@ -10,25 +10,26 @@ export const useGetEmployeeSkills = (employeeId: string) => {
   return useQuery({
     queryKey: ['employeeSkills', employeeId],
     queryFn: async () => {
-      // Fetch employee skill assignments from API
-      const response = await fetch(`${API_BASE_URL}/employee-skills/${employeeId}?t=${Date.now()}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch employee skills');
-      }
-      const employeeSkillAssignments = await response.json();
-      
-      // Combine with additional skills data to get full information
-      const skillsWithDetails = employeeSkillAssignments.map((assignment: any) => {
-        const skillDetails = additionalSkills?.find(skill => skill.ID === assignment.AdditionalSkillID);
+      try {
+        // Fetch employee skill assignments from API
+        const employeeSkillAssignments = await apiClient.get(`/employee-skills/${employeeId}?t=${Date.now()}`) as any[];
+        
+        // Combine with additional skills data to get full information
+        const skillsWithDetails = employeeSkillAssignments.map((assignment: any) => {
+          const skillDetails = additionalSkills?.find(skill => skill.ID === assignment.AdditionalSkillID);
+          return {
+            ...assignment,
+            ...skillDetails, // This will add Name, Description, etc.
+          };
+        }).filter((skill: any) => skill.Name); // Filter out skills where details weren't found
+        
         return {
-          ...assignment,
-          ...skillDetails, // This will add Name, Description, etc.
+          skills: skillsWithDetails
         };
-      }).filter((skill: any) => skill.Name); // Filter out skills where details weren't found
-      
-      return {
-        skills: skillsWithDetails
-      };
+      } catch (error) {
+        console.error('Error fetching employee skills:', error);
+        throw error;
+      }
     },
     enabled: !!employeeId && !!additionalSkills,
     staleTime: 0, // Always fetch fresh data
@@ -43,11 +44,12 @@ export const useGetAllEmployeeSkills = () => {
   return useQuery({
     queryKey: ['allEmployeeSkills'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/employee-skills`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch all employee skills');
+      try {
+        return await apiClient.get('/employee-skills') as any[];
+      } catch (error) {
+        console.error('Error fetching all employee skills:', error);
+        throw error;
       }
-      return response.json();
     },
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
@@ -58,22 +60,10 @@ export const useAddEmployeeSkill = () => {
 
   return useMutation({
     mutationFn: async (data: { employeeId: string; skillId: number }) => {
-      const response = await fetch(`${API_BASE_URL}/employee-skills`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          EmployeeID: data.employeeId,
-          SkillID: data.skillId
-        }),
+      return await apiClient.post('/employee-skills', {
+        EmployeeID: data.employeeId,
+        SkillID: data.skillId
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to add skill');
-      }
-
-      return response.json();
     },
     onSuccess: async (_, { employeeId }) => {
       // Invalidate and refetch employee skills immediately
@@ -112,13 +102,7 @@ export const useDeleteEmployeeSkill = () => {
 
   return useMutation({
     mutationFn: async ({ employeeId, skillId }: { employeeId: string; skillId: number }) => {
-      const response = await fetch(`${API_BASE_URL}/employee-skills/${employeeId}/${skillId}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete skill');
-      }
+      await apiClient.delete(`/employee-skills/${employeeId}/${skillId}`);
     },
     onSuccess: async (_, { employeeId }) => {
       // Invalidate and refetch employee skills immediately

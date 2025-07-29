@@ -27,7 +27,7 @@ export const DOCUMENT_TYPES = [
   
   export const DOCUMENT_CLASSIFICATIONS = [
     { value: 'employee', label: 'Mitarbeiterdokumente' },
-    { value: 'training', label: 'Schulungsmaterialien' },
+    { value: 'training', label: 'Schulungsdokumente' },
     { value: 'policy', label: 'Richtlinien' },
     { value: 'procedure', label: 'Verfahrensanweisungen' },
   ];

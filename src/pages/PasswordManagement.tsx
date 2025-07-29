@@ -8,7 +8,7 @@ import EmployeeFilter from '../components/employees/EmployeeFilters';
 import Pagination from '../components/employees/Pagination';
 import type { Employee } from '../types';
 import { hasPermission } from '../store/slices/authSlice';
-import { API_BASE_URL_V2, API_BASE_URL } from '../config/api';
+import apiClient from '../services/apiClient';
 
 const ITEMS_PER_PAGE = 15;
 
@@ -40,15 +40,9 @@ export default function PasswordManagement() {
 
     try {
       setIsCheckingAccess(true);
-      const response = await fetch(`${API_BASE_URL}/employee-access-rights/${currentUser.ID}`);
-      
-      if (response.ok) {
-        const accessRights = await response.json();
-        const hasAdmin = Array.isArray(accessRights) && accessRights.some((right: any) => right.AccessRightID === 3);
-        setHasAdminAccess(hasAdmin);
-      } else {
-        setHasAdminAccess(false);
-      }
+      const accessRights = await apiClient.get(`/employee-access-rights/${currentUser.ID}`) as any[];
+      const hasAdmin = Array.isArray(accessRights) && accessRights.some((right: any) => right.AccessRightID === 3);
+      setHasAdminAccess(hasAdmin);
     } catch (error) {
       console.error('Error checking admin access:', error);
       setHasAdminAccess(false);
@@ -155,20 +149,10 @@ export default function PasswordManagement() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL_V2}/auth/set-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          staffNumber: selectedEmployee.StaffNumber,
-          password: generatedPassword,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to set password');
-      }
+      await apiClient.post('/auth/set-password', {
+        staffNumber: selectedEmployee.StaffNumber,
+        password: generatedPassword,
+      }, 'v2');
 
       toast.success('Passwort erfolgreich gesetzt');
     } catch (error) {

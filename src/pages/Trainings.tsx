@@ -2,25 +2,24 @@ import { useState, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useQueryClient, useMutation, useQuery } from '@tanstack/react-query';
 import { 
-  Search, Filter, Calendar, Clock, MapPin, CheckCircle, XCircle, 
+  Search, Calendar, Clock, CheckCircle, XCircle, 
   AlertCircle, GraduationCap, Plus, Award, Info, X, User, Edit2, Trash2, Building2, FileText, ChevronDown, ChevronUp, Users,
-  Bolt,
   Zap
 } from 'lucide-react';
 import { RootState, AppDispatch } from '../store';
-import type { Training, QualificationTrainer } from '../types';
+import type { Training } from '../types';
 import { formatDate, formatDuration } from '../lib/utils';
 import { toast } from 'sonner';
 import AddTrainingModal from '../components/trainings/AddTrainigModal';
 import TrainingDocumentUploader from '../components/trainings/TrainingDocumentUploader';
-import { hasHRPermissions, hasSupervisorPermissions, hasPermission } from '../store/slices/authSlice';
+import { hasHRPermissions, hasPermission } from '../store/slices/authSlice';
 import { addNotification } from '../store/slices/notificationSlice';
 import { useEmployees } from '../hooks/useEmployees';
 import { useTrainings } from '../hooks/useTrainings';
 import { useQualifications } from '../hooks/useQualifications';
-import { useQualificationViews, type QualificationView } from '../hooks/useQualificationView';
+import { useQualificationViews } from '../hooks/useQualificationView';
 import { useQualificationTrainersByIds } from '../hooks/useQualificationTrainers';
-import { API_BASE_URL } from '../config/api';
+import apiClient from '../services/apiClient';
 import QuickTrainingModal from '../components/trainings/QuickTrainingModal';
 
 // Define the Employee type
@@ -52,11 +51,7 @@ export default function Trainings() {
   const { data: trainingParticipantsData = [] } = useQuery({
     queryKey: ['trainingParticipants'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/trainings-employee`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch training participants');
-      }
-      return response.json();
+      return await apiClient.get('/trainings-employee') as any[];
     }
   });
 
@@ -91,9 +86,12 @@ export default function Trainings() {
   const { data: qualificationTrainers = {} } = useQualificationTrainersByIds(qualificationTrainerIds);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTraining, setSelectedTraining] = useState<Training | null>(null);
   const [showOverdueOnly, setShowOverdueOnly] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+
+  const [selectedParticipants, setSelectedParticipants] = useState<Participant[]>([]);
+  const [showAllParticipantsModal, setShowAllParticipantsModal] = useState(false);
+
   const [selectedQualification, setSelectedQualification] = useState<string | null>(null);
   const [editingTraining, setEditingTraining] = useState<Training | null>(null);
   const [showDocumentUploader, setShowDocumentUploader] = useState(false);
@@ -103,6 +101,20 @@ export default function Trainings() {
   const [showParticipantsModal, setShowParticipantsModal] = useState(false);
   const [selectedTrainingForParticipants, setSelectedTrainingForParticipants] = useState<Training | null>(null);
 
+
+  const showAllParticipants = () => {
+    setShowAllParticipantsModal(true);
+  }
+
+  const handleShowParticipantsModal = (training: Training, participants: Participant[]) => {
+  setSelectedTrainingForParticipants(training);
+  setSelectedParticipants(participants);
+  setShowParticipantsModal(true);
+};
+
+  const closeAllParticipants = () => {
+    setShowAllParticipantsModal(false);
+  }
   // Filter employees based on supervisor role
   const filteredEmployees = useMemo(() => {
     if (!employees) return [];
@@ -298,11 +310,7 @@ export default function Trainings() {
 
   const deleteTrainingMutation = useMutation({
     mutationFn: async (trainingId: number) => {
-      const response = await fetch(`${API_BASE_URL}/trainings/${trainingId}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) throw new Error('Fehler beim Löschen des Trainings');
-      return response.json();
+      return await apiClient.delete(`/trainings/${trainingId}`);
     },
     onSuccess: () => {
       // Save current scroll position before cache invalidation
@@ -325,15 +333,7 @@ export default function Trainings() {
 
   const updateTrainingMutation = useMutation({
     mutationFn: async (updatedTraining: Training) => {
-      const response = await fetch(`${API_BASE_URL}/trainings/${updatedTraining.ID}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatedTraining),
-      });
-      if (!response.ok) throw new Error('Fehler beim Aktualisieren des Trainings');
-      return response.json();
+      return await apiClient.put(`/trainings/${updatedTraining.ID}`, updatedTraining);
     },
     onSuccess: () => {
       // Save current scroll position before cache invalidation
@@ -395,21 +395,11 @@ export default function Trainings() {
     try {
       // Update training status to completed with the specified completion date
       const currentDate = completionDate || new Date().toISOString().split('T')[0];
-      const response = await fetch(`${API_BASE_URL}/trainings/${trainingId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          completed: true,
-          completedDate: currentDate,
-          trainingDate: currentDate // Update the training date to the completion date
-        }),
+      await apiClient.put(`/trainings/${trainingId}`, {
+        completed: true,
+        completedDate: currentDate,
+        trainingDate: currentDate // Update the training date to the completion date
       });
-
-      if (!response.ok) {
-        throw new Error('Fehler beim Aktualisieren des Schulungsstatus');
-      }
 
       // Try to update participant qualifications
       let updatedCount = 0;
@@ -419,8 +409,7 @@ export default function Trainings() {
       if (training && training.qualificationID) {
         try {
           // Get training participants
-          const participantsResponse = await fetch(`${API_BASE_URL}/trainings-employee`);
-          const allAssignments = await participantsResponse.json();
+          const allAssignments = await apiClient.get('/trainings-employee') as any[];
           const trainingParticipants = allAssignments.filter(
             (assignment: any) => assignment.TrainingID === trainingId
           );
@@ -450,23 +439,13 @@ export default function Trainings() {
             // Update qualifications for each participant
             for (const participant of trainingParticipants) {
               try {
-                const updateResponse = await fetch(`${API_BASE_URL}/employee-qualifications`, {
-                  method: 'PUT',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    employeeId: participant.EmployeeID.toString(),
-                    qualificationId: qualification.ID,
-                    qualifiedFrom: new Date().toISOString(),
-                    toQualifyUntil: new Date(Date.now() + qualification.ValidityInMonth * 30 * 24 * 60 * 60 * 1000).toISOString(),
-                    isQualifiedUntil: isQualifiedUntilString
-                  }),
+                await apiClient.put('/employee-qualifications', {
+                  employeeId: participant.EmployeeID.toString(),
+                  qualificationId: qualification.ID,
+                  qualifiedFrom: new Date().toISOString(),
+                  toQualifyUntil: new Date(Date.now() + qualification.ValidityInMonth * 30 * 24 * 60 * 60 * 1000).toISOString(),
+                  isQualifiedUntil: isQualifiedUntilString
                 });
-
-                if (!updateResponse.ok) {
-                  throw new Error(`Failed to update qualification for employee ${participant.EmployeeID}`);
-                }
               } catch (error) {
                 toast.error(`Fehler beim Aktualisieren der Qualifikation für Mitarbeiter ${participant.EmployeeID}`);
               }
@@ -542,24 +521,30 @@ export default function Trainings() {
     setExpandedTrainingId(expandedTrainingId === trainingId ? null : trainingId);
   };
 
-  const handleShowParticipantsModal = (training: Training) => {
-    setSelectedTrainingForParticipants(training);
-    setShowParticipantsModal(true);
-  };
-
   const removeParticipantMutation = useMutation({
     mutationFn: async ({ employeeId, trainingId }: { employeeId: number; trainingId: number }) => {
-      const response = await fetch(`${API_BASE_URL}/trainings-employee/${employeeId}/${trainingId}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        throw new Error('Fehler beim Entfernen des Teilnehmers');
-      }
-      return response.json();
+      return await apiClient.delete(`/trainings-employee/${employeeId}/${trainingId}`);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trainingParticipants'] });
-      toast.success('Teilnehmer erfolgreich entfernt');
+    onSuccess: async (_, { trainingId }) => {
+      // Invalidate queries to get updated data
+      await queryClient.invalidateQueries({ queryKey: ['trainingParticipants'] });
+      
+      // Check if this was the last participant
+      const remainingParticipants = getParticipantCount(trainingId);
+      
+      if (remainingParticipants <= 1) { // <= 1 because we just removed one
+        // This was the last participant, delete the entire training
+        try {
+          await apiClient.delete(`/trainings/${trainingId}`);
+          await queryClient.invalidateQueries({ queryKey: ['trainings'] });
+          toast.success('Letzter Teilnehmer entfernt - Schulung wurde automatisch gelöscht');
+        } catch (error) {
+          console.error('Fehler beim Löschen der Schulung:', error);
+          toast.error('Teilnehmer entfernt, aber Fehler beim Löschen der Schulung');
+        }
+      } else {
+        toast.success('Teilnehmer erfolgreich entfernt');
+      }
     },
     onError: (error) => {
       console.error('Fehler beim Entfernen des Teilnehmers:', error);
@@ -825,7 +810,7 @@ export default function Trainings() {
                         )}
                       </button>
                       <button
-                        onClick={() => handleShowParticipantsModal(training)}
+                        onClick={() => handleShowParticipantsModal(training, participants)}
                         className="text-sm text-primary hover:text-primary/80 dark:text-primary dark:hover:text-primary/80"
                       >
                         Alle anzeigen
@@ -863,11 +848,15 @@ export default function Trainings() {
                           </div>
                         ))}
                         {participants.length > 6 && (
-                          <div className="flex items-center justify-center p-2 bg-gray-50 dark:bg-gray-800 rounded-md">
-                            <span className="text-sm text-gray-500 dark:text-gray-400">
-                              +{participants.length - 6} weitere
-                            </span>
-                          </div>
+                        <button
+                          onClick={() => handleShowParticipantsModal(training, participants)}
+                          className="flex items-center justify-center p-2 bg-gray-50 dark:bg-gray-800 rounded-md w-full hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                          title="Alle Teilnehmer anzeigen"
+                        >
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
+                            +{participants.length - 6} weitere
+                          </span>
+                        </button>
                         )}
                       </div>
                     )}
@@ -886,6 +875,30 @@ export default function Trainings() {
           onAdd={handleAddTraining}
           userDepartment={employee.isSupervisor === 1 ? employee.DepartmentID?.toString() : undefined}
         />
+      )}
+
+
+      {showAllParticipantsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 max-h-[80vh] overflow-y-auto shadow-lg">
+            <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-white">Alle Teilnehmer</h2>
+            <ul className="space-y-2">
+              {selectedParticipants.map((participant) => (
+              <li key={participant.id} className="text-gray-700 dark:text-gray-200">
+                {participant.name}
+              </li>
+              ))}
+            </ul>
+            <div className="mt-6 text-right">
+              <button
+                onClick={closeAllParticipants}
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+              >
+                Schließen
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Edit Training Modal - only show when editing an existing training */}

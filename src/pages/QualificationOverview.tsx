@@ -26,7 +26,8 @@ interface EmployeeWithQualifications {
 export default function QualificationOverview() {
   const [selectedQualification, setSelectedQualification] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expiring' | 'expired' | 'inactive'>('all');
+  const [onlySelectedQualification, setOnlySelectedQualification] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expiring' | 'expired'>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
   const [qualificationTypeFilter, setQualificationTypeFilter] = useState<'all' | 'pflicht' | 'position' | 'zusatz'>('all');
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
@@ -158,11 +159,20 @@ export default function QualificationOverview() {
     }
 
     // Filter by selected qualification
-    if (selectedQualification) {
-      filtered = filtered.filter(emp => 
-        emp.qualifications.some(qual => qual.qualificationId === selectedQualification)
-      );
-    }
+if (selectedQualification) {
+  if (onlySelectedQualification) {
+    // Zeige nur die ausgewählte Qualifikation
+    filtered = filtered.map(emp => ({
+      ...emp,
+      qualifications: emp.qualifications.filter(qual => qual.qualificationId === selectedQualification)
+    })).filter(emp => emp.qualifications.length > 0);
+  } else {
+    // Zeige alle Qualifikationen, filtere nur die Mitarbeiter
+    filtered = filtered.filter(emp => 
+      emp.qualifications.some(qual => qual.qualificationId === selectedQualification)
+    );
+  }
+}
 
     // Filter by search term
     if (searchTerm.trim()) {
@@ -274,8 +284,6 @@ export default function QualificationOverview() {
         const daysSinceExpiry = Math.floor((today.getTime() - gracePeriodEnd.getTime()) / (1000 * 60 * 60 * 24));
         const dayText = daysSinceExpiry === 1 ? 'Tag' : 'Tagen';
         return `Abgelaufen seit ${daysSinceExpiry} ${dayText} (inkl. 14 Tage Karenz)`;
-      default:
-        return 'Inaktiv';
     }
   };
 
@@ -357,7 +365,27 @@ export default function QualificationOverview() {
                 </option>
               ))}
             </select>
+
+            <div className="mt-2 flex items-center space-x-2">
+              {/* <input
+                type="checkbox"
+                id="onlySelectedQualification"
+                checked={onlySelectedQualification}
+                onChange={(e) => {
+                  setSelectedQualification(e.target.value);
+                }}
+                disabled={!selectedQualification}
+                className="rounded border-gray-300 text-primary shadow-sm focus:ring-primary dark:bg-[#181818] dark:border-gray-600 disabled:opacity-50"
+              />
+              <label
+                htmlFor="onlySelectedQualification"
+                className="text-sm text-gray-700 dark:text-gray-300"
+              >
+                Nur ausgewählte Qualifikation anzeigen
+              </label> */}
+            </div>
           </div>
+          
 
           {/* Status Filter */}
           <div>
@@ -407,17 +435,6 @@ export default function QualificationOverview() {
               >
                 <div className="w-2 h-2 rounded-full bg-red-500"></div>
                 Abgelaufen
-              </button>
-              <button
-                onClick={() => setStatusFilter('inactive')}
-                className={`px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
-                  statusFilter === 'inactive'
-                    ? 'bg-gray-50 dark:bg-gray-900/20 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700'
-                    : 'bg-white dark:bg-[#181818] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900/20 hover:text-gray-700 dark:hover:text-gray-300'
-                }`}
-              >
-                <div className="w-2 h-2 rounded-full bg-gray-500"></div>
-                Inaktiv
               </button>
             </div>
           </div>

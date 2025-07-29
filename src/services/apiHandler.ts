@@ -28,25 +28,7 @@ export const createBearerToken = (token: string): string => {
   return `Bearer ${token}`;
 };
 
-/**
- * Verifiziert einen Bearer Token
- * @param token - Der zu verifizierende Token
- * @returns Boolean ob der Token gültig ist
- */
-export const verifyToken = (token: string): boolean => {
-  if (!token) return false;
-  
-  // Basis-Validierung: Token sollte mindestens eine bestimmte Länge haben
-  if (token.length < 10) return false;
-  
-  // Prüfe ob es ein Bearer Token Format ist
-  if (token.startsWith('Bearer ')) {
-    const actualToken = token.substring(7);
-    return actualToken.length > 0;
-  }
-  
-  return true;
-};
+// Token verification removed
 
 /**
  * Hauptfunktion für API-Aufrufe mit Version-Support und Bearer-Authentifizierung
@@ -61,13 +43,9 @@ export const apiHandler = async <T = any>(
   const { version, endpoint, method, data, headers = {}, params } = options;
   
   try {
-    // Token-Verifikation falls vorhanden
-    if (bearerToken && !verifyToken(bearerToken)) {
-      throw new Error('Ungültiger Bearer Token');
-    }
-    
-    // URL zusammenbauen
-    const baseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
+    // URL zusammenbauen - mit Fallback falls API_BASE_URL undefined ist
+    const apiBaseUrl = API_BASE_URL || 'http://localhost:5002/api';
+    const baseUrl = apiBaseUrl.endsWith('/') ? apiBaseUrl.slice(0, -1) : apiBaseUrl;
     let url = `${baseUrl}/${version}/${endpoint}`;
     
     // Query-Parameter hinzufügen falls vorhanden
@@ -95,8 +73,7 @@ export const apiHandler = async <T = any>(
     // Fetch-Konfiguration
     const fetchConfig: RequestInit = {
       method,
-      headers: requestHeaders,
-      credentials: 'include'
+      headers: requestHeaders
     };
     
     // Body hinzufügen für POST/PUT/PATCH Requests

@@ -174,6 +174,10 @@ export const apiClient = {
       body: JSON.stringify(data),
     });
   },
+  
+  getBaseUrl: (version: 'v1' | 'v2' = 'v1'): string => {
+    return version === 'v2' ? API_BASE_URL_V2 : API_BASE_URL;
+  },
 };
 
 // Universal API request function that handles all API_URL variations

@@ -8,7 +8,7 @@ import { useSaveDocument, useLinkTrainingDocument } from '../../hooks/useDocumen
 import { usePopularTags } from '../../hooks/useDocuments';
 import type { Training, TrainingDocument } from '../../types';
 import type { RootState } from '../../store';
-import { API_BASE_URL } from '../../config/api';
+import apiClient from '../../services/apiClient';
 
 interface Props {
   training: Training;
@@ -208,7 +208,7 @@ export default function TrainingDocumentUploader({ training, onClose, onUpload, 
           formData.append('Tags', uploadFile.tags || '');
 
           // Upload file to server (same as EmployeeDocumentUploader)
-          const uploadResponse = await fetch(`${API_BASE_URL}/documents`, {
+          const uploadResponse = await fetch(`${apiClient.getBaseUrl()}/documents`, {
             method: 'POST',
             body: formData,
           });
@@ -303,20 +303,10 @@ export default function TrainingDocumentUploader({ training, onClose, onUpload, 
           } else if (!onTrainingComplete) {
             // If no callback provided, try to update training directly
             console.log('No completion callback provided, updating training directly');
-            const trainingUpdateResponse = await fetch(`${API_BASE_URL}/trainings/${training.ID}`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                completed: true,
-                completedDate: completionDate || new Date().toISOString().split('T')[0]
-              }),
+            await apiClient.put(`/trainings/${training.ID}`, {
+              completed: true,
+              completedDate: completionDate || new Date().toISOString().split('T')[0]
             });
-
-            if (!trainingUpdateResponse.ok) {
-              throw new Error('Fehler beim Aktualisieren des Schulungsstatus');
-            }
             console.log('Training marked as completed directly via API');
           }
         } catch (completionError) {
@@ -749,4 +739,4 @@ export default function TrainingDocumentUploader({ training, onClose, onUpload, 
       </div>
     </div>
   );
-} 
+}
